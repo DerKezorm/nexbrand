@@ -417,6 +417,8 @@ class Review(Base):
     created_by: Mapped[int | None] = mapped_column(ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utcnow)
     expires_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    #: When somebody of the agency last looked at it: what the client did after that is new (``brands.review_news``).
+    seen_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
 
 class ReviewComment(Base):
@@ -425,6 +427,8 @@ class ReviewComment(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     review_id: Mapped[int] = mapped_column(ForeignKey("reviews.id", ondelete="CASCADE"), index=True)
     variant: Mapped[str] = mapped_column(String(16))
+    #: The example of the direction it is about (a media id of its ``samples``); None: the direction as a whole.
+    sample: Mapped[str | None] = mapped_column(String(40), nullable=True)
     author: Mapped[str] = mapped_column(String(80))
     text: Mapped[str] = mapped_column(String(2000))
     #: True for a comment from the agency's side, written in nexbrand.

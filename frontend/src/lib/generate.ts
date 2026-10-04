@@ -1,5 +1,5 @@
 /** What the workbench proposes: harmonies, neutrals, type scales, colours from a picture, and directions from a brief. */
-import type { BrandColor, BrandLogo, Rule, ScaleStep } from './brand'
+import type { BrandColor, BrandLogo, DarkMode, Rule, ScaleStep } from './brand'
 import { pickColors } from './brand'
 import { contrast, deltaE, fromHsl, hsl, luminance, reach, textOn, toHex } from './color'
 import { PAIRINGS, catalogFont, type Mood } from './fonts'
@@ -182,6 +182,50 @@ export function startRules(colors: BrandColor[], words: { clear: string; distort
   rules.push({ type: 'text', kind: 'do', topic: 'logo', text: words.clear })
   rules.push({ type: 'text', kind: 'dont', topic: 'logo', text: words.distort })
   return rules
+}
+
+/**
+ * A dark mode from the palette: the darkest colours for ground and surface, the lightest for text, a quieter one
+ * for secondary text, the main colour for links and buttons and what reads on it. What the palette lacks is made
+ * (a dark ground and surface with a hint of the main colour, a lighter main colour) and comes back in `add`, to go
+ * into the palette: a dark mode only ever points at colours of the set.
+ */
+export function suggestDark(colors: BrandColor[], names: { night: string; nightSurface: string; brightOf: (name: string) => string; note: string }): { dark: DarkMode; add: BrandColor[] } {
+  const add: BrandColor[] = []
+  const lum = (c: BrandColor) => luminance(c.hex)
+  const main = colors.find((c) => c.role === 'primary') ?? colors.find((c) => c.role !== 'neutral') ?? colors[0]
+  const [h] = hsl(main?.hex ?? '#2F7BFF')
+  // Ground and surfaces only from the neutrals: a dark brand blue is no page ground.
+  const byDark = colors.filter((c) => c.role === 'neutral').sort((a, b) => lum(a) - lum(b))
+  let ground = byDark.find((c) => lum(c) < 0.02)
+  if (!ground) {
+    ground = { name: names.night, hex: fromHsl(h, 14, 8), role: 'neutral', note: names.note }
+    add.push(ground)
+  }
+  let surface = byDark.find((c) => c !== ground && lum(c) < 0.06 && contrast(c.hex, ground.hex) > 1.08)
+  if (!surface) {
+    surface = { name: names.nightSurface, hex: fromHsl(h, 12, 14), role: 'neutral', note: names.note }
+    add.push(surface)
+  }
+  const all = [...colors, ...add]
+  const text = [...all].sort((a, b) => lum(b) - lum(a))[0]
+  const quiet = all
+    .filter((c) => c.role === 'neutral' && c !== text && contrast(c.hex, ground.hex) >= 4.5 && contrast(c.hex, ground.hex) < contrast(text.hex, ground.hex) * 0.8)
+    .sort((a, b) => contrast(b.hex, ground.hex) - contrast(a.hex, ground.hex))[0]
+  // The main colour stays the main colour: if it is too dark on the ground, a lighter version of it, not another
+  // colour of the palette (an accent in its place changes the brand).
+  let primary = main && contrast(main.hex, ground.hex) >= 4.5 ? main : undefined
+  const brighter = !primary && main ? reach(main.hex, ground.hex, 4.5) : null
+  if (main && brighter) {
+    primary = { name: names.brightOf(main.name), hex: brighter.toUpperCase(), role: main.role === 'primary' ? 'secondary' : main.role, note: names.note }
+    add.push(primary)
+  }
+  primary ??= all.find((c) => c.role !== 'neutral' && contrast(c.hex, ground.hex) >= 4.5) ?? text
+  const onPrimary = [...all, ground].sort((a, b) => contrast(b.hex, primary.hex) - contrast(a.hex, primary.hex))[0]
+  return {
+    dark: { ground: ground.name, surface: surface.name, text: text.name, muted: (quiet ?? text).name, primary: primary.name, on_primary: onPrimary.name },
+    add,
+  }
 }
 
 /** Two rules say the same (the same kind about the same things; a note does not count). */

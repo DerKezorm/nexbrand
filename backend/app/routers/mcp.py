@@ -107,7 +107,8 @@ TOOLS: list[dict[str, Any]] = [
              "rules: [{type: text, kind: do|dont, text, topic: logo|color|font|image|tone}] or checkable ones: "
              "{type: pair, kind, fg: colour name, bg: colour name, size: text|large}, "
              "{type: logo, kind, logo: logo id, grounds: [colour names]}, "
-             "{type: font, kind, font: family, use: ''|headings|h1|body|..., min_size: px}")}},
+             "{type: font, kind, font: family, use: ''|headings|h1|body|..., min_size: px}; "
+             "dark (optional): {ground, surface, text, muted, primary, on_primary}, each a colour name of the set")}},
          "required": ["client", "label", "data"], "additionalProperties": False}},
 ]
 BY_NAME = {tool["name"]: tool for tool in TOOLS}

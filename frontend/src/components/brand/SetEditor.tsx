@@ -4,16 +4,17 @@ import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ApiError, mediaApi, type FileInfo, type MediaInfo } from '../../api/client'
-import { COLOR_ROLES, RULE_TOPICS, RULE_USES, SCALE_USES, type BrandColor, type BrandFont, type BrandLogo, type BrandSet, type ColorRole, type FontLicense, type Rule, type RuleKind, type RuleTopic, type RuleUse, type ScaleStep } from '../../lib/brand'
+import { COLOR_ROLES, DARK_PARTS, RULE_TOPICS, RULE_USES, SCALE_USES, schemeOf, type DarkMode, type BrandColor, type BrandFont, type BrandLogo, type BrandSet, type ColorRole, type FontLicense, type Rule, type RuleKind, type RuleTopic, type RuleUse, type ScaleStep } from '../../lib/brand'
 import { check, type Hint } from '../../lib/checks'
 import { contrast, formatRatio, isHex, normalHex, scaleOf } from '../../lib/color'
 import { errorText } from '../../lib/errors'
 import { CATALOG, catalogEntry, findFont, fontStack } from '../../lib/fonts'
-import { harmonies, neutralsFor, RATIOS, sameRule, startRules, typeScale, wordmarks, type Names } from '../../lib/generate'
+import { harmonies, neutralsFor, RATIOS, sameRule, startRules, suggestDark, typeScale, wordmarks, type Names } from '../../lib/generate'
 import { TabRow, type Tab } from '../../pages/settings/ui'
 import { HintList, useHintText } from './Checks'
 import { CheckedMark, typeOf, useRuleWords, type RuleType } from './rules'
 import { LogoView } from './LogoView'
+import { SchemeSwitch } from './SchemeSwitch'
 import { WebPreview } from './WebPreview'
 
 export type FileMap = Record<string, FileInfo>
@@ -712,6 +713,62 @@ function renamed(before: string[], after: string[]): Map<string, string> {
   return new Map(before.map((b, i) => [b, after[i]] as const).filter(([b, a]) => b !== a))
 }
 
+function followDark(dark: DarkMode | null | undefined, colorNames: Map<string, string>): DarkMode | null | undefined {
+  if (!dark || !colorNames.size) return dark
+  return Object.fromEntries(Object.entries(dark).map(([part, name]) => [part, colorNames.get(name) ?? name])) as DarkMode
+}
+
+/** The set's dark mode: a suggestion from the palette, then each part chosen from its colours. */
+function DarkEditor({ value, onChange }: { value: BrandSet; onChange: (patch: Partial<BrandSet>) => void }) {
+  const { t } = useTranslation()
+  const colors = value.colors.filter((c) => isHex(c.hex))
+  const names = colors.map((c) => c.name)
+  const dark = value.dark
+  const suggest = () => {
+    const made = suggestDark(colors, { night: t('dark.night'), nightSurface: t('dark.nightSurface'), brightOf: (name) => t('dark.brightOf', { name }), note: t('dark.addedNote') })
+    onChange({ dark: made.dark, colors: [...value.colors, ...made.add] })
+  }
+  const scheme = schemeOf(dark, colors)
+  return (
+    <section className="space-y-3 rounded-2xl border border-ink-700 bg-ink-900 p-4" data-testid="dark-editor">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="mr-auto font-semibold">{t('dark.title')}</h3>
+        {dark ? (
+          <button type="button" className="nc-btn nc-btn-ghost" onClick={() => onChange({ dark: null })}>
+            <Trash2 className="h-4 w-4" /> {t('dark.remove')}
+          </button>
+        ) : (
+          <button type="button" className="nc-btn nc-btn-ghost" disabled={!colors.length} onClick={suggest}>
+            <Wand2 className="h-4 w-4" /> {t('dark.suggest')}
+          </button>
+        )}
+      </div>
+      <p className="text-sm text-mist-400">{dark ? t('dark.text') : t('dark.none')}</p>
+      {dark && (
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {DARK_PARTS.map((part) => {
+            const color = colors.find((c) => c.name === dark[part])
+            return (
+              <label key={part} className="block text-xs text-mist-400">
+                <span className="font-medium">{t(`dark.part.${part}`)}</span>
+                <span className="mt-1 flex items-center gap-2">
+                  <span className="h-7 w-7 shrink-0 rounded-md border border-edge" style={{ background: color?.hex ?? 'transparent' }} aria-hidden />
+                  <select value={dark[part]} onChange={(e) => onChange({ dark: { ...dark, [part]: e.target.value } })} className={field + ' min-w-0 flex-1'}>
+                    {[...new Set([dark[part], ...names])].map((n) => (
+                      <option key={n}>{n}</option>
+                    ))}
+                  </select>
+                </span>
+              </label>
+            )
+          })}
+        </div>
+      )}
+      {dark && !scheme && <p className="text-xs text-warn-500">{t('dark.gone')}</p>}
+    </section>
+  )
+}
+
 function followNames(rules: Rule[], colorNames: Map<string, string>, fontNames: Map<string, string>): Rule[] {
   if (!colorNames.size && !fontNames.size) return rules
   const color = (name: string) => colorNames.get(name) ?? name
@@ -772,13 +829,26 @@ export function SetEditor({ value, onChange, name, ctx }: { value: BrandSet; onC
     { value: 'samples', label: t('set.tabs.samples'), icon: FileText },
   ]
   const valid = value.colors.filter((c) => isHex(c.hex))
+  const scheme = schemeOf(value.dark, valid)
+  const [showDark, setShowDark] = useState(false)
   const head = value.fonts[0]
   const body = value.fonts[1] ?? value.fonts[0]
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
       <div className="min-w-0 space-y-4">
         <TabRow tabs={tabs} active={tab} onChange={setTab} label={t('set.tabsLabel')} />
-        {tab === 'colors' && <ColorsEditor colors={value.colors} onChange={(colors) => set({ colors, rules: followNames(value.rules, renamed(value.colors.map((c) => c.name), colors.map((c) => c.name)), new Map()) })} />}
+        {tab === 'colors' && (
+          <>
+            <ColorsEditor
+              colors={value.colors}
+              onChange={(colors) => {
+                const names = renamed(value.colors.map((c) => c.name), colors.map((c) => c.name))
+                set({ colors, rules: followNames(value.rules, names, new Map()), dark: followDark(value.dark, names) })
+              }}
+            />
+            <DarkEditor value={value} onChange={set} />
+          </>
+        )}
         {tab === 'fonts' && <FontsEditor fonts={value.fonts} onChange={(fonts) => set({ fonts, rules: followNames(value.rules, new Map(), renamed(value.fonts.map((f) => f.family), fonts.map((f) => f.family))) })} ctx={ctx} />}
         {tab === 'logos' && <LogosEditor logos={value.logos} colors={valid} fonts={value.fonts} name={name} onChange={(logos) => set({ logos })} ctx={ctx} />}
         {tab === 'scale' && <ScaleEditor scale={value.scale} fonts={value.fonts} onChange={(scale) => set({ scale })} />}
@@ -786,7 +856,8 @@ export function SetEditor({ value, onChange, name, ctx }: { value: BrandSet; onC
         {tab === 'samples' && <SamplesEditor samples={value.samples} onChange={(samples) => set({ samples })} ctx={ctx} />}
       </div>
       <aside className="space-y-3 xl:sticky xl:top-4 xl:self-start" aria-label={t('editor.live')}>
-        {valid.length > 0 && <WebPreview colors={valid} head={fontStack(head, ctx.fileUrl)} body={fontStack(body, ctx.fileUrl)} name={name} logo={value.logos.find((l) => !l.compact)} fonts={value.fonts} fileUrl={ctx.fileUrl} compact />}
+        {scheme && <SchemeSwitch dark={showDark} onChange={setShowDark} />}
+        {valid.length > 0 && <WebPreview colors={valid} head={fontStack(head, ctx.fileUrl)} body={fontStack(body, ctx.fileUrl)} name={name} logo={value.logos.find((l) => !l.compact)} logos={value.logos} fonts={value.fonts} fileUrl={ctx.fileUrl} scheme={showDark ? scheme : null} compact />}
         <section className="rounded-2xl border border-ink-700 bg-ink-900 p-3">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-sm font-semibold">{t('editor.live')}</h3>

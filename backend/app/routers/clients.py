@@ -175,6 +175,8 @@ def client_view(db: DbSession, account: AccountRow, client: Client) -> dict[str,
         "current": current.label if current else None,
         "drafts": sum(1 for v in versions if v.status == DRAFT),
         "projects": int(projects or 0),
+        #: What the client did in a review (comments, a choice) that nobody of the agency has looked at yet.
+        "news": brands.review_news(db, client.id),
         "face": _face(shown),
     }
 

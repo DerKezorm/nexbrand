@@ -91,6 +91,11 @@ function ClientCard({ client, locale }: { client: ClientInfo; locale: string }) 
       <div className="space-y-1 p-4">
         <div className="flex items-center gap-2">
           <span className="mr-auto truncate font-semibold">{client.name}</span>
+          {client.news > 0 && (
+            <span className="shrink-0 rounded-full bg-magenta-500 px-2 py-0.5 text-[11px] font-semibold text-white" data-testid="client-news">
+              {t('client.reviewNewsShort', { count: client.news })}
+            </span>
+          )}
           {client.favorite && <Star className="h-4 w-4 shrink-0 text-accent-400" aria-label={t('client.favorite')} />}
           {client.current ? (
             <span className="shrink-0 rounded-full border border-accent-500/40 px-2 py-0.5 text-[11px] text-accent-400">{t('client.versionLabel', { label: client.current })}</span>

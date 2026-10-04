@@ -8,9 +8,12 @@ import { useParams } from 'react-router-dom'
 import { ApiError, pageMediaUrl, reviewsApi, sharesApi, type PublicPageInfo, type ReviewPageInfo } from '../api/client'
 import { LogoView } from '../components/brand/LogoView'
 import { SetView } from '../components/brand/SetView'
+import { SampleGallery } from '../components/brand/SampleGallery'
+import { SchemeSwitch } from '../components/brand/SchemeSwitch'
 import { WebPreview } from '../components/brand/WebPreview'
 import { Dialog } from '../components/Dialog'
 import { Logo } from '../components/Logo'
+import { schemeOf } from '../lib/brand'
 import { textOn } from '../lib/color'
 import { errorText } from '../lib/errors'
 import { fontStack } from '../lib/fonts'
@@ -95,6 +98,10 @@ export function ReviewPage() {
     }
   })
   const [drafts, setDrafts] = useState<Record<string, string>>({})
+  // Per direction: the example shown, and whether a comment is about it (on by default) or the direction as a whole.
+  const [at, setAt] = useState<Record<string, number>>({})
+  const [general, setGeneral] = useState<Record<string, boolean>>({})
+  const [dark, setDark] = useState<Record<string, boolean>>({})
   const [confirm, setConfirm] = useState<string | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
   useEffect(() => {
@@ -135,17 +142,32 @@ export function ReviewPage() {
           </label>
         )}
         {problem && <p role="alert" className="text-sm text-bad-500">{errorText(problem)}</p>}
-        <div className={'grid gap-5 ' + (page.variants.length > 1 ? 'lg:grid-cols-2' : '')}>
+        {/* Two directions side by side only while there are no designs of the agency's own: those want the width. */}
+        <div className={'grid gap-5 ' + (page.variants.length > 1 && page.variants.every((v) => !v.data.samples.length) ? 'lg:grid-cols-2' : '')}>
           {page.variants.map((v) => {
             const logo = v.data.logos.find((l) => !l.compact)
             const comments = page.comments.filter((c) => c.variant === v.id)
+            const samples = v.data.samples
+            const index = Math.min(at[v.id] ?? 0, Math.max(samples.length - 1, 0))
+            const sample = samples[index]
+            const aboutSample = !!sample && !general[v.id]
+            const scheme = schemeOf(v.data.dark, v.data.colors)
+            const counts: Record<string, number> = {}
+            for (const c of comments) if (c.sample) counts[c.sample] = (counts[c.sample] ?? 0) + 1
             return (
               <article key={v.id} className={'space-y-3 rounded-2xl border bg-ink-900 p-4 ' + (page.chosen === v.id ? 'border-ok-500' : 'border-ink-700')}>
                 <div className="flex items-baseline justify-between gap-2">
                   <h2 className="text-lg font-semibold">{v.label}</h2>
                   <span className="text-xs text-mist-500">{v.data.fonts.map((f) => f.family).join(' / ')}</span>
                 </div>
-                <WebPreview colors={v.data.colors} head={fontStack(v.data.fonts[0], fileUrl)} body={fontStack(v.data.fonts[1] ?? v.data.fonts[0], fileUrl)} name={page.client} logo={logo} fonts={v.data.fonts} fileUrl={fileUrl} />
+                {samples.length > 0 && <SampleGallery samples={samples} files={page.files} fileUrl={fileUrl} index={index} onIndex={(i) => setAt({ ...at, [v.id]: i })} counts={counts} />}
+                {(samples.length > 0 || scheme) && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+                    {samples.length > 0 && <h3 className="text-sm font-semibold text-mist-300">{t('review.samplePage')}</h3>}
+                    {scheme && <SchemeSwitch dark={!!dark[v.id]} onChange={(on) => setDark({ ...dark, [v.id]: on })} />}
+                  </div>
+                )}
+                <WebPreview colors={v.data.colors} head={fontStack(v.data.fonts[0], fileUrl)} body={fontStack(v.data.fonts[1] ?? v.data.fonts[0], fileUrl)} name={page.client} logo={logo} logos={v.data.logos} fonts={v.data.fonts} fileUrl={fileUrl} scheme={dark[v.id] ? scheme : null} />
                 <div className="flex flex-wrap gap-1.5">
                   {v.data.colors.map((c) => (
                     <span key={c.name} className="flex h-12 min-w-16 flex-1 items-end rounded-lg border border-ink-700 p-1 text-[10px]" style={{ background: c.hex, color: textOn(c.hex) }}>
@@ -158,6 +180,11 @@ export function ReviewPage() {
                   {comments.map((c, i) => (
                     <li key={i} className={'rounded-xl px-3 py-2 text-sm ' + (c.agency ? 'bg-accent-500/10' : 'bg-ink-850')}>
                       <span className="text-xs font-semibold text-mist-300">{c.author}</span> <span className="text-[11px] text-mist-600">{new Date(c.at).toLocaleString(i18n.language)}</span>
+                      {c.sample && samples.some((x) => x.media === c.sample) && (
+                        <button type="button" className="ml-1.5 text-[11px] text-accent-400 hover:underline" onClick={() => setAt({ ...at, [v.id]: samples.findIndex((x) => x.media === c.sample) })}>
+                          {t('review.onSample', { name: samples.find((x) => x.media === c.sample)?.name ?? '' })}
+                        </button>
+                      )}
                       <p className="whitespace-pre-line text-mist-200">{c.text}</p>
                     </li>
                   ))}
@@ -171,16 +198,22 @@ export function ReviewPage() {
                         const text = (drafts[v.id] ?? '').trim()
                         if (!text) return
                         reviewsApi
-                          .say(token, v.id, author, text)
+                          .say(token, v.id, author, text, aboutSample ? sample.media : undefined)
                           .then((p) => (setPage(p), setDrafts({ ...drafts, [v.id]: '' }), setProblem(null)))
                           .catch(fail)
                       }}
                     >
-                      <input value={drafts[v.id] ?? ''} onChange={(e) => setDrafts({ ...drafts, [v.id]: e.target.value })} placeholder={t('review.say')} aria-label={t('review.sayOn', { label: v.label })} className="h-9 min-w-0 flex-1 rounded-lg border border-ink-700 bg-ink-850 px-3 text-sm" />
+                      <input value={drafts[v.id] ?? ''} onChange={(e) => setDrafts({ ...drafts, [v.id]: e.target.value })} placeholder={aboutSample ? t('review.sayOnSample', { name: sample.name }) : t('review.say')} aria-label={t('review.sayOn', { label: v.label })} className="h-9 min-w-0 flex-1 rounded-lg border border-ink-700 bg-ink-850 px-3 text-sm" />
                       <button type="submit" className="nc-btn nc-btn-ghost">
                         <MessageSquare className="h-4 w-4" /> {t('review.send')}
                       </button>
                     </form>
+                    {sample && (
+                      <label className="flex items-center gap-2 text-xs text-mist-400">
+                        <input type="checkbox" checked={!general[v.id]} onChange={(e) => setGeneral({ ...general, [v.id]: !e.target.checked })} />
+                        {t('review.aboutThis', { name: sample.name })}
+                      </label>
+                    )}
                     <button type="button" className="nc-btn nc-btn-accent" onClick={() => setConfirm(v.id)}>
                       <Send className="h-4 w-4" /> {t('review.choose')}
                     </button>

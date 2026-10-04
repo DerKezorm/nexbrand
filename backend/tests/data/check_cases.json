@@ -320,6 +320,46 @@
      "size": "large"
     }
    ]
+  },
+  {
+   "colors": [
+    {
+     "name": "Nacht",
+     "hex": "#14110F",
+     "role": "neutral"
+    },
+    {
+     "name": "Kruste",
+     "hex": "#3B2A20",
+     "role": "neutral"
+    },
+    {
+     "name": "Mehl",
+     "hex": "#F2E3C6",
+     "role": "neutral"
+    },
+    {
+     "name": "Grau",
+     "hex": "#6B6B6B",
+     "role": "neutral"
+    },
+    {
+     "name": "Ofenrot",
+     "hex": "#B8322A",
+     "role": "primary"
+    }
+   ],
+   "fonts": [],
+   "logos": [],
+   "scale": [],
+   "dark": {
+    "ground": "Nacht",
+    "surface": "Kruste",
+    "text": "Grau",
+    "muted": "Mehl",
+    "primary": "Ofenrot",
+    "on_primary": "Schnee"
+   }
   }
  ],
  "hints": [
@@ -601,6 +641,62 @@
     ],
     "ratio": 4.08,
     "need": 4.5
+   }
+  ],
+  [
+   {
+    "level": "bad",
+    "code": "dark_surface",
+    "colors": [
+     "Grau",
+     "Kruste"
+    ],
+    "hex": [
+     "#6B6B6B",
+     "#3B2A20"
+    ],
+    "ratio": 2.56
+   },
+   {
+    "level": "warn",
+    "code": "ground_large_only",
+    "colors": [
+     "Grau"
+    ],
+    "hex": [
+     "#6B6B6B"
+    ]
+   },
+   {
+    "level": "warn",
+    "code": "dark_missing",
+    "missing": "Schnee"
+   },
+   {
+    "level": "warn",
+    "code": "dark_text",
+    "colors": [
+     "Grau",
+     "Nacht"
+    ],
+    "hex": [
+     "#6B6B6B",
+     "#14110F"
+    ],
+    "ratio": 3.53
+   },
+   {
+    "level": "warn",
+    "code": "dark_primary",
+    "colors": [
+     "Ofenrot",
+     "Nacht"
+    ],
+    "hex": [
+     "#B8322A",
+     "#14110F"
+    ],
+    "ratio": 3.16
    }
   ]
  ]

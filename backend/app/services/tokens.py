@@ -62,21 +62,31 @@ def render(data: dict[str, Any], fmt: str, *, color_list: list[dict[str, Any]] |
     ]
     fonts = _font_names(data.get("fonts", []))
     head = f"/* {title} */\n" if title and fmt != "json" else ""
+    # The dark mode as names pointing at the colours above: (part, colour token name). A name gone is left out.
+    slug_of = {color["name"].lower(): name for name, color in zip(names, items, strict=True)}
+    dark = [(part.replace("_", "-"), slug_of[str(value).lower()]) for part, value in (data.get("dark") or {}).items()
+            if str(value).lower() in slug_of]
     if fmt == "css":
         lines = [f"  --color-{n}: {h};" for n, h in plain]
         lines += [""] + [f"  --color-{n}: {h};" for n, h in steps] if steps else []
         lines += [""] + [f"  --font-{n}: {s};" for n, s in fonts] if fonts else []
         sizes = _sizes(data)
         lines += [""] + [f"  --text-{n}: {v};" for n, v in sizes] if sizes else []
+        if dark:
+            lines += ["", "  /* Dark mode: which colour is what. Map them onto your own variables. */"]
+            lines += [f"  --dark-{p}: var(--color-{n});" for p, n in dark]
         return head + ":root {\n" + "\n".join(lines) + "\n}\n"
     if fmt == "tailwind":
         lines = [f"  --color-{n}: {h};" for n, h in plain + steps] + [f"  --font-{n}: {s};" for n, s in fonts]
         lines += [f"  --text-{n}: {v};" for n, v in _sizes(data)]
+        # bg-dark-ground, text-dark-text …, for use with the dark: variant.
+        lines += [f"  --color-dark-{p}: var(--color-{n});" for p, n in dark]
         intro = "/* Tailwind 4: in your CSS after @import 'tailwindcss'; */\n"
         return head + intro + "@theme {\n" + "\n".join(lines) + "\n}\n"
     if fmt == "scss":
         lines = [f"$color-{n}: {h};" for n, h in plain + steps] + [f"$font-{n}: {s};" for n, s in fonts]
         lines += [f"$text-{n}: {v};" for n, v in _sizes(data)]
+        lines += [f"$dark-{p}: $color-{n};" for p, n in dark]
         return head + "\n".join(lines) + "\n"
     color_tokens: dict[str, Any] = {}
     for name, color in zip(names, items, strict=True):
@@ -95,4 +105,6 @@ def render(data: dict[str, Any], fmt: str, *, color_list: list[dict[str, Any]] |
     out = {"color": color_tokens, "font": font_tokens}
     if size_tokens:
         out["text"] = size_tokens
+    if dark:
+        out["dark"] = {p: {"$type": "color", "$value": f"{{color.{n}}}"} for p, n in dark}
     return json.dumps(out, indent=2, ensure_ascii=False) + "\n"

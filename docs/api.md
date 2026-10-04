@@ -138,6 +138,14 @@ properties. The answer gets a `css` part:
 `forbidden` means a rule of the set forbids the pair (`rule` is its place); `low_contrast` means below 4.5:1. Only a
 pair inside one CSS rule is seen: a ground inherited from a parent or set by another class is not.
 
+### Dark mode
+
+`dark` in a design set is optional: which of its colours is what in dark mode, each by name: `ground` (the page),
+`surface` (cards, panels), `text`, `muted` (quieter text), `primary` (links, buttons), `on_primary` (text on
+buttons). The checks hold text, quiet text, links and button text at 4.5:1 to what they stand on (codes starting
+with `dark_`), and `dark_missing` names a colour the palette no longer has. The code export carries it as
+`--dark-ground: var(--color-…)` (CSS), `--color-dark-…` (Tailwind), `$dark-…` (SCSS) and a `dark` group (JSON).
+
 ### Rules
 
 `rules` in a design set are `do` or `dont`, and of a `type`. Only `text` rules are free words; the others point at

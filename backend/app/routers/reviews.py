@@ -65,6 +65,8 @@ class ReviewIn(BaseModel):
 
 class CommentIn(BaseModel):
     variant: str = Field(pattern=r"^[a-z0-9]{1,16}$")
+    #: An example of the direction the comment is about (its media id); empty: the direction as a whole.
+    sample: str | None = Field(default=None, min_length=8, max_length=40, pattern=r"^[A-Za-z0-9_-]+$")
     text: str = Field(min_length=1, max_length=2000)
     author: str = Field(default="", max_length=80)
 
@@ -83,8 +85,8 @@ def _client(db: DbSession, account: Any, client_id: str, need: str) -> Client:
 
 def _comments_of(db: Any, review: Review) -> list[dict[str, Any]]:
     rows = db.scalars(select(ReviewComment).where(ReviewComment.review_id == review.id).order_by(ReviewComment.id))
-    return [{"id": c.id, "variant": c.variant, "author": c.author, "text": c.text, "agency": c.agency,
-             "at": c.created_at.isoformat()} for c in rows]
+    return [{"id": c.id, "variant": c.variant, "sample": c.sample, "author": c.author, "text": c.text,
+             "agency": c.agency, "at": c.created_at.isoformat()} for c in rows]
 
 
 def _view(db: Any, request: Request, review: Review) -> dict[str, Any]:
@@ -101,6 +103,8 @@ def _view(db: Any, request: Request, review: Review) -> dict[str, Any]:
         "chosen_at": review.chosen_at.isoformat() if review.chosen_at else None,
         "variants": review.variants,
         "comments": _comments_of(db, review),
+        "news": brands.review_news(db, review.client_id, review.id),
+        "seen_at": review.seen_at.isoformat() if review.seen_at else None,
         "created_at": review.created_at.isoformat(),
         "expires_at": review.expires_at.isoformat() if review.expires_at else None,
     }
@@ -161,7 +165,19 @@ def make_review(client_id: ClientId, payload: ReviewIn, request: Request, accoun
 def agency_comment(client_id: ClientId, review_id: int, payload: CommentIn, request: Request, account: Account,
                    db: DbSession) -> dict[str, Any]:
     _, review = _review(db, account, client_id, review_id, WRITE)
-    _comment(db, review, payload.variant, account.display_name or account.name, payload.text, agency=True)
+    _comment(db, review, payload.variant, account.display_name or account.name, payload.text, agency=True,
+             sample=payload.sample)
+    # Answering is reading: what the client said before is no longer new.
+    review.seen_at = utcnow()
+    db.commit()
+    return _view(db, request, review)
+
+
+@router.post("/clients/{client_id}/reviews/{review_id}/seen", summary="Somebody of the agency looked at the review")
+def seen(client_id: ClientId, review_id: int, request: Request, account: Account, db: DbSession) -> dict[str, Any]:
+    _, review = _review(db, account, client_id, review_id, READ)
+    review.seen_at = utcnow()
+    db.commit()
     return _view(db, request, review)
 
 
@@ -173,8 +189,12 @@ def withdraw(client_id: ClientId, review_id: int, account: Account, db: DbSessio
         db.commit()
 
 
-def _comment(db: Any, review: Review, variant: str, author: str, text: str, *, agency: bool) -> None:
-    if variant not in {v["id"] for v in review.variants}:
+def _comment(db: Any, review: Review, variant: str, author: str, text: str, *, agency: bool,
+             sample: str | None = None) -> None:
+    direction = next((v for v in review.variants if v["id"] == variant), None)
+    if direction is None:
+        raise error("not_found", "Not found.", 404)
+    if sample and sample not in {s.get("media") for s in direction["data"].get("samples", [])}:
         raise error("not_found", "Not found.", 404)
     if review.status != "open":
         raise error("review_closed", "This review is closed.", 409)
@@ -184,8 +204,8 @@ def _comment(db: Any, review: Review, variant: str, author: str, text: str, *, a
     clean = text.strip()
     if not clean or any(ord(char) < 32 and char not in "\n\t" for char in clean):
         raise error("invalid_input", "The input is not valid.", 422)
-    db.add(ReviewComment(review_id=review.id, variant=variant, author=" ".join(author.split())[:80] or "-",
-                         text=clean, agency=agency))
+    db.add(ReviewComment(review_id=review.id, variant=variant, sample=sample or None,
+                         author=" ".join(author.split())[:80] or "-", text=clean, agency=agency))
     db.commit()
 
 
@@ -221,7 +241,7 @@ def _page(db: Any, review: Review, client: Client) -> dict[str, Any]:
         "chosen": review.chosen,
         "chosen_by": review.chosen_by,
         "variants": variants,
-        "comments": [{k: c[k] for k in ("variant", "author", "text", "agency", "at")}
+        "comments": [{k: c[k] for k in ("variant", "sample", "author", "text", "agency", "at")}
                      for c in _comments_of(db, review)],
         "files": {row.id: {"name": row.name, "kind": row.kind} for row in rows},
         "expires_at": review.expires_at.isoformat() if review.expires_at else None,
@@ -250,7 +270,8 @@ def client_comment(token: Token, payload: CommentIn, request: Request) -> dict[s
     with SessionLocal() as db:
         review, client = _open(db, token)
         _slow_down(request, review)
-        _comment(db, review, payload.variant, payload.author or "-", payload.text, agency=False)
+        _comment(db, review, payload.variant, payload.author or "-", payload.text, agency=False,
+                 sample=payload.sample)
         return _page(db, review, client)
 
 

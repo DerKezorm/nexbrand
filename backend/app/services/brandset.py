@@ -15,8 +15,12 @@ The shape::
                    "clear_space"}],
       "scale":   [{"name", "use", "size", "weight", "font", "line_height"}],
       "rules":   [{"type", "kind", "text", ...}],
-      "samples": [{"name", "media"}]
+      "samples": [{"name", "media"}],
+      "dark":    {"ground", "surface", "text", "muted", "primary", "on_primary"}   (colour names; optional)
     }
+
+``dark`` is the set's dark mode: which of its colours is the page ground, a raised surface, body text, quieter
+text, the main colour for links and buttons, and text on that main colour. Missing: the set has no dark mode.
 
 ``catalog`` names a font that ships with nexbrand (free licences, drawn in every browser without an upload);
 ``files`` are uploaded font files. ``wordmark`` stands in for a logo until there is one: the name set in a font.
@@ -59,6 +63,7 @@ RULE_USES = ("", "headings", *USES[1:])
 CATALOG = ("fraunces", "playfair", "lora", "sourceserif", "inter", "dmsans", "outfit", "spacegrotesk", "nunito")
 
 MOST = {"colors": 48, "fonts": 12, "logos": 24, "scale": 12, "rules": 60, "samples": 60}
+DARK_PARTS = ("ground", "surface", "text", "muted", "primary", "on_primary")
 HEX = re.compile(r"^#[0-9A-Fa-f]{6}$")
 SHORT_HEX = re.compile(r"^#[0-9A-Fa-f]{3}$")
 LOGO_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
@@ -78,7 +83,7 @@ class SetError(ValueError):
         self.text = text
 
 
-def empty() -> dict[str, list[Any]]:
+def empty() -> dict[str, Any]:
     return {key: [] for key in MOST}
 
 
@@ -201,11 +206,11 @@ def clean_colors(items: Any, where: str = "colors") -> list[dict[str, Any]]:
     return out
 
 
-def clean(data: Any, db: Session | None = None, space_id: int | None = None) -> dict[str, list[Any]]:
+def clean(data: Any, db: Session | None = None, space_id: int | None = None) -> dict[str, Any]:
     """The design set as it may be stored, or ``SetError``. Without a database, no file may be named."""
     if not isinstance(data, dict):
         raise SetError("data")
-    unknown = set(data) - set(MOST)
+    unknown = set(data) - set(MOST) - {"dark"}
     if unknown:
         raise SetError(min(unknown), "Not a part of a design set.")
     files = Files(db, space_id)
@@ -290,6 +295,16 @@ def clean(data: Any, db: Session | None = None, space_id: int | None = None) -> 
             "name": _text(item.get("name"), f"{at}.name", 120, required=True),
             "media": files.one(item.get("media"), f"{at}.media", None),
         })
+
+    dark = data.get("dark")
+    if dark is not None:
+        if not isinstance(dark, dict):
+            raise SetError("dark")
+        unknown = set(dark) - set(DARK_PARTS)
+        if unknown:
+            raise SetError(f"dark.{min(unknown)}", "Not a part of the dark mode.")
+        # A name the palette no longer has is not refused: the checks name it (as with rules).
+        out["dark"] = {part: _text(dark.get(part), f"dark.{part}", 60, required=True) for part in DARK_PARTS}
     return out
 
 
@@ -357,7 +372,8 @@ def internal_media(data: Any) -> set[str]:
 
 def for_public(data: dict[str, Any]) -> dict[str, Any]:
     """What a page outside sees: fonts kept in the house by name only, without their files."""
-    copy = {key: [dict(item) for item in value] for key, value in data.items()}
+    copy = {key: dict(value) if isinstance(value, dict) else [dict(item) for item in value]
+            for key, value in data.items() if value is not None}
     for font in copy.get("fonts", []):
         if font.get("license") != "free":
             font["files"] = []

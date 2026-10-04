@@ -98,7 +98,13 @@ export function Sidebar() {
             <Link key={c.id} to={`/c/${c.id}`} className={row}>
               <Swatch client={c} />
               <span className="truncate">{c.name}</span>
-              {c.current === null && c.drafts === 0 && <span className="ml-auto shrink-0 text-[10px] text-mist-600">{t('client.noCi')}</span>}
+              {c.news > 0 ? (
+                <span className="ml-auto shrink-0 rounded-full bg-magenta-500 px-1.5 text-[10px] font-semibold text-white tabular-nums" title={t('client.reviewNews', { count: c.news })} aria-label={t('client.reviewNews', { count: c.news })}>
+                  {c.news}
+                </span>
+              ) : (
+                c.current === null && c.drafts === 0 && <span className="ml-auto shrink-0 text-[10px] text-mist-600">{t('client.noCi')}</span>
+              )}
             </Link>
           ))}
           {live.length === 0 && <p className="px-2.5 py-1 text-xs text-mist-600">{t('sidebar.nothingHere')}</p>}

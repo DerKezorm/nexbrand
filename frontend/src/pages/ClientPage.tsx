@@ -271,7 +271,17 @@ export function ClientPage() {
           </div>
         ) : null}
 
-        {openReview && (
+        {whole.news > 0 && (
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-magenta-500/50 bg-magenta-500/10 px-4 py-3 text-sm" role="status" data-testid="review-news">
+            <MessagesSquare className="h-4 w-4 text-magenta-text" />
+            <span className="flex-1 font-semibold">{t('client.reviewNews', { count: whole.news })}</span>
+            <button type="button" className="nc-btn nc-btn-accent" onClick={() => choose(shown.id, { tab: 'reviews' })}>
+              {t('client.seeReview')}
+            </button>
+          </div>
+        )}
+
+        {openReview && whole.news === 0 && (
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-ink-700 bg-ink-900 px-4 py-3 text-sm">
             <MessagesSquare className="h-4 w-4 text-magenta-text" />
             <span className="flex-1">{t('client.inReview')}</span>
@@ -314,7 +324,7 @@ export function ClientPage() {
               { value: 'projects', label: t('client.tabProjects', { count: whole.projects.length }), icon: FolderKanban, content: <Projects whole={whole} canWrite={canWrite} reload={load} /> },
               { value: 'history', label: t('client.tabHistory'), icon: History, content: <HistoryPanel versions={versions} start={shown} canWrite={canWrite} onDelete={() => setDialog('deleteDraft')} /> },
               { value: 'pages', label: t('client.tabPages'), icon: Globe, content: <SharesPanel client={whole.id} versions={versions} canManage={canManage} /> },
-              { value: 'reviews', label: t('client.tabReviews'), icon: MessagesSquare, content: <ReviewsPanel client={whole.id} versions={versions} canWrite={canWrite} canManage={canManage} onChange={load} /> },
+              { value: 'reviews', label: whole.news ? t('client.tabReviewsNews', { count: whole.news }) : t('client.tabReviews'), icon: MessagesSquare, content: <ReviewsPanel client={whole.id} versions={versions} canWrite={canWrite} canManage={canManage} onChange={load} /> },
             ]}
           />
         )}

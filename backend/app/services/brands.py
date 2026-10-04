@@ -17,7 +17,7 @@ import secrets
 from datetime import UTC, date, datetime
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from ..models import (
@@ -350,6 +350,23 @@ def publish(
     logger.info("Version published client=%s version=%s from=%s by=%s", client.id, row.id, row.valid_from,
                 account.name)
     return row
+
+
+def review_news(db: Session, client_id: str, review_id: int | None = None) -> int:
+    """What the client did in its reviews that nobody of the agency has looked at yet: each comment, and a choice.
+    A withdrawn review has nothing new."""
+    from ..models import Review, ReviewComment
+
+    comments = (select(func.count()).select_from(ReviewComment).join(Review, Review.id == ReviewComment.review_id)
+                .where(Review.client_id == client_id, Review.status != "closed", ReviewComment.agency.is_(False),
+                       or_(Review.seen_at.is_(None), ReviewComment.created_at > Review.seen_at)))
+    chosen = (select(func.count()).select_from(Review)
+              .where(Review.client_id == client_id, Review.status == "chosen",
+                     or_(Review.seen_at.is_(None), Review.chosen_at > Review.seen_at)))
+    if review_id is not None:
+        comments = comments.where(Review.id == review_id)
+        chosen = chosen.where(Review.id == review_id)
+    return int(db.scalar(comments) or 0) + int(db.scalar(chosen) or 0)
 
 
 def delete_draft(db: Session, account: Account, client: Client, row: BrandVersion) -> None:

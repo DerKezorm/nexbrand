@@ -1,10 +1,10 @@
 /** One design set, shown the same way for a client, a project, a public page and a review. */
-import { Ban, Check, Copy, Download, FileText, Lock, Palette, Shapes, ShieldCheck, Type, XCircle, type LucideIcon } from 'lucide-react'
+import { Ban, Check, Copy, Download, FileText, Lock, Moon, Palette, Shapes, ShieldCheck, Type, XCircle, type LucideIcon } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { FileInfo } from '../../api/client'
-import type { BrandFont, BrandLogo, BrandSet, Sample, ScaleStep, ShownColor } from '../../lib/brand'
+import { DARK_PARTS, schemeOf, type BrandFont, type BrandLogo, type BrandSet, type Sample, type ScaleStep, type ShownColor } from '../../lib/brand'
 import { check } from '../../lib/checks'
 import { cmyk, contrast, formatRatio, hsl, rgb, slug, textOn } from '../../lib/color'
 import { copyText } from '../../lib/copy'
@@ -12,6 +12,7 @@ import { findFont, fontStack } from '../../lib/fonts'
 import { TabRow, type Tab } from '../../pages/settings/ui'
 import { HintList, Matrix, VisionPanel } from './Checks'
 import { LogoView } from './LogoView'
+import { WebPreview } from './WebPreview'
 import { CheckedMark, RuleSwatch, typeOf, useRuleWords } from './rules'
 
 export type ExtraTab = { value: string; label: string; icon: LucideIcon; content: ReactNode }
@@ -58,7 +59,12 @@ export function SetView({
         <TabRow tabs={tabs} active={tab} onChange={setTab} label={t('set.tabsLabel')} />
         {actions}
       </div>
-      {tab === 'colors' && <Colors colors={shown} />}
+      {tab === 'colors' && (
+        <>
+          <Colors colors={shown} />
+          {set.dark && <DarkView set={set} colors={shown} fileUrl={fileUrl} />}
+        </>
+      )}
       {tab === 'fonts' && <Fonts fonts={set.fonts} scale={set.scale} fileUrl={fileUrl} files={files} publicMode={publicMode} />}
       {tab === 'logos' && <Logos logos={set.logos} fonts={set.fonts} fileUrl={fileUrl} files={files} />}
       {tab === 'samples' && <Samples samples={set.samples} fileUrl={fileUrl} files={files} />}
@@ -292,6 +298,34 @@ function Samples({ samples, fileUrl, files }: { samples: Sample[]; fileUrl: (id:
         )
       })}
     </div>
+  )
+}
+
+function DarkView({ set, colors, fileUrl }: { set: BrandSet; colors: ShownColor[]; fileUrl: (id: string) => string }) {
+  const { t } = useTranslation()
+  const scheme = schemeOf(set.dark, colors)
+  if (!set.dark) return null
+  return (
+    <section className="mt-5 grid gap-4 rounded-2xl border border-ink-700 bg-ink-900 p-5 lg:grid-cols-[18rem_1fr]" data-testid="dark-view">
+      <div>
+        <h3 className="mb-3 flex items-center gap-2 font-semibold">
+          <Moon className="h-4 w-4 text-accent-400" /> {t('dark.title')}
+        </h3>
+        <dl className="space-y-1.5 text-sm">
+          {DARK_PARTS.map((part) => {
+            const color = colors.find((c) => c.name.toLowerCase() === set.dark![part].toLowerCase())
+            return (
+              <div key={part} className="flex items-center gap-2">
+                <span className="h-5 w-5 shrink-0 rounded border border-edge" style={{ background: color?.hex ?? 'transparent' }} aria-hidden />
+                <dt className="w-36 shrink-0 text-mist-400">{t(`dark.part.${part}`)}</dt>
+                <dd className="truncate text-mist-100">{set.dark![part]}</dd>
+              </div>
+            )
+          })}
+        </dl>
+      </div>
+      {scheme && <WebPreview colors={colors} head={fontStack(set.fonts[0], fileUrl)} body={fontStack(set.fonts[1] ?? set.fonts[0], fileUrl)} name="" logo={set.logos.find((l) => !l.compact)} logos={set.logos} fonts={set.fonts} fileUrl={fileUrl} scheme={scheme} compact />}
+    </section>
   )
 }
 

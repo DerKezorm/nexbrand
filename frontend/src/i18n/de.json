@@ -1023,7 +1023,12 @@
     "linkUrl": "Adresse",
     "linkAdd": "Adresse hinzufügen",
     "derivedFrom": "Abgeleitet von {{label}}.",
-    "derivedFromGone": "Abgeleitet von {{label}} (gelöscht)."
+    "derivedFromGone": "Abgeleitet von {{label}} (gelöscht).",
+    "reviewNews_one": "Der Kunde hat in der Abstimmung etwas Neues geschrieben oder gewählt.",
+    "reviewNews_other": "{{count}} Neuigkeiten vom Kunden in der Abstimmung.",
+    "reviewNewsShort_one": "1 neu",
+    "reviewNewsShort_other": "{{count}} neu",
+    "tabReviewsNews": "Abstimmung · {{count}} neu"
   },
   "projects": {
     "text": "Ein Projekt baut auf einer Fassung auf und bleibt dort, bis jemand es hebt. Eigene Farben gelten nur im Projekt.",
@@ -1227,6 +1232,30 @@
     "rule_font_small": {
       "title": "{{step}}: {{size}} px",
       "text": "Eine Regel verlangt für {{font}} mindestens {{min}} px."
+    },
+    "dark_missing": {
+      "title": "Dunkelmodus: „{{missing}}“ fehlt",
+      "text": "Der Dunkelmodus zeigt auf eine Farbe, die die Palette nicht mehr hat."
+    },
+    "dark_text": {
+      "title": "Dunkel: Text {{a}} auf {{b}} {{ratio}}",
+      "text": "Fließtext braucht 4,5:1, auch im Dunkelmodus."
+    },
+    "dark_surface": {
+      "title": "Dunkel: Text {{a}} auf Flächen ({{b}}) {{ratio}}",
+      "text": "Auf Karten und Flächen braucht Text ebenfalls 4,5:1."
+    },
+    "dark_muted": {
+      "title": "Dunkel: leiser Text {{a}} auf {{b}} {{ratio}}",
+      "text": "Auch leiser Text muss lesbar bleiben: 4,5:1."
+    },
+    "dark_primary": {
+      "title": "Dunkel: {{a}} auf {{b}} {{ratio}}",
+      "text": "Links in der Hauptfarbe brauchen 4,5:1 zum Grund. Oft hilft eine hellere Fassung der Hauptfarbe."
+    },
+    "dark_on_primary": {
+      "title": "Dunkel: {{a}} auf Knöpfen in {{b}} {{ratio}}",
+      "text": "Text auf der Hauptfarbe braucht 4,5:1."
     }
   },
   "vision": {
@@ -1309,7 +1338,7 @@
     "theClient": "Der Kunde",
     "answer": "Antworten …",
     "answerOn": "Antwort zu {{label}}",
-    "new": "Dem Kunden vorlegen",
+    "new": "neu",
     "newText": "Der Kunde sieht jede Richtung an einer Beispielseite, kommentiert und wählt eine. Seine Wahl wird veröffentlicht, ohne dass hier noch jemand klicken muss.",
     "label": "Name nach der Wahl",
     "labelHint": "So heißt die Fassung, sobald der Kunde gewählt hat.",
@@ -1320,7 +1349,8 @@
     "why": "Warum diese Richtung (für den Kunden)",
     "onlyOne": "Weitere Entwürfe dieses Kunden lassen sich als Alternativen mitschicken.",
     "runs": "Link gilt",
-    "make": "Vorlegen"
+    "make": "Vorlegen",
+    "onSample": "zu „{{name}}“"
   },
   "preview": {
     "label": "Beispielseite mit dieser CI",
@@ -1615,7 +1645,11 @@
     "chooseTitle": "Diese Richtung verbindlich wählen?",
     "chooseText": "Daraus wird Ihre CI. Spätere Änderungen macht die Agentur als neue Fassung; diese bleibt nachvollziehbar erhalten.",
     "notYet": "Noch nicht",
-    "yes": "Ja, so soll es sein"
+    "yes": "Ja, so soll es sein",
+    "samplePage": "Und so wirkt die CI auf einer Beispielseite",
+    "onSample": "zu „{{name}}“",
+    "sayOnSample": "Was fällt Ihnen an „{{name}}“ auf?",
+    "aboutThis": "Kommentar gilt „{{name}}“ (sonst dem ganzen Entwurf)"
   },
   "ai": {
     "title": "KI",
@@ -1817,5 +1851,37 @@
       "font": "{{font}} für {{use}}",
       "fontMin": "{{font}} für {{use}}, mindestens {{min}} px"
     }
+  },
+  "gallery": {
+    "open": "{{kind}} öffnen",
+    "previous": "Vorheriges",
+    "next": "Nächstes",
+    "of": "{{at}} von {{count}}",
+    "all": "Alle Entwürfe"
+  },
+  "dark": {
+    "title": "Dunkelmodus",
+    "switch": "Hell oder dunkel",
+    "light": "Hell",
+    "dark": "Dunkel",
+    "suggest": "Dunkelmodus vorschlagen",
+    "remove": "Dunkelmodus entfernen",
+    "none": "Diese CI hat noch keinen Dunkelmodus. Der Vorschlag nimmt Farben der Palette; fehlt ein dunkler Grund oder eine Hauptfarbe, die darauf reicht, kommt sie in die Palette dazu.",
+    "text": "Welche Farbe ist im Dunkelmodus was. Wird geprüft, exportiert und ist in Vorschau und Abstimmung umschaltbar.",
+    "gone": "Eine zugeordnete Farbe gibt es nicht mehr in der Palette. Bitte neu wählen.",
+    "night": "Nachtgrund",
+    "nightSurface": "Nachtfläche",
+    "brightOf": "{{name}} hell",
+    "part": {
+      "ground": "Grund der Seite",
+      "surface": "Flächen, Karten",
+      "text": "Text",
+      "muted": "Leiser Text",
+      "primary": "Hauptfarbe (Links, Knöpfe)",
+      "on_primary": "Text auf der Hauptfarbe"
+    },
+    "showDark": "Beispielseite dunkel",
+    "showLight": "Beispielseite hell",
+    "addedNote": "Für den Dunkelmodus ergänzt."
   }
 }

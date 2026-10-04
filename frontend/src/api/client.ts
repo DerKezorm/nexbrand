@@ -235,6 +235,8 @@ export type ClientInfo = {
   current: string | null
   drafts: number
   projects: number
+  /** What the client did in a review (comments, a choice) that nobody of the agency has looked at yet. */
+  news: number
   face: ClientFace
 }
 
@@ -261,7 +263,7 @@ export type ShareInfo = {
 }
 
 export type Variant = { id: string; label: string; why?: string; data: BrandSet }
-export type ReviewComment = { id?: number; variant: string; author: string; text: string; agency: boolean; at: string }
+export type ReviewComment = { id?: number; variant: string; sample?: string | null; author: string; text: string; agency: boolean; at: string }
 
 export type ReviewInfo = {
   id: number
@@ -276,6 +278,9 @@ export type ReviewInfo = {
   chosen_at: string | null
   variants: Variant[]
   comments: ReviewComment[]
+  /** New from the client since somebody of the agency last looked (`seen_at`). */
+  news: number
+  seen_at: string | null
   created_at: string
   expires_at: string | null
 }
@@ -482,9 +487,10 @@ export const reviewsApi = {
   comment: (client: string, review: number, variant: string, text: string) =>
     api<ReviewInfo>(`/api/clients/${client}/reviews/${review}/comments`, { method: 'POST', body: { variant, text } }),
   withdraw: (client: string, review: number) => api<void>(`/api/clients/${client}/reviews/${review}`, { method: 'DELETE' }),
+  seen: (client: string, review: number) => api<ReviewInfo>(`/api/clients/${client}/reviews/${review}/seen`, { method: 'POST' }),
   page: (token: string) => api<ReviewPageInfo>(`/api/review/${token}`),
-  say: (token: string, variant: string, author: string, text: string) =>
-    api<ReviewPageInfo>(`/api/review/${token}/comments`, { method: 'POST', body: { variant, author, text } }),
+  say: (token: string, variant: string, author: string, text: string, sample?: string) =>
+    api<ReviewPageInfo>(`/api/review/${token}/comments`, { method: 'POST', body: { variant, author, text, ...(sample ? { sample } : {}) } }),
   choose: (token: string, variant: string, author: string) =>
     api<ReviewPageInfo>(`/api/review/${token}/choose`, { method: 'POST', body: { variant, author } }),
 }

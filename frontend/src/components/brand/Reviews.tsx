@@ -1,33 +1,51 @@
 import { Eye, MessagesSquare, Send, Undo2 } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { reviewsApi, type ClientWhole, type ReviewInfo, type VersionInfo } from '../../api/client'
+import { reviewsApi, type ClientWhole, type ReviewComment, type ReviewInfo, type VersionInfo } from '../../api/client'
 import { Button, CopyLink, Feedback, Input, Select, useAction } from '../../pages/settings/ui'
 import { useAuth } from '../../state/auth'
+import { useBrands } from '../../state/brands'
 import { Dialog } from '../Dialog'
 
 /** The reviews of a client, as the agency sees them: status, the link, every comment, an answer. */
 export function ReviewsPanel({ client, versions, canWrite, canManage, onChange }: { client: string; versions: VersionInfo[]; canWrite: boolean; canManage: boolean; onChange: () => void }) {
   const { t, i18n } = useTranslation()
+  const brands = useBrands()
   const [reviews, setReviews] = useState<ReviewInfo[]>([])
+  // What was new when the panel opened stays marked while it is open; the server already counts it as seen.
+  const [newSince, setNewSince] = useState<Record<number, string>>({})
   const load = useCallback(() => void reviewsApi.list(client).then(setReviews).catch(() => setReviews([])), [client])
   useEffect(load, [load])
+  // Each review is marked seen once per news: the refresh after it changes `brands` and would mark it again, round
+  // and round.
+  const marked = useRef(new Set<string>())
+  useEffect(() => {
+    const fresh = reviews.filter((r) => r.news > 0 && !marked.current.has(`${r.id}:${r.comments.length}:${r.status}`))
+    if (!fresh.length) return
+    fresh.forEach((r) => marked.current.add(`${r.id}:${r.comments.length}:${r.status}`))
+    setNewSince((was) => ({ ...was, ...Object.fromEntries(fresh.map((r) => [r.id, r.seen_at ?? ''])) }))
+    void Promise.all(fresh.map((r) => reviewsApi.seen(client, r.id)))
+      .then(() => (onChange(), void brands.refresh()))
+      .catch(() => undefined)
+  }, [reviews, client, onChange, brands])
   if (!reviews.length) return <p className="text-sm text-mist-500">{t('reviews.none')}</p>
   return (
     <div className="space-y-4">
       {reviews.map((r) => (
-        <ReviewCard key={r.id} client={client} review={r} version={versions.find((v) => v.id === r.version_id)} canWrite={canWrite} canManage={canManage} locale={i18n.language} onChange={() => (load(), onChange())} />
+        <ReviewCard key={r.id} client={client} review={r} newSince={newSince[r.id]} version={versions.find((v) => v.id === r.version_id)} canWrite={canWrite} canManage={canManage} locale={i18n.language} onChange={() => (load(), onChange())} />
       ))}
     </div>
   )
 }
 
-function ReviewCard({ client, review, version, canWrite, canManage, locale, onChange }: { client: string; review: ReviewInfo; version?: VersionInfo; canWrite: boolean; canManage: boolean; locale: string; onChange: () => void }) {
+function ReviewCard({ client, review, newSince, version, canWrite, canManage, locale, onChange }: { client: string; review: ReviewInfo; newSince?: string; version?: VersionInfo; canWrite: boolean; canManage: boolean; locale: string; onChange: () => void }) {
   const { t } = useTranslation()
   const [answer, setAnswer] = useState<Record<string, string>>({})
   const tone = review.status === 'open' ? 'border-magenta-500/50 text-magenta-text' : review.status === 'chosen' ? 'border-ok-500/40 text-ok-500' : 'border-ink-700 text-mist-500'
   const chosen = review.variants.find((v) => v.id === review.chosen)
+  // Marked new: from the client, after the last look before this panel opened (none before: all of them).
+  const isNew = (c: ReviewComment) => newSince !== undefined && !c.agency && (!newSince || c.at > newSince)
   return (
     <article className="space-y-3 rounded-2xl border border-ink-700 bg-ink-900 p-4">
       <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -65,8 +83,10 @@ function ReviewCard({ client, review, version, canWrite, canManage, locale, onCh
               {review.comments
                 .filter((c) => c.variant === v.id)
                 .map((c, i) => (
-                  <li key={i} className={'rounded-lg px-2.5 py-1.5 text-sm ' + (c.agency ? 'bg-accent-500/10' : 'bg-ink-900')}>
+                  <li key={i} className={'rounded-lg px-2.5 py-1.5 text-sm ' + (c.agency ? 'bg-accent-500/10' : 'bg-ink-900') + (isNew(c) ? ' ring-1 ring-magenta-500/60' : '')}>
                     <span className="text-xs font-semibold text-mist-300">{c.author}</span> <span className="text-[11px] text-mist-600">{new Date(c.at).toLocaleString(locale)}</span>
+                    {isNew(c) && <span className="ml-1.5 rounded-full bg-magenta-500 px-1.5 text-[10px] font-semibold text-white">{t('reviews.new')}</span>}
+                    {c.sample && <span className="ml-1.5 text-[11px] text-mist-500">{t('reviews.onSample', { name: v.data.samples.find((x) => x.media === c.sample)?.name ?? '' })}</span>}
                     <p className="whitespace-pre-line text-mist-200">{c.text}</p>
                   </li>
                 ))}

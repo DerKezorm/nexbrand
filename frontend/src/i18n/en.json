@@ -1023,7 +1023,12 @@
     "linkUrl": "Address",
     "linkAdd": "Add an address",
     "derivedFrom": "Made from {{label}}.",
-    "derivedFromGone": "Made from {{label}} (deleted)."
+    "derivedFromGone": "Made from {{label}} (deleted).",
+    "reviewNews_one": "The client wrote or chose something new in the review.",
+    "reviewNews_other": "{{count}} new things from the client in the review.",
+    "reviewNewsShort_one": "1 new",
+    "reviewNewsShort_other": "{{count}} new",
+    "tabReviewsNews": "Review · {{count}} new"
   },
   "projects": {
     "text": "A project builds on a version and stays there until somebody lifts it. Its own colours hold in the project only.",
@@ -1227,6 +1232,30 @@
     "rule_font_small": {
       "title": "{{step}}: {{size}} px",
       "text": "A rule asks for at least {{min}} px in {{font}}."
+    },
+    "dark_missing": {
+      "title": "Dark mode: “{{missing}}” is gone",
+      "text": "The dark mode points at a colour the palette no longer has."
+    },
+    "dark_text": {
+      "title": "Dark: text {{a}} on {{b}} {{ratio}}",
+      "text": "Body text needs 4.5:1, in dark mode too."
+    },
+    "dark_surface": {
+      "title": "Dark: text {{a}} on surfaces ({{b}}) {{ratio}}",
+      "text": "On cards and surfaces text needs 4.5:1 as well."
+    },
+    "dark_muted": {
+      "title": "Dark: quiet text {{a}} on {{b}} {{ratio}}",
+      "text": "Quiet text has to stay readable too: 4.5:1."
+    },
+    "dark_primary": {
+      "title": "Dark: {{a}} on {{b}} {{ratio}}",
+      "text": "Links in the main colour need 4.5:1 to the ground. A lighter version of the main colour often helps."
+    },
+    "dark_on_primary": {
+      "title": "Dark: {{a}} on buttons in {{b}} {{ratio}}",
+      "text": "Text on the main colour needs 4.5:1."
     }
   },
   "vision": {
@@ -1309,7 +1338,7 @@
     "theClient": "The client",
     "answer": "Answer …",
     "answerOn": "Answer on {{label}}",
-    "new": "Put before the client",
+    "new": "new",
     "newText": "The client sees each direction on a sample page, comments and chooses one. The choice is published without anybody here clicking again.",
     "label": "Name once chosen",
     "labelHint": "The version's name once the client chose.",
@@ -1320,7 +1349,8 @@
     "why": "Why this direction (for the client)",
     "onlyOne": "Other drafts of this client can go along as alternatives.",
     "runs": "Link runs",
-    "make": "Put before the client"
+    "make": "Put before the client",
+    "onSample": "on “{{name}}”"
   },
   "preview": {
     "label": "Sample page in this CI",
@@ -1615,7 +1645,11 @@
     "chooseTitle": "Choose this direction for good?",
     "chooseText": "It becomes your CI. Later changes the agency makes as a new version; this one stays on record.",
     "notYet": "Not yet",
-    "yes": "Yes, this is it"
+    "yes": "Yes, this is it",
+    "samplePage": "And this is the CI on a sample page",
+    "onSample": "on “{{name}}”",
+    "sayOnSample": "What do you notice about “{{name}}”?",
+    "aboutThis": "Comment is about “{{name}}” (otherwise the whole draft)"
   },
   "ai": {
     "title": "AI",
@@ -1817,5 +1851,37 @@
       "font": "{{font}} for {{use}}",
       "fontMin": "{{font}} for {{use}}, at least {{min}} px"
     }
+  },
+  "gallery": {
+    "open": "Open {{kind}}",
+    "previous": "Previous",
+    "next": "Next",
+    "of": "{{at}} of {{count}}",
+    "all": "All designs"
+  },
+  "dark": {
+    "title": "Dark mode",
+    "switch": "Light or dark",
+    "light": "Light",
+    "dark": "Dark",
+    "suggest": "Suggest a dark mode",
+    "remove": "Remove dark mode",
+    "none": "This CI has no dark mode yet. The suggestion takes colours of the palette; if a dark ground or a main colour that reads on it is missing, it is added to the palette.",
+    "text": "Which colour is what in dark mode. Checked, exported, and switchable in the preview and the review.",
+    "gone": "A colour assigned here is no longer in the palette. Please choose again.",
+    "night": "Night ground",
+    "nightSurface": "Night surface",
+    "brightOf": "{{name}} light",
+    "part": {
+      "ground": "Page ground",
+      "surface": "Surfaces, cards",
+      "text": "Text",
+      "muted": "Quiet text",
+      "primary": "Main colour (links, buttons)",
+      "on_primary": "Text on the main colour"
+    },
+    "showDark": "Sample page dark",
+    "showLight": "Sample page light",
+    "addedNote": "Added for dark mode."
   }
 }

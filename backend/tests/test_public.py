@@ -11,7 +11,7 @@ from app.models import Account
 from app.services import settings_service
 
 from .conftest import new_client
-from .test_brands import SET, WOFF2, make_client, upload
+from .test_brands import SET, SVG, WOFF2, make_client, upload
 
 
 def _open_pages() -> None:
@@ -152,3 +152,61 @@ def test_the_agency_answers_on_the_review(client: TestClient, operator: Account,
     assert said.status_code == 201 and said.json()["comments"][0]["agency"] is True
     with new_client() as visitor:
         assert visitor.get(f"/api/review/{token}").json()["comments"][0]["text"] == "Yes."
+
+
+def _news(client: TestClient, cid: str) -> tuple[int, int]:
+    listed = next(c for c in client.get("/api/clients").json() if c["id"] == cid)
+    return listed["news"], client.get(f"/api/clients/{cid}/reviews").json()[0]["news"]
+
+
+def test_what_the_client_does_is_new_until_somebody_of_the_agency_looks(client: TestClient, operator: Account,
+                                                                        space: int) -> None:
+    cid, _, token = _review(client, space)
+    review_id = client.get(f"/api/clients/{cid}/reviews").json()[0]["id"]
+    assert _news(client, cid) == (0, 0)
+    with new_client() as visitor:
+        for text in ("Nice.", "Darker?"):
+            visitor.post(f"/api/review/{token}/comments", json={"variant": "a", "author": "Fink", "text": text})
+    assert _news(client, cid) == (2, 2)
+    seen = client.post(f"/api/clients/{cid}/reviews/{review_id}/seen")
+    assert seen.status_code == 200 and seen.json()["news"] == 0 and seen.json()["seen_at"]
+    assert _news(client, cid) == (0, 0)
+    # The agency's own answer is never news, and answering counts as having looked.
+    with new_client() as visitor:
+        visitor.post(f"/api/review/{token}/comments", json={"variant": "a", "text": "And?"})
+    assert _news(client, cid) == (1, 1)
+    client.post(f"/api/clients/{cid}/reviews/{review_id}/comments", json={"variant": "a", "text": "Darker it is."})
+    assert _news(client, cid) == (0, 0)
+    # The choice is news too.
+    with new_client() as visitor:
+        assert visitor.post(f"/api/review/{token}/choose", json={"variant": "b"}).status_code == 200
+    assert _news(client, cid) == (1, 1)
+
+
+def test_a_withdrawn_review_has_no_news(client: TestClient, operator: Account, space: int) -> None:
+    cid, _, token = _review(client, space)
+    review_id = client.get(f"/api/clients/{cid}/reviews").json()[0]["id"]
+    with new_client() as visitor:
+        visitor.post(f"/api/review/{token}/comments", json={"variant": "a", "text": "Hm."})
+    client.delete(f"/api/clients/{cid}/reviews/{review_id}")
+    assert _news(client, cid) == (0, 0)
+
+
+def test_a_comment_can_be_about_one_example_of_the_direction(client: TestClient, operator: Account,
+                                                              space: int) -> None:
+    _open_pages()
+    made = make_client(client, space)
+    cid, vid = made["id"], made["versions"][0]["id"]
+    picture = upload(client, space, "start.svg", SVG)
+    other = upload(client, space, "other.svg", SVG.replace(b"width=\"10\"", b"width=\"9\""))
+    assert other != picture
+    data = {**SET, "samples": [{"name": "Start", "media": picture}]}
+    answer = client.post(f"/api/clients/{cid}/reviews", json={
+        "version_id": vid, "label": "1.0", "variants": [{"id": "a", "label": "A", "data": data}]})
+    token = answer.json()["link"].rsplit("/", 1)[1]
+    with new_client() as visitor:
+        said = visitor.post(f"/api/review/{token}/comments", json={"variant": "a", "sample": picture, "text": "Big."})
+        assert said.status_code == 201 and said.json()["comments"][0]["sample"] == picture
+        assert visitor.get(f"/api/review/{token}/media/{picture}").status_code == 200
+        foreign = visitor.post(f"/api/review/{token}/comments", json={"variant": "a", "sample": other, "text": "x"})
+        assert foreign.status_code == 404

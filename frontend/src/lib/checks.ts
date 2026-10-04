@@ -5,7 +5,7 @@
  * `checks.test.ts` holds both to the same answers. The words come from `checks.*` in the language files.
  */
 
-import type { BrandColor, BrandLogo, BrandSet, Rule } from './brand'
+import type { BrandColor, BrandLogo, BrandSet, DarkMode, Rule } from './brand'
 import { contrast, deltaE, luminance, simulate, type Vision } from './color'
 
 export type HintLevel = 'bad' | 'warn' | 'info'
@@ -132,7 +132,34 @@ export function ruleHints(set: Pick<BrandSet, 'fonts' | 'logos' | 'scale'> & { r
   return hints
 }
 
-export function check(set: Pick<BrandSet, 'colors' | 'fonts' | 'logos' | 'scale'> & { rules?: Rule[] }, colorList?: BrandColor[]): Hint[] {
+/** The pairs a dark mode has to carry, each at 4.5:1 (links and buttons are text too); below 3:1 it is serious. */
+const DARK_PAIRS: [keyof DarkMode, keyof DarkMode, string][] = [
+  ['text', 'ground', 'dark_text'],
+  ['text', 'surface', 'dark_surface'],
+  ['muted', 'ground', 'dark_muted'],
+  ['primary', 'ground', 'dark_primary'],
+  ['on_primary', 'primary', 'dark_on_primary'],
+]
+
+/** The set's dark mode against its own colours. */
+export function darkHints(dark: DarkMode | null | undefined, items: BrandColor[]): Hint[] {
+  if (!dark) return []
+  const byName = new Map(items.map((c) => [c.name.toLowerCase(), c] as const))
+  const found = Object.fromEntries(Object.entries(dark).map(([part, name]) => [part, byName.get(String(name).toLowerCase())])) as Record<string, BrandColor | undefined>
+  const hints: Hint[] = Object.entries(found)
+    .filter(([, color]) => !color)
+    .map(([part]) => ({ level: 'warn', code: 'dark_missing', missing: dark[part as keyof DarkMode] }))
+  for (const [fgPart, bgPart, code] of DARK_PAIRS) {
+    const fg = found[fgPart]
+    const bg = found[bgPart]
+    if (!fg || !bg) continue
+    const ratio = contrast(fg.hex, bg.hex)
+    if (ratio < 4.5) hints.push({ level: ratio < 3 ? 'bad' : 'warn', code, colors: [fg.name, bg.name], hex: [fg.hex, bg.hex], ratio: r2(ratio) })
+  }
+  return hints
+}
+
+export function check(set: Pick<BrandSet, 'colors' | 'fonts' | 'logos' | 'scale'> & { rules?: Rule[]; dark?: DarkMode | null }, colorList?: BrandColor[]): Hint[] {
   const items = (colorList ?? set.colors).filter((c) => /^#[0-9A-Fa-f]{6}$/.test(c.hex))
   const hints: Hint[] = []
   const white = items.some((c) => c.hex.toUpperCase() === WHITE)
@@ -195,6 +222,7 @@ export function check(set: Pick<BrandSet, 'colors' | 'fonts' | 'logos' | 'scale'
   }
 
   hints.push(...ruleHints(set, items))
+  hints.push(...darkHints(set.dark, items))
 
   const order = { bad: 0, warn: 1, info: 2 }
   return hints.sort((a, b) => order[a.level] - order[b.level])

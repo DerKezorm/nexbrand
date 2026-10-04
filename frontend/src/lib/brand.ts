@@ -62,6 +62,24 @@ export type Rule =
   | { type: 'font'; kind: RuleKind; text?: string; font: string; use?: RuleUse; min_size?: number }
 export type Sample = { name: string; media: string }
 
+/** The set's dark mode: which of its colours is what (by name). */
+export type DarkPart = 'ground' | 'surface' | 'text' | 'muted' | 'primary' | 'on_primary'
+export const DARK_PARTS: DarkPart[] = ['ground', 'surface', 'text', 'muted', 'primary', 'on_primary']
+export type DarkMode = Record<DarkPart, string>
+/** A dark mode as values, ready to draw; null when a name is gone. */
+export type Scheme = Record<DarkPart, string>
+
+export function schemeOf(dark: DarkMode | null | undefined, colors: BrandColor[]): Scheme | null {
+  if (!dark) return null
+  const out: Partial<Scheme> = {}
+  for (const part of DARK_PARTS) {
+    const found = colors.find((c) => c.name.toLowerCase() === (dark[part] ?? '').toLowerCase())
+    if (!found) return null
+    out[part] = found.hex
+  }
+  return out as Scheme
+}
+
 export type BrandSet = {
   colors: BrandColor[]
   fonts: BrandFont[]
@@ -69,6 +87,7 @@ export type BrandSet = {
   scale: ScaleStep[]
   rules: Rule[]
   samples: Sample[]
+  dark?: DarkMode | null
 }
 
 export function emptySet(): BrandSet {

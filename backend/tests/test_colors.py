@@ -99,6 +99,15 @@ CHECK_SETS = [
                {"type": "logo", "kind": "do", "logo": "file", "grounds": ["Honig"]},
                {"type": "pair", "kind": "do", "fg": "Weiss", "bg": "Tanne", "size": "text"},
                {"type": "pair", "kind": "do", "fg": "Weiss", "bg": "Tanne", "size": "large"}]},
+    # A dark mode: text too faint on the surface, the main colour too dark on the ground, a name gone.
+    {"colors": [{"name": "Nacht", "hex": "#14110F", "role": "neutral"},
+                {"name": "Kruste", "hex": "#3B2A20", "role": "neutral"},
+                {"name": "Mehl", "hex": "#F2E3C6", "role": "neutral"},
+                {"name": "Grau", "hex": "#6B6B6B", "role": "neutral"},
+                {"name": "Ofenrot", "hex": "#B8322A", "role": "primary"}],
+     "fonts": [], "logos": [], "scale": [],
+     "dark": {"ground": "Nacht", "surface": "Kruste", "text": "Grau", "muted": "Mehl", "primary": "Ofenrot",
+              "on_primary": "Schnee"}},
 ]
 
 

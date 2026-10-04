@@ -105,9 +105,41 @@ def check(data: dict[str, Any], color_list: list[dict[str, Any]] | None = None) 
             hints.append({"level": "info", "code": "font_system", "font": font["family"]})
 
     hints.extend(rule_hints(data, items))
+    hints.extend(dark_hints(data, items))
 
     order = {"bad": 0, "warn": 1, "info": 2}
     return sorted(hints, key=lambda hint: order[hint["level"]])
+
+
+#: The pairs a dark mode has to carry: (text part, ground part, code). Every one needs 4.5:1 (links and buttons are
+#: text too); below 3:1 it is serious.
+DARK_PAIRS = (
+    ("text", "ground", "dark_text"),
+    ("text", "surface", "dark_surface"),
+    ("muted", "ground", "dark_muted"),
+    ("primary", "ground", "dark_primary"),
+    ("on_primary", "primary", "dark_on_primary"),
+)
+
+
+def dark_hints(data: dict[str, Any], items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The set's dark mode against its own colours."""
+    dark = data.get("dark")
+    if not dark:
+        return []
+    by_name = {c["name"].lower(): c for c in items}
+    found = {part: by_name.get(str(name).lower()) for part, name in dark.items()}
+    hints: list[dict[str, Any]] = [{"level": "warn", "code": "dark_missing", "missing": dark[part]}
+                                   for part, color in found.items() if color is None]
+    for fg_part, bg_part, code in DARK_PAIRS:
+        fg, bg = found.get(fg_part), found.get(bg_part)
+        if fg is None or bg is None:
+            continue
+        ratio = colors.contrast(fg["hex"], bg["hex"])
+        if ratio < 4.5:
+            hints.append({"level": "bad" if ratio < 3 else "warn", "code": code, "colors": [fg["name"], bg["name"]],
+                          "hex": [fg["hex"], bg["hex"]], "ratio": _r(ratio)})
+    return hints
 
 
 def _missing(index: int, name: str) -> dict[str, Any]:
