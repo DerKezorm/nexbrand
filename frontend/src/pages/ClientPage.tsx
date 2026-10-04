@@ -229,6 +229,11 @@ export function ClientPage() {
                 <GitCompare className="h-4 w-4" /> {t('client.compareWith', { label: current.label })}
               </button>
             )}
+            {canWrite && (
+              <button type="button" className="nc-btn nc-btn-ghost text-mist-400 hover:text-bad-500" onClick={() => setDialog('deleteDraft')}>
+                <Trash2 className="h-4 w-4" /> {t('client.deleteDraft')}
+              </button>
+            )}
             {canManage && !openReview && (
               <button type="button" className="nc-btn nc-btn-ghost" onClick={() => setDialog('review')}>
                 <Send className="h-4 w-4" /> {t('client.toClient')}
