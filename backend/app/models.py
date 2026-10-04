@@ -76,7 +76,9 @@ SPACE_ROLES = (READ, WRITE, MANAGE)
 
 
 class Space(Base):
-    """A place for clients, as in nexlore: its members and their rights decide who sees the clients in it."""
+    """The group of rights behind one client: its members and teams with read, write or manage. Nobody sees it as a
+    place of its own; every client has exactly one (``Client.space_id``), made and deleted with it. Kept as a table of
+    its own because invitations, notices, team grants and the files of a client hang on it, as in the family."""
 
     __tablename__ = "spaces"
 
@@ -244,14 +246,15 @@ class SpaceNotice(Base):
 
 
 class Client(Base):
-    """A client of the agency, in a space: its members and their rights decide who sees the client. A client has a
-    design set with versions (``BrandVersion``) and projects that build on one of them."""
+    """A client of the agency. Who sees it is decided by its own group of rights (``space_id``, one per client). A
+    client has a design set with versions (``BrandVersion``, none yet for a client nexsuite brought) and projects that
+    build on one of them."""
 
     __tablename__ = "clients"
 
     #: Short and random, so addresses do not reveal how many clients there are.
     id: Mapped[str] = mapped_column(String(24), primary_key=True)
-    space_id: Mapped[int] = mapped_column(ForeignKey("spaces.id", ondelete="CASCADE"), index=True)
+    space_id: Mapped[int] = mapped_column(ForeignKey("spaces.id", ondelete="CASCADE"), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(120))
     sector: Mapped[str] = mapped_column(String(120), default="")
     contact: Mapped[str] = mapped_column(String(255), default="")

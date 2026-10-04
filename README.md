@@ -40,8 +40,9 @@ frame here: accounts, second factor, sign-in through a provider, log, languages 
 - **Your own AI, if you want one.** Each account may enter its own service: a hosted one, Ollama at home, or any
   other with the usual chat interface. It sorts what was collected and proposes directions for a new
   client. Off until the operator allows it; every request is listed word for word for 14 days.
-- **Spaces and rights.** Clients live in spaces; each member of a space reads, writes or manages there. A space
-  somebody may not read answers like one that does not exist. Clients go to a bin for 30 days.
+- **Access per client.** People and teams get access to a client, to read, write or manage it; whoever makes a
+  client manages it, and the operator decides whether members may make clients. A client somebody may not see
+  answers like one that does not exist. Clients go to a bin for 30 days.
 - **Around it, as in nexlore.** Accounts by invitation, second factor with recovery codes, sign-in through an OIDC
   provider with a button for authentik, a log in four levels, German and English plus languages the operator adds as
   JSON files, backups of the database together with every file, with a check before going back.
@@ -105,8 +106,8 @@ nexbrand is made to be reachable from outside, for yourself on the road or for a
 
 ## Where things are stored
 
-Everything lives in `/data`: the SQLite database `nexbrand.db` (accounts, spaces, clients, their versions and
-projects), `media/` (logos, fonts and example files, the same file stored once), `secret.key`, `backups/`, `logs/`,
+Everything lives in `/data`: the SQLite database `nexbrand.db` (accounts, teams, clients with their access,
+versions and projects), `media/` (logos, fonts and example files, the same file stored once), `secret.key`, `backups/`, `logs/`,
 `locales/`.
 Mount it from a local disk, never from an SMB or NFS share: SQLite's locking does not work reliably over network
 filesystems.
@@ -142,9 +143,10 @@ With an image: `docker compose pull && docker compose up -d`. Built from source:
 ## Part of the suite
 
 nexbrand runs on its own, or joins [nexsuite](https://github.com/DerKezorm/nexsuite), which then keeps the people,
-teams, spaces and rights of all connected apps and signs everybody in. The operator connects under **Settings →
-Server → nexsuite** with the address of nexsuite and a one-time code made there, matches the accounts and spaces here
-to those there, and from then on people sign in through nexsuite. A blocked person is signed out at once.
+teams and clients of all connected apps, decides who may see which client, and signs everybody in. The operator connects under **Settings →
+Server → nexsuite** with the address of nexsuite and a one-time code made there, matches the accounts and clients here
+to those there, and from then on people sign in through nexsuite. Clients are made in nexsuite then; one made there
+shows up in nexbrand without a CI and gets it here. A blocked person is signed out at once.
 
 Disconnecting brings nexbrand back on its own with everything it got; the operator's own sign-in with a password
 works throughout, and an emergency code disconnects even when nexsuite is out of reach.
@@ -162,7 +164,7 @@ draft. Off until the operator switches it on; every account then makes its own t
 - Passwords are hashed with Argon2id; failed sign-ins lock an account for a while, and a brake per sender slows
   guessing on top. With a second factor, the password alone opens nothing.
 - Every changing request needs the header `X-Nexbrand-Client`, which a page on another site cannot send.
-- A space somebody may not read answers exactly like one that does not exist, in every route.
+- A client somebody may not see answers exactly like one that does not exist, in every route.
 - A published version never changes; drafts from tokens or collecting stay drafts until a person publishes them.
 - Fonts marked internal never leave as a file: not on public pages, not through a token or MCP.
 - Collecting fetches only public addresses, resolved and checked by nexbrand itself, every redirect again, with size

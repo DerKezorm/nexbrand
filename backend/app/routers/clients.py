@@ -1,8 +1,9 @@
 """Clients, their versions and projects over HTTP: the overview, one client with everything, drafts, publishing,
 projects, favourites, the bin and the export as code.
 
-Rights come from the client's space (``services/rights.py``): reading shows, writing changes and publishes, the bin
-takes writing to put in and take out, and managing to delete for good.
+Rights come from the client's own group of rights (``services/rights.py``): reading shows, writing changes and
+publishes, the bin takes writing to put in and take out, and managing to delete for good. While nexbrand is connected
+to nexsuite, clients are made, renamed and deleted there; here they get their design set.
 """
 
 from __future__ import annotations
@@ -30,13 +31,13 @@ VersionId = Annotated[str, PathParam(min_length=6, max_length=24, pattern=r"^[A-
 
 
 class ClientIn(BaseModel):
-    space_id: int = Field(ge=1)
     name: str = Field(min_length=1, max_length=400)
+    color: str | None = Field(default=None, max_length=16)
     sector: str = Field(default="", max_length=400)
     contact: str = Field(default="", max_length=400)
     note: str = Field(default="", max_length=8000)
-    #: The first version's name, as the interface words it ("1", "Draft 1" …).
-    label: str = Field(default="1", min_length=1, max_length=120)
+    #: The first version's name, as the interface words it ("1", "Draft 1" …); empty: no version yet.
+    label: str = Field(default="1", max_length=120)
     data: dict[str, Any] | None = None
     #: A first project, building on the first version.
     project: str = Field(default="", max_length=400)
@@ -46,6 +47,7 @@ class ClientChange(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=400)
     sector: str | None = Field(default=None, max_length=400)
     contact: str | None = Field(default=None, max_length=400)
+    color: str | None = Field(default=None, max_length=16)
     note: str | None = Field(default=None, max_length=8000)
     favorite: bool | None = None
 
@@ -141,7 +143,10 @@ def _face(version: BrandVersion | None) -> dict[str, Any]:
 
 
 def client_view(db: DbSession, account: AccountRow, client: Client) -> dict[str, Any]:
+    from ..models import Space
+
     versions = brands.versions(db, client)
+    space = db.get(Space, client.space_id)
     current = next((v for v in reversed(versions) if v.status != DRAFT), None)
     shown = current or (versions[0] if versions else None)
     visit = db.get(Visit, (account.id, client.id))
@@ -150,6 +155,8 @@ def client_view(db: DbSession, account: AccountRow, client: Client) -> dict[str,
         "id": client.id,
         "space_id": client.space_id,
         "name": client.name,
+        "color": space.color if space is not None else "#2f7bff",
+        "managed": brands.managed(db, client),
         "sector": client.sector,
         "contact": client.contact,
         "created_at": client.created_at.isoformat(),
@@ -166,15 +173,11 @@ def client_view(db: DbSession, account: AccountRow, client: Client) -> dict[str,
     }
 
 
-@router.get("/clients", summary="The clients of every readable space, or of one, or those in the bin")
-def listing(
-    account: Account, db: DbSession, space: Annotated[int | None, Query(ge=1)] = None, deleted: bool = False,
-) -> list[dict[str, Any]]:
+@router.get("/clients", summary="The clients the account may see, or those in the bin it may restore")
+def listing(account: Account, db: DbSession, deleted: bool = False) -> list[dict[str, Any]]:
     readable = rights.readable_ids(db, account)
     if deleted:
         readable = {sid for sid in readable if rights.at_least(rights.role_in(db, account, sid), WRITE)}
-    if space is not None:
-        readable &= {space}
     if not readable:
         return []
     query = select(Client).where(Client.space_id.in_(readable))
@@ -185,11 +188,10 @@ def listing(
 @router.post("/clients", status_code=201, summary="A new client with a first draft (and a first project)")
 def create(payload: ClientIn, account: Account, db: DbSession) -> dict[str, Any]:
     try:
-        rights.check(db, account, payload.space_id, WRITE)
         client, version = brands.create_client(
-            db, account, payload.space_id, payload.name, sector=payload.sector, contact=payload.contact,
-            note=payload.note, label=payload.label, data=payload.data)
-        if payload.project.strip():
+            db, account, payload.name, sector=payload.sector, contact=payload.contact, note=payload.note,
+            color=payload.color, label=payload.label.strip() or None, data=payload.data)
+        if payload.project.strip() and version is not None:
             brands.create_project(db, account, client, name=payload.project, version_id=version.id)
     except (rights.RightsError, brands.BrandError) as exc:
         db.rollback()
@@ -253,13 +255,19 @@ def visited(client_id: ClientId, account: Account, db: DbSession) -> None:
 
 @router.delete("/clients/{client_id}", status_code=204, summary="Move a client into the bin (writers)")
 def trash(client_id: ClientId, account: Account, db: DbSession) -> None:
-    brands.trash(db, client_of(db, account, client_id, WRITE))
+    try:
+        brands.trash(db, client_of(db, account, client_id, WRITE))
+    except brands.BrandError as exc:
+        raise _fail(exc) from exc
 
 
 @router.post("/clients/{client_id}/restore", summary="Bring a client back from the bin (writers)")
 def restore(client_id: ClientId, account: Account, db: DbSession) -> dict[str, Any]:
     client = client_of(db, account, client_id, WRITE, deleted=True)
-    brands.restore(db, client)
+    try:
+        brands.restore(db, client)
+    except brands.BrandError as exc:
+        raise _fail(exc) from exc
     return client_view(db, account, client)
 
 

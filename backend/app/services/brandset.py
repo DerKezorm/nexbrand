@@ -144,7 +144,7 @@ class Files:
 
     def one(self, value: Any, where: str, kinds: set[str] | None) -> str:
         if not isinstance(value, str) or not MEDIA_ID.match(value) or value not in self.kinds:
-            raise SetError(where, "No such file in this space.")
+            raise SetError(where, "No such file among the client's files.")
         if kinds is not None and self.kinds[value] not in kinds:
             raise SetError(where, "This file is not of a kind that fits here.")
         return value

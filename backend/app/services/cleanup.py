@@ -38,15 +38,14 @@ def used_media(space_id: int) -> set[str]:
 def run_once() -> None:
     now = utcnow()
     with SessionLocal() as db:
-        for client in db.scalars(select(Client).where(Client.deleted_at < now - timedelta(days=BIN_DAYS))):
+        # A client from nexsuite goes when nexsuite says so ("clients_gone"): by the clock here it went up to a day
+        # early, and a restore there then brought back an empty client (E3). Its group of rights goes with it.
+        expired = db.execute(select(Client, Space).join(Space, Space.id == Client.space_id).where(
+            Client.deleted_at < now - timedelta(days=BIN_DAYS), Space.external_id == "")).all()
+        for client, space in expired:
             db.delete(client)
-            logger.info("Client deleted after 30 days in the bin id=%s", client.id)
-        # A space from nexsuite goes when nexsuite says so ("gone"): by the clock here it went up to a day early,
-        # and a restore there then brought back an empty space (E3).
-        for space in db.scalars(select(Space).where(Space.deleted_at < now - timedelta(days=BIN_DAYS),
-                                                    Space.external_id == "")):
             db.delete(space)
-            logger.info("Space deleted after 30 days in the bin id=%s", space.id)
+            logger.info("Client deleted after 30 days in the bin id=%s", client.id)
         db.execute(delete(Share).where(Share.expires_at < now))
         db.execute(delete(Review).where(Review.expires_at < now - timedelta(days=BIN_DAYS)))
         db.commit()

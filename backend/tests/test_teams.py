@@ -8,7 +8,7 @@ from app.db import SessionLocal
 from app.models import Account
 from app.services import avatars
 
-from .conftest import join, make_account, new_client
+from .conftest import client_of, join, make_account, new_client, new_group
 
 
 def _team(client: TestClient, name: str = "Design", members: list[int] | None = None, **extra: object) -> dict:
@@ -18,9 +18,7 @@ def _team(client: TestClient, name: str = "Design", members: list[int] | None = 
 
 
 def _client(client: TestClient, space: int) -> str:
-    answer = client.post("/api/clients", json={"space_id": space, "name": "Plan"})
-    assert answer.status_code == 201, answer.text
-    return str(answer.json()["id"])
+    return client_of(client, space)
 
 
 def test_the_operator_makes_a_team_and_everybody_sees_everybody(client: TestClient, operator: Account) -> None:
@@ -88,7 +86,7 @@ def test_the_operator_sees_a_space_only_a_team_has(client: TestClient, operator:
     anna, ben = make_account("anna"), make_account("ben")
     team = _team(client, members=[anna.id, ben.id])
     with new_client(anna) as browser:
-        other = browser.post("/api/spaces", json={"name": "Workshop"}).json()["id"]
+        other = new_group(browser, "Workshop")
         browser.put(f"/api/spaces/{other}/teams/{team['id']}", json={"role": "write"})
         # Nobody would manage the space any more: the team only writes.
         left = browser.delete(f"/api/spaces/{other}/members/anna")
@@ -98,7 +96,7 @@ def test_the_operator_sees_a_space_only_a_team_has(client: TestClient, operator:
         assert browser.get("/api/spaces").json()[0]["role"] == "manage"
     # The operator sees and manages every space, also one only a team has.
     assert other in [s["id"] for s in client.get("/api/spaces").json()]
-    assert client.patch(f"/api/spaces/{other}", json={"name": "Mine"}).status_code == 200
+    assert client.patch(f"/api/clients/{client_of(client, other)}", json={"name": "Mine"}).status_code == 200
 
 
 def test_a_manager_through_a_team_invites_and_the_invitation_holds(client: TestClient, operator: Account,

@@ -142,9 +142,21 @@ def account(client: TestClient) -> Account:
     return _operator(client)
 
 
+def new_group(client: TestClient, name: str) -> int:
+    """A client without a design set yet, made by whoever ``client`` is signed in as (who then manages it); its group
+    of rights, the id the member and team routes take."""
+    answer = client.post("/api/clients", json={"name": name, "label": ""})
+    assert answer.status_code == 201, answer.text
+    return int(answer.json()["space_id"])
+
+
+def client_of(client: TestClient, space: int) -> str:
+    """The client whose group of rights ``space`` is."""
+    return str(next(s["client"] for s in client.get("/api/spaces").json() if s["id"] == space))
+
+
 @pytest.fixture
 def space(client: TestClient, operator: Account) -> int:
-    """A space the operator made and manages."""
-    answer = client.post("/api/spaces", json={"name": "Home"})
-    assert answer.status_code == 201, answer.text
-    return int(answer.json()["id"])
+    """The group of rights of a client the operator made and manages (no design set yet: ``make_client`` gives it
+    one)."""
+    return new_group(client, "Home")

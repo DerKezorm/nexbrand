@@ -16,7 +16,7 @@ from sqlalchemy import select
 from ..deps import Account, DbSession, OperatorAccount
 from ..errors import error
 from ..models import Account as AccountRow
-from ..models import ApiToken, Space, utcnow
+from ..models import ApiToken, Client, utcnow
 from ..services import apitokens, rights
 from ..services.apitokens import TokenError
 
@@ -35,8 +35,8 @@ class TokenOut(BaseModel):
     expires_at: datetime | None = None
     #: The operator blocked it: it answers like none, for good.
     blocked: bool = False
-    #: The names of the spaces the token may see, of those the account may read now; None: all of them.
-    spaces: list[str] | None = None
+    #: The clients the token may see (id and name), of those the account may read now; None: all of them.
+    clients: list[dict[str, str]] | None = None
 
 
 class TokensOut(BaseModel):
@@ -48,8 +48,8 @@ class TokenIn(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     #: ``read``, or ``draft``: also proposes versions as drafts (MCP, ``/api/v1``).
     level: str = Field(default="read", max_length=8)
-    #: Ids of spaces; left out: every space the account may read, now and later.
-    spaces: list[int] | None = Field(default=None, max_length=1000)
+    #: Ids of clients; left out: every client the account may read, now and later.
+    clients: list[str] | None = Field(default=None, max_length=1000)
     #: 30, 90 or 365; left out: never runs out.
     days: int | None = None
 
@@ -61,15 +61,17 @@ class MadeOut(BaseModel):
 
 
 def _out(db: Any, account: Any, row: ApiToken) -> TokenOut:
-    names = None
+    named = None
     if row.spaces is not None:
-        # Only spaces the account may still read: one it lost since tells nothing (and the token does not see it).
+        # Only clients the account may still read: one it lost since tells nothing (and the token does not see it).
         readable = rights.readable_ids(db, account)
         wanted = [space_id for space_id in row.spaces if space_id in readable]
-        names = sorted(db.scalars(select(Space.name).where(Space.id.in_(wanted)))) if wanted else []
+        rows = db.scalars(select(Client).where(Client.space_id.in_(wanted), Client.deleted_at.is_(None))
+                          .order_by(Client.name)) if wanted else []
+        named = [{"id": client.id, "name": client.name} for client in rows]
     return TokenOut(id=row.id, name=row.name, level=row.level, prefix=row.prefix, created_at=row.created_at,
                     last_used_at=row.last_used_at, expires_at=row.expires_at, blocked=row.blocked_at is not None,
-                    spaces=names)
+                    clients=named)
 
 
 @router.get("/api-tokens", response_model=TokensOut, summary="The own API tokens")
@@ -82,8 +84,16 @@ def own_tokens(account: Account, db: DbSession) -> TokensOut:
 def make_token(body: TokenIn, account: Account, db: DbSession) -> MadeOut:
     if not apitokens.allowed(db):
         raise error("api_off", "The operator has not switched API tokens on.", 403)
+    groups = None
+    if body.clients is not None:
+        # A client is seen through its group of rights; one that does not exist is refused like one not readable.
+        found = {c.id: c.space_id for c in db.scalars(select(Client).where(Client.id.in_(body.clients),
+                                                                           Client.deleted_at.is_(None)))}
+        if len(found) != len(set(body.clients)):
+            raise error("invalid_input", "Choose clients you may read.", 422)
+        groups = list(found.values())
     try:
-        row, secret = apitokens.make(db, account, body.name, body.level, body.spaces, body.days)
+        row, secret = apitokens.make(db, account, body.name, body.level, groups, body.days)
     except TokenError as exc:
         raise error(exc.code, exc.text, exc.status) from exc
     return MadeOut(token=_out(db, account, row), secret=secret)
@@ -108,8 +118,8 @@ class AnyTokenOut(BaseModel):
     name: str
     level: str
     prefix: str
-    #: How many spaces it is limited to; None: all its account may read.
-    spaces: int | None = None
+    #: How many clients it is limited to; None: all its account may read.
+    clients: int | None = None
     created_at: datetime
     last_used_at: datetime | None = None
     expires_at: datetime | None = None
@@ -121,7 +131,7 @@ def every_token(_operator: OperatorAccount, db: DbSession) -> list[AnyTokenOut]:
     names = dict(db.execute(select(AccountRow.id, AccountRow.name)).all())
     rows = db.scalars(select(ApiToken).order_by(ApiToken.account_id, ApiToken.id)).all()
     return [AnyTokenOut(id=row.id, account=names.get(row.account_id, ""), name=row.name, level=row.level,
-                        prefix=row.prefix, spaces=None if row.spaces is None else len(row.spaces),
+                        prefix=row.prefix, clients=None if row.spaces is None else len(row.spaces),
                         created_at=row.created_at, last_used_at=row.last_used_at, expires_at=row.expires_at,
                         blocked=row.blocked_at is not None) for row in rows]
 
@@ -138,6 +148,6 @@ def block_token(token_id: Annotated[int, Path(ge=1)], _operator: OperatorAccount
         logger.info("API token blocked by the operator token_id=%s", token_id)
     owner = db.get(AccountRow, row.account_id)
     return AnyTokenOut(id=row.id, account=owner.name if owner else "", name=row.name, level=row.level,
-                       prefix=row.prefix, spaces=None if row.spaces is None else len(row.spaces),
+                       prefix=row.prefix, clients=None if row.spaces is None else len(row.spaces),
                        created_at=row.created_at, last_used_at=row.last_used_at, expires_at=row.expires_at,
                        blocked=True)

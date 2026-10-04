@@ -3,22 +3,19 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { useTranslation } from 'react-i18next'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 
-import { useBrands } from '../state/brands'
 import { AccountMenu } from './AccountMenu'
 import { Logo } from './Logo'
-import { NewSpaceDialog } from './NewSpaceDialog'
 import { QuickSwitcher } from './QuickSwitcher'
 import { ThemeSwitcher } from './ThemeSwitcher'
 import { WhatsNewBanner } from './WhatsNew'
 
 interface Shell {
-  /** The workbench for a new client, in a space when one is given. */
-  newClient: (space?: number) => void
-  newSpace: () => void
+  /** The workbench for a new client, or for the first design set of a client that has none yet. */
+  newClient: (client?: string) => void
   search: () => void
 }
 
-const ShellContext = createContext<Shell>({ newClient: () => undefined, newSpace: () => undefined, search: () => undefined })
+const ShellContext = createContext<Shell>({ newClient: () => undefined, search: () => undefined })
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function useShell(): Shell {
@@ -36,14 +33,11 @@ function navClass(isActive: boolean): string {
 export function AppShell() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const brands = useBrands()
   const [searching, setSearching] = useState(false)
-  const [spaceDialog, setSpaceDialog] = useState(false)
 
-  const newClient = useCallback((space?: number) => navigate(space ? `/new?space=${space}` : '/new'), [navigate])
-  const newSpace = useCallback(() => setSpaceDialog(true), [])
+  const newClient = useCallback((client?: string) => navigate(client ? `/new?client=${client}` : '/new'), [navigate])
   const search = useCallback(() => setSearching(true), [])
-  const shell = useMemo(() => ({ newClient, newSpace, search }), [newClient, newSpace, search])
+  const shell = useMemo(() => ({ newClient, search }), [newClient, search])
 
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
@@ -102,16 +96,6 @@ export function AppShell() {
           <Outlet />
         </div>
       </div>
-      {spaceDialog && (
-        <NewSpaceDialog
-          onClose={() => setSpaceDialog(false)}
-          onCreate={async (name, color) => {
-            const made = await brands.createSpace(name, color)
-            setSpaceDialog(false)
-            navigate(`/?space=${made.id}`)
-          }}
-        />
-      )}
       {searching && <QuickSwitcher onClose={() => setSearching(false)} />}
     </ShellContext.Provider>
   )

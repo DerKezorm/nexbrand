@@ -16,7 +16,7 @@ from app.models import Account, AuthSession, Setting
 from app.security import decrypt_secret
 from app.services import backups, mailer, settings_service
 
-from .conftest import PASSWORD, make_account, sign_in
+from .conftest import PASSWORD, make_account, new_group, sign_in
 
 
 class FakeSmtp:
@@ -107,7 +107,7 @@ def test_invitation_links_use_the_public_address(client: TestClient, operator: A
 def test_an_invitation_goes_out_by_mail(client: TestClient, operator: Account, smtp: type[FakeSmtp]) -> None:
     # Mail links to the public address, never to one the request names (review before 1.0.0).
     client.put("/api/settings", json=MAIL | {"public_url": "https://notes.example.com"})
-    team = client.post("/api/spaces", json={"name": "Team"}).json()["id"]
+    team = new_group(client, "Team")
     made = client.post(
         f"/api/spaces/{team}/invites", json={"role": "read", "email": "dora@example.com", "send": True}
     ).json()

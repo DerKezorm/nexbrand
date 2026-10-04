@@ -1,11 +1,10 @@
 /**
  * Settings, laid out like nexlore's: whoever knows one finds their way in the other.
- * Settings: General, Look, Spaces, Teams, and for the operator Server, with a second row for its parts. The tab is in the
+ * Settings: General, Look, Access (who sees which client), Teams, and for the operator Server, with a second row for its parts. The tab is in the
  * address (`?tab=server&sub=backups`), so a link can point at one; a tab someone may not see falls back to General.
  * The own account is `AccountPage.tsx`.
  */
 import {
-  Box,
   Download,
   Eye,
   Files,
@@ -16,7 +15,6 @@ import {
   KeyRound,
   Palette,
   Plug,
-  RotateCcw,
   Shield,
   ShieldCheck,
   Sparkles,
@@ -27,7 +25,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 
-import { api, authApi, type Me, type Preferences } from '../api/client'
+import { authApi, type Me, type Preferences } from '../api/client'
 import { useBrands, type Space } from '../state/brands'
 import { Avatar } from '../components/Avatar'
 import { MembersDialog } from '../components/MembersDialog'
@@ -39,11 +37,11 @@ import { useAuth } from '../state/auth'
 import { AccountsCard, AllSpacesCard, ApiTokensCard, BackupsCard, FilesCard, LanguagesCard, LogCard, MailCard, OutsideCard, SharesCard, SignInCard, useServerSettings } from './settings/ServerCards'
 import { Button, Card, Feedback, saveAsFile, TabRow, useAction, type Tab } from './settings/ui'
 
-type Top = 'general' | 'looks' | 'spaces' | 'teams' | 'server'
+type Top = 'general' | 'looks' | 'access' | 'teams' | 'server'
 type Part = 'accounts' | 'signin' | 'suite' | 'shares' | 'api' | 'outside' | 'files' | 'backups' | 'languages' | 'log'
-const TOPS: Top[] = ['general', 'looks', 'spaces', 'teams', 'server']
+const TOPS: Top[] = ['general', 'looks', 'access', 'teams', 'server']
 const PARTS: Part[] = ['accounts', 'signin', 'suite', 'shares', 'api', 'outside', 'files', 'backups', 'languages', 'log']
-const TOP_ICON = { general: Globe, looks: Eye, spaces: Box, teams: UsersRound, server: ShieldCheck }
+const TOP_ICON = { general: Globe, looks: Eye, access: Users, teams: UsersRound, server: ShieldCheck }
 const PART_ICON = { accounts: Users, signin: KeyRound, suite: Shield, shares: Globe, api: Plug, outside: Sparkles, files: Files, backups: History, languages: Globe, log: Info }
 
 export function SettingsPage() {
@@ -69,7 +67,7 @@ export function SettingsPage() {
         <div className="space-y-6 pt-1">
           {top === 'general' && <General />}
           {top === 'looks' && <Looks />}
-          {top === 'spaces' && <Spaces />}
+          {top === 'access' && <Access />}
           {top === 'teams' && <TeamsCard />}
           {top === 'server' && <ServerPart part={part} />}
         </div>
@@ -89,7 +87,7 @@ function ServerPart({ part }: { part: Part }) {
       return (
         <>
           {connected ? <ManagedCard title={t('settings.parts.accounts')} text={t('suite.managedAccounts')} /> : <AccountsCard />}
-          <AllSpacesCard />
+          <AllSpacesCard server={server} />
           {me?.suite_mail ? <ManagedCard title={t('suite.mailTitle')} text={t('suite.managedMail')} /> : <MailCard server={server} />}
         </>
       )
@@ -239,27 +237,24 @@ function Looks() {
   )
 }
 
-function Spaces() {
+/** Every client the account sees, with who has access and through which team; managers change it here or on the
+ * client's page ("Access"). */
+function Access() {
   const { t } = useTranslation()
   const brands = useBrands()
   const [members, setMembers] = useState<Space | null>(null)
   const [teamsOf, setTeamsOf] = useState<Space | null>(null)
-  const [bin, setBin] = useState<{ id: number; name: string; color: string; deleted_at: string }[]>([])
-  const action = useAction()
-  useEffect(() => {
-    api<{ id: number; name: string; color: string; deleted_at: string }[]>('/api/spaces/bin').then(setBin, () => undefined)
-  }, [])
+  const groups = [...brands.spaces].sort((a, b) => a.name.localeCompare(b.name))
   return (
     <>
-      <Card icon={Box} title={t('settings.spacesMine')} text={t('settings.spacesHint')}>
+      <Card icon={Users} title={t('settings.accessTitle')} text={t('settings.accessHint')}>
         <ul className="divide-y divide-ink-700 rounded-xl border border-ink-700">
-          {brands.spaces.map((s) => (
+          {groups.length === 0 && <li className="px-4 py-3 text-sm text-mist-500">{t('clients.empty')}</li>}
+          {groups.map((s) => (
             <li key={s.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
               <span className="h-2.5 w-2.5 rounded-full" style={{ background: s.color }} />
               <span className="min-w-0 flex-1 truncate font-medium text-mist-100">{s.name}</span>
-              <span className="text-xs text-mist-500">
-                {t(`roles.${s.role}`)} · {t('clients.count', { count: s.clients })}
-              </span>
+              <span className="text-xs text-mist-500">{t(`roles.${s.role}`)}</span>
               <span className="flex -space-x-1.5">
                 {s.members.slice(0, 5).map((m) => (
                   <Avatar key={m.id} person={m} className="h-6 w-6 text-[11px]" ring />
@@ -268,8 +263,9 @@ function Spaces() {
                   <TeamBadge key={`t${grant.id}`} team={grant} className="h-6 w-6 text-[11px] ring-2 ring-ink-950" />
                 ))}
               </span>
-              {s.managed ? (
-                <span className="rounded-full border border-accent-500/40 px-2 py-0.5 text-[11px] font-medium text-accent-400">{t('suite.fromSuite')}</span>
+              {s.managed || s.role !== 'manage' ? (
+                s.managed && 
+<span className="rounded-full border border-accent-500/40 px-2 py-0.5 text-[11px] font-medium text-accent-400">{t('suite.fromSuite')}</span>
               ) : (
                 <>
                   <Button small onClick={() => setMembers(s)}>
@@ -286,33 +282,6 @@ function Spaces() {
           ))}
         </ul>
       </Card>
-      {bin.length > 0 && (
-        <Card icon={RotateCcw} title={t('settings.spacesBin')} text={t('settings.spacesBinHint')}>
-          <ul className="divide-y divide-ink-700 rounded-xl border border-ink-700">
-            {bin.map((s) => (
-              <li key={s.id} className="flex items-center gap-3 px-4 py-3 text-sm">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: s.color }} />
-                <span className="flex-1 text-mist-200">{s.name}</span>
-                <Button
-                  small
-                  busy={action.busy}
-                  onClick={() =>
-                    void action.run(async () => {
-                      await api(`/api/spaces/${s.id}/restore`, { method: 'POST' })
-                      setBin((list) => list.filter((x) => x.id !== s.id))
-                      await brands.refresh()
-                    })
-                  }
-                >
-                  <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.8} />
-                  {t('files.restore')}
-                </Button>
-              </li>
-            ))}
-          </ul>
-          <Feedback problem={action.problem} />
-        </Card>
-      )}
       {members && <MembersDialog space={members} onClose={() => setMembers(null)} />}
       {teamsOf && <TeamRightsDialog space={teamsOf} onClose={() => setTeamsOf(null)} />}
     </>

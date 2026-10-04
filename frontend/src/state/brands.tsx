@@ -1,5 +1,5 @@
 /**
- * Spaces and clients as the overview knows them, from the server. One client with its versions and projects is
+ * The clients as the overview knows them, from the server, and the group of rights behind each (who has access). One client with its versions and projects is
  * loaded by its page (`ClientPage`); what changes there is put back here, so the overview and the sidebar follow.
  *
  * The lists refresh when the tab comes back into view and every half minute, so clients others made show up.
@@ -24,7 +24,6 @@ interface Brands {
   loadBin: () => Promise<void>
   /** A client's entry changed elsewhere (opened, renamed, published): put it in the list without a reload. */
   put: (client: ClientInfo) => void
-  createSpace: (name: string, color?: string) => Promise<Space>
 }
 
 const Context = createContext<Brands | null>(null)
@@ -80,11 +79,6 @@ export function BrandsProvider({ children }: { children: ReactNode }) {
           if (client.deleted_at) return all.filter((c) => c.id !== client.id)
           return known ? all.map((c) => (c.id === client.id ? client : c)) : [...all, client]
         }),
-      createSpace: async (name, color) => {
-        const made = await spacesApi.create(name, color)
-        await refresh()
-        return made
-      },
     }),
     [loaded, spaces, clients, bin, refresh, loadBin],
   )

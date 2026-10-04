@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
-import { aiApi, ApiError, clientsApi, mediaApi, mediaUrl, reviewsApi, type MediaInfo } from '../api/client'
+import { aiApi, ApiError, clientsApi, mediaApi, mediaUrl, reviewsApi, type ClientWhole, type MediaInfo } from '../api/client'
 import { HintList, Matrix } from '../components/brand/Checks'
 import { LogoView } from '../components/brand/LogoView'
 import { ColorsEditor, useNames } from '../components/brand/SetEditor'
@@ -33,13 +33,15 @@ export function NewClientPage() {
   const brands = useBrands()
   const [params] = useSearchParams()
   const names = useNames()
-  const writable = brands.spaces.filter((s) => s.role === 'write' || s.role === 'manage')
   const [step, setStep] = useState<Step>('who')
-  const [asked, setSpace] = useState<number>(Number(params.get('space')) || 0)
-  // The spaces load after the page opens: until one is chosen, the first writable one is the choice, not "none".
-  const space = writable.some((s) => s.id === asked) ? asked : (writable[0]?.id ?? 0)
+  // A client without a design set yet (one nexsuite brought, or one made earlier): the wizard makes its first version.
+  const presetId = params.get('client')
+  const [existing, setExisting] = useState<ClientWhole | null>(null)
+  // The client this wizard works for, once there is one: made when a logo is uploaded or at the end.
+  const [made, setMade] = useState<{ id: string; space_id: number } | null>(null)
   const [name, setName] = useState('')
   const [sector, setSector] = useState('')
+  const fixed = !!existing
   const [project, setProject] = useState('')
   const [brief, setBrief] = useState('')
   const [dirs, setDirs] = useState<Direction[] | null>(null)
@@ -49,6 +51,15 @@ export function NewClientPage() {
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
   const set = (patch: Partial<Bench>) => setBench((b) => ({ ...b, ...patch }))
+  useEffect(() => {
+    if (!presetId) return
+    clientsApi.read(presetId).then((whole) => {
+      setExisting(whole)
+      setMade({ id: whole.id, space_id: whole.space_id })
+      setName(whole.name)
+      setSector(whole.sector)
+    }, () => setProblem('not_found'))
+  }, [presetId])
   const index = STEPS.indexOf(step)
   const shownName = name.trim() || t('wizard.yourName')
 
@@ -70,23 +81,36 @@ export function NewClientPage() {
 
   const current = useMemo(() => setOf(bench.colors, bench.head, bench.body), [bench, name]) // eslint-disable-line react-hooks/exhaustive-deps
   const hints = useMemo(() => (current.colors.length ? check(current).filter((h) => h.level !== 'info') : []), [current])
-  const canNext = step === 'who' ? !!name.trim() && !!space : step === 'start' ? true : step === 'colors' ? current.colors.length > 0 : true
-  const spaceRole = brands.space(space)?.role
-  const reviewPossible = spaceRole === 'manage' && me?.shares_allowed !== false
+  const allowed = presetId ? !!existing && (existing.role === 'write' || existing.role === 'manage') : !!me?.may_create_clients
+  const canNext = step === 'who' ? !!name.trim() && allowed : step === 'start' ? true : step === 'colors' ? current.colors.length > 0 : true
+  // Whoever makes a client manages it; for one that exists, its right counts.
+  const reviewPossible = (existing ? existing.role === 'manage' : true) && me?.shares_allowed !== false
+
+  /** The client to put the design set and its files into: the one given, or a new one, made once. */
+  const ensure = async (): Promise<{ id: string; space_id: number }> => {
+    if (made) return made
+    const fresh = await clientsApi.create({ name: name.trim(), sector: sector.trim(), label: '' })
+    const kept = { id: fresh.id, space_id: fresh.space_id }
+    setMade(kept)
+    return kept
+  }
 
   const finish = async (review: boolean) => {
     setBusy(true)
     setProblem(null)
     try {
-      const made = await clientsApi.create({ space_id: space, name: name.trim(), sector: sector.trim(), label: '1.0', data: current, project: project.trim() })
-      const draft = made.versions[0]
+      const target = await ensure()
+      // Made earlier for a logo: the name and sector typed since count.
+      if (!existing && made) await clientsApi.change(target.id, { name: name.trim(), sector: sector.trim() })
+      const draft = await clientsApi.newVersion(target.id, { label: '1.0', data: current })
+      if (project.trim()) await clientsApi.newProject(target.id, { name: project.trim(), version_id: draft.id })
       if (review && reviewPossible) {
         const variants = [{ id: 'a', label: t('wizard.worked'), why: t('wizard.workedWhy'), data: current }]
         for (const d of dirs ?? []) if (along[d.id]) variants.push({ id: String.fromCharCode(97 + variants.length), label: d.label || t(`wizard.dir.${d.id}.label`), why: dirWhy(d), data: setOf(d.colors, d.head, d.body) })
-        await reviewsApi.create(made.id, { version_id: draft.id, variants, label: '1.0', sender: me?.display_name || me?.name || '', days: 30 })
+        await reviewsApi.create(target.id, { version_id: draft.id, variants, label: '1.0', sender: me?.display_name || me?.name || '', days: 30 })
       }
       await brands.refresh()
-      navigate(`/c/${made.id}?v=${draft.id}${review && reviewPossible ? '&tab=reviews' : ''}`)
+      navigate(`/c/${target.id}?v=${draft.id}${review && reviewPossible ? '&tab=reviews' : ''}`)
     } catch (error) {
       setProblem(error instanceof ApiError ? error.code : 'internal_error')
     } finally {
@@ -122,7 +146,10 @@ export function NewClientPage() {
           ))}
         </ol>
 
-        {!writable.length && <p className="rounded-xl border border-warn-500/40 bg-warn-500/8 px-4 py-3 text-sm">{t('wizard.noSpace')}</p>}
+        {!presetId && me && !me.may_create_clients && (
+          <p className="rounded-xl border border-warn-500/40 bg-warn-500/8 px-4 py-3 text-sm">{me.suite === 'connected' ? t('wizard.fromSuite') : t('wizard.notAllowed')}</p>
+        )}
+        {existing && existing.versions.length > 0 && <p className="rounded-xl border border-warn-500/40 bg-warn-500/8 px-4 py-3 text-sm">{t('wizard.hasCi')}</p>}
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <div className="min-w-0 space-y-4">
@@ -130,19 +157,10 @@ export function NewClientPage() {
               <Panel title={t('wizard.whoTitle')}>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Labeled label={t('client.name')}>
-                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('wizard.nameHint')} className="nc-field mt-1" autoFocus />
+                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('wizard.nameHint')} className="nc-field mt-1" autoFocus={!fixed} readOnly={fixed} />
                   </Labeled>
                   <Labeled label={t('client.sector')}>
-                    <input value={sector} onChange={(e) => setSector(e.target.value)} placeholder={t('wizard.sectorHint')} className="nc-field mt-1" />
-                  </Labeled>
-                  <Labeled label={t('wizard.space')}>
-                    <select value={space} onChange={(e) => setSpace(Number(e.target.value))} className="nc-field mt-1">
-                      {writable.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
+                    <input value={sector} onChange={(e) => setSector(e.target.value)} placeholder={t('wizard.sectorHint')} className="nc-field mt-1" readOnly={fixed} />
                   </Labeled>
                   <Labeled label={t('wizard.project')}>
                     <input value={project} onChange={(e) => setProject(e.target.value)} placeholder={t('wizard.projectHint')} className="nc-field mt-1" />
@@ -259,7 +277,7 @@ export function NewClientPage() {
                   </div>
                 </Panel>
                 <Panel title={t('wizard.logoTitle')} text={t('wizard.logoText')}>
-                  <LogoUpload space={space} logo={bench.logo} onChange={(logo) => set({ logo })} />
+                  <LogoUpload ensure={async () => (await ensure()).space_id} logo={bench.logo} onChange={(logo) => set({ logo })} />
                   <div className="grid gap-3 sm:grid-cols-3">
                     {current.logos.map((l) => (
                       <div key={l.id} className="overflow-hidden rounded-xl border border-ink-700">
@@ -575,7 +593,8 @@ function StartStep({
   )
 }
 
-function LogoUpload({ space, logo, onChange }: { space: number; logo?: MediaInfo; onChange: (m?: MediaInfo) => void }) {
+/** The logo goes into the client's files: the client is made for it, if it is not there yet. */
+function LogoUpload({ ensure, logo, onChange }: { ensure: () => Promise<number>; logo?: MediaInfo; onChange: (m?: MediaInfo) => void }) {
   const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
@@ -587,14 +606,14 @@ function LogoUpload({ space, logo, onChange }: { space: number; logo?: MediaInfo
           type="file"
           accept=".svg,.png,.jpg,.jpeg,.webp,image/*"
           className="sr-only"
-          disabled={busy || !space}
+          disabled={busy}
           onChange={(e) => {
             const file = e.target.files?.[0]
             if (!file) return
             setBusy(true)
             setProblem(null)
-            mediaApi
-              .upload(space, file, file.name)
+            ensure()
+              .then((space) => mediaApi.upload(space, file, file.name))
               .then((m) => (['svg', 'png', 'jpeg', 'webp', 'gif', 'avif'].includes(m.kind) ? onChange(m) : setProblem('not_a_picture')))
               .catch((error) => setProblem(error instanceof ApiError ? error.code : 'internal_error'))
               .finally(() => setBusy(false))

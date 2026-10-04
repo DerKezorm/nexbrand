@@ -42,14 +42,14 @@ def _space(db: DbSession, account: AccountRow, space_id: int, *, operator_may: b
     """The space, when the account manages it (or, with ``operator_may``, is the operator). Not readable: 404."""
     space = db.get(Space, space_id)
     if space is None or space.deleted_at is not None:
-        raise error("not_found", "No such space.", 404)
+        raise error("not_found", "No such client.", 404)
     role = rights.role_in(db, account, space.id)
     if operator_may and rights.operator_powers(account):
         return space
     if not rights.at_least(role, rights.READ):
-        raise error("not_found", "No such space.", 404)
+        raise error("not_found", "No such client.", 404)
     if not rights.at_least(role, MANAGE):
-        raise error("forbidden", "Only a manager of this space may do this.", 403)
+        raise error("forbidden", "Only a manager of this client may do this.", 403)
     return space
 
 
@@ -166,7 +166,7 @@ def set_member(
         raise error("no_such_account", "There is no account of that name.", 404)
     if target.id == account.id and not rights.at_least(own, MANAGE):
         # The operator resets rights, it does not take them.
-        raise error("forbidden", "You cannot give yourself a right in this space.", 403)
+        raise error("forbidden", "You cannot give yourself a right on this client.", 403)
     if (
         membership is not None
         and membership.role == MANAGE
@@ -174,7 +174,7 @@ def set_member(
         and _managers_left(db, space.id, target.id) == 0
         and _others(db, space.id, target.id) > 0
     ):
-        raise error("last_manager", "The space needs another manager first.", 409)
+        raise error("last_manager", "The client needs another manager first.", 409)
     if membership is None:
         if _others(db, space.id, -1) == 0 and target.id != account.id and account.role == OPERATOR:
             # A space without members is the operator's; giving it to somebody keeps the operator in as manager,
@@ -200,15 +200,15 @@ def remove_member(space_id: SpaceId, person: AccountName, account: Account, db: 
     if leaving:
         space = db.get(Space, space_id)
         if space is None or db.get(Membership, (space.id, account.id)) is None:
-            raise error("not_found", "No such space.", 404)
+            raise error("not_found", "No such client.", 404)
     else:
         space = _space(db, account, space_id, operator_may=True)
     membership = db.get(Membership, (space.id, target.id)) if target is not None else None
     if target is None or membership is None:
         # Unknown and not a member answer alike: a manager learns nothing about names outside the space.
-        raise error("not_a_member", "This account is not in the space.", 404)
+        raise error("not_a_member", "This account has no access to the client.", 404)
     if membership.role == MANAGE and _managers_left(db, space.id, target.id) == 0 and _others(db, space.id, target.id):
-        raise error("last_manager", "The space needs another manager first.", 409)
+        raise error("last_manager", "The client needs another manager first.", 409)
     beyond = (
         not leaving and rights.operator_powers(account)
         and not rights.at_least(rights.own_role_in(db, account, space.id), MANAGE)
@@ -350,7 +350,7 @@ def list_invites(_operator: OperatorAccount, db: DbSession) -> list[dict[str, An
 def invite(payload: InviteIn, request: Request, operator: OperatorAccount, db: DbSession) -> dict[str, Any]:
     suite.refuse_if_managed(db)
     if payload.role:
-        raise error("invalid_role", "A right needs a space.", 422)
+        raise error("invalid_role", "A right needs a client.", 422)
     return _create(db, request, operator, None, payload)
 
 

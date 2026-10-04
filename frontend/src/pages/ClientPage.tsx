@@ -1,6 +1,6 @@
 /** One client: its versions on a time line, the one chosen shown or (a draft) edited, projects, history, public
  * pages and reviews. */
-import { ArrowRight, CalendarClock, Download, FolderKanban, GitCompare, Globe, History, MessagesSquare, Pencil, Plus, Send, Star, Trash2, Upload } from 'lucide-react'
+import { ArrowRight, CalendarClock, Download, FilePlus2, FolderKanban, GitCompare, Globe, History, MessagesSquare, Pencil, Plus, Send, Sparkles, Star, Trash2, Upload, Users, UsersRound, Wand2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -14,6 +14,9 @@ import { SetEditor, type FileMap } from '../components/brand/SetEditor'
 import { SetView } from '../components/brand/SetView'
 import { SharesPanel } from '../components/brand/SharesPanel'
 import { Dialog } from '../components/Dialog'
+import { MembersDialog } from '../components/MembersDialog'
+import { TeamRightsDialog } from '../components/Teams'
+import { CLIENT_COLORS } from '../lib/palette'
 import type { BrandSet } from '../lib/brand'
 import { Button, Confirm, Feedback, Input, Select, useAction } from './settings/ui'
 import { useBrands } from '../state/brands'
@@ -115,7 +118,8 @@ export function ClientPage() {
         </Link>
       </main>
     )
-  if (!whole || !shown) return <main className="flex-1" aria-busy="true" />
+  if (!whole) return <main className="flex-1" aria-busy="true" />
+  if (!shown) return <NoDesignYet whole={whole} reload={load} onMade={(v) => choose(v.id, { edit: '1' })} />
 
   const space = brands.space(whole.space_id)
   const openReview = whole.reviews.find((r) => r.version_id === shown.id && r.status === 'open')
@@ -129,8 +133,8 @@ export function ClientPage() {
           <ClientMark name={whole.name} logo={face.mark ?? face.logo} colors={face.colors} fileUrl={(m) => mediaUrl(m, true)} className="h-16 w-16" />
           <div className="min-w-0 flex-1">
             <div className="text-xs text-mist-500">
-              <Link to={space ? `/?space=${space.id}` : '/'} className="hover:text-mist-200">
-                {space?.name ?? t('clients.title')}
+              <Link to="/" className="hover:text-mist-200">
+                {t('clients.title')}
               </Link>
               {whole.sector && <> · {whole.sector}</>}
             </div>
@@ -153,6 +157,7 @@ export function ClientPage() {
                 <Pencil className="h-4 w-4" /> {t('client.edit')}
               </button>
             )}
+            {space && <AccessButtons space={space} />}
             <button type="button" className="nc-btn nc-btn-accent" onClick={() => setDialog('export')}>
               <Download className="h-4 w-4" /> {t('client.export')}
             </button>
@@ -293,7 +298,7 @@ export function ClientPage() {
           />
         )}
 
-        {canWrite && (
+        {canWrite && !whole.managed && (
           <div className="flex justify-end pt-4">
             <button type="button" className="nc-btn nc-btn-ghost text-mist-500" onClick={() => setDialog('trash')}>
               <Trash2 className="h-4 w-4" /> {t('client.trash')}
@@ -329,19 +334,136 @@ export function ClientPage() {
   )
 }
 
+/** Who has access: the people (with invitations) and the teams. A client nexsuite keeps shows them, changed there. */
+function AccessButtons({ space }: { space: NonNullable<ReturnType<ReturnType<typeof useBrands>['space']>> }) {
+  const { t } = useTranslation()
+  const [open, setOpen] = useState<'people' | 'teams' | null>(null)
+  const manage = space.role === 'manage' && !space.managed
+  return (
+    <>
+      <button type="button" className="nc-btn nc-btn-ghost" onClick={() => setOpen('people')} title={space.managed ? t('suite.fromSuite') : undefined}>
+        <Users className="h-4 w-4" /> {t('client.access')}
+        <span className="text-xs text-mist-500 tabular-nums">{space.members.length + space.teams.length}</span>
+      </button>
+      {manage && (
+        <button type="button" className="nc-btn nc-btn-ghost" onClick={() => setOpen('teams')}>
+          <UsersRound className="h-4 w-4" /> {t('settings.tabs.teams')}
+        </button>
+      )}
+      {open === 'people' && <MembersDialog space={space} onClose={() => setOpen(null)} />}
+      {open === 'teams' && <TeamRightsDialog space={space} onClose={() => setOpen(null)} />}
+    </>
+  )
+}
+
+/** A client nexsuite brought, or one made without a design set: three ways to its first version. */
+function NoDesignYet({ whole, reload, onMade }: { whole: ClientWhole; reload: () => Promise<unknown>; onMade: (v: VersionInfo) => void }) {
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  const brands = useBrands()
+  const space = brands.space(whole.space_id)
+  const canWrite = whole.role === 'write' || whole.role === 'manage'
+  const { busy, problem, run } = useAction()
+  return (
+    <main className="nc-scroll min-w-0 flex-1 overflow-y-auto">
+      <div className="mx-auto max-w-4xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
+        <div className="flex flex-wrap items-center gap-4">
+          <span className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl text-2xl font-bold text-white" style={{ background: whole.color }} aria-hidden>
+            {whole.name.slice(0, 1).toUpperCase()}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs text-mist-500">
+              <Link to="/" className="hover:text-mist-200">
+                {t('clients.title')}
+              </Link>
+              {whole.sector && <> · {whole.sector}</>}
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight">{whole.name}</h1>
+          </div>
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto">{space && <AccessButtons space={space} />}</div>
+        </div>
+        <section className="rounded-2xl border border-dashed border-ink-700 p-6" data-testid="no-design-yet">
+          <h2 className="text-lg font-semibold">{t('client.noCiTitle')}</h2>
+          <p className="mt-1 max-w-2xl text-sm text-mist-500">{whole.managed ? t('client.noCiSuite') : t('client.noCiText')}</p>
+          {canWrite ? (
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <button type="button" className="rounded-xl border border-ink-700 p-4 text-left hover:bg-ink-850" onClick={() => navigate(`/new?client=${whole.id}`)}>
+                <Sparkles className="h-5 w-5 text-accent-400" />
+                <span className="mt-2 block font-medium">{t('client.noCiWizard')}</span>
+                <span className="block text-xs text-mist-500">{t('client.noCiWizardText')}</span>
+              </button>
+              <button type="button" className="rounded-xl border border-ink-700 p-4 text-left hover:bg-ink-850" onClick={() => navigate(`/collect?client=${whole.id}`)}>
+                <Wand2 className="h-5 w-5 text-accent-400" />
+                <span className="mt-2 block font-medium">{t('client.noCiCollect')}</span>
+                <span className="block text-xs text-mist-500">{t('client.noCiCollectText')}</span>
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                className="rounded-xl border border-ink-700 p-4 text-left hover:bg-ink-850 disabled:opacity-50"
+                onClick={() =>
+                  void run(async () => {
+                    const made = await clientsApi.newVersion(whole.id, { label: '1.0' })
+                    await reload()
+                    await brands.refresh()
+                    onMade(made)
+                  })
+                }
+              >
+                <FilePlus2 className="h-5 w-5 text-accent-400" />
+                <span className="mt-2 block font-medium">{t('client.noCiEmpty')}</span>
+                <span className="block text-xs text-mist-500">{t('client.noCiEmptyText')}</span>
+              </button>
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-mist-500">{t('client.noCiRead')}</p>
+          )}
+          <Feedback problem={problem} />
+        </section>
+      </div>
+    </main>
+  )
+}
+
 function EditClient({ whole, onClose, onSaved }: { whole: ClientWhole; onClose: () => void; onSaved: () => void }) {
   const { t } = useTranslation()
   const [name, setName] = useState(whole.name)
   const [sector, setSector] = useState(whole.sector)
   const [contact, setContact] = useState(whole.contact)
+  const [color, setColor] = useState(whole.color)
   const [note, setNote] = useState(whole.note)
   const { busy, problem, run } = useAction()
+  // Kept in nexsuite: name, sector, contact and colour are changed there; the note is nexbrand's.
+  const kept = whole.managed
+  const change = kept ? { note } : { name, sector, contact, note, ...(CLIENT_COLORS.includes(color) ? { color } : {}) }
   return (
     <Dialog title={t('client.edit')} onClose={onClose} medium>
       <div className="space-y-3">
-        <Input label={t('client.name')} value={name} onChange={setName} />
-        <Input label={t('client.sector')} value={sector} onChange={setSector} />
-        <Input label={t('client.contact')} value={contact} onChange={setContact} />
+        {kept && <p className="rounded-lg border border-accent-500/30 bg-accent-500/8 px-3 py-2 text-xs text-mist-300">{t('client.keptInSuite')}</p>}
+        {kept ? (
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+            <dt className="text-mist-500">{t('client.name')}</dt>
+            <dd>{whole.name}</dd>
+            <dt className="text-mist-500">{t('client.sector')}</dt>
+            <dd>{whole.sector || '–'}</dd>
+            <dt className="text-mist-500">{t('client.contact')}</dt>
+            <dd>{whole.contact || '–'}</dd>
+          </dl>
+        ) : (
+          <>
+            <Input label={t('client.name')} value={name} onChange={setName} />
+            <Input label={t('client.sector')} value={sector} onChange={setSector} />
+            <Input label={t('client.contact')} value={contact} onChange={setContact} />
+            <div className="text-sm">
+              <span className="text-xs font-medium text-mist-400">{t('client.color')}</span>
+              <div className="mt-1 flex flex-wrap gap-2" role="radiogroup" aria-label={t('client.color')}>
+                {CLIENT_COLORS.map((c) => (
+                  <button key={c} type="button" role="radio" aria-checked={color === c} aria-label={c} onClick={() => setColor(c)} className={'h-7 w-7 rounded-full border-2 ' + (color === c ? 'border-mist-100' : 'border-transparent')} style={{ background: c }} />
+                ))}
+              </div>
+            </div>
+          </>
+        )}
         <label className="block text-sm">
           <span className="text-xs font-medium text-mist-400">{t('client.note')}</span>
           <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={4} className="mt-1 w-full rounded-lg border border-ink-700 bg-ink-850 px-3 py-2 text-sm" />
@@ -349,7 +471,7 @@ function EditClient({ whole, onClose, onSaved }: { whole: ClientWhole; onClose: 
         <Feedback problem={problem} />
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>{t('common.cancel')}</Button>
-          <Button accent busy={busy} onClick={() => void run(async () => (await clientsApi.change(whole.id, { name, sector, contact, note }), onSaved()))}>
+          <Button accent busy={busy} onClick={() => void run(async () => (await clientsApi.change(whole.id, change), onSaved()))}>
             {t('common.save')}
           </Button>
         </div>

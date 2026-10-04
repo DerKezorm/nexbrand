@@ -15,7 +15,7 @@ stays a person's act in nexbrand.
 API tokens are off until the operator switches them on, under **Settings → Server → API**. Then every account makes
 its own tokens under **My account → Connections**:
 
-- A token reads what its account may read, never more. It can be limited to some spaces.
+- A token reads what its account may read, never more. It can be limited to some clients.
 - Its level is **read** (the default) or **draft**: a draft token may also propose a version where its account may
   write.
 - It runs out after 30, 90 or 365 days, or never. The list marks a token a week before it runs out.
@@ -58,18 +58,14 @@ id or its label (`2026`, `1.0`). A project by its id or its name.
 
 ### `GET /api/v1/me`
 
-Who the token speaks for: `name`, `display_name`, `level` (`read` or `draft`), `spaces` (how many it may read) and
+Who the token speaks for: `name`, `display_name`, `level` (`read` or `draft`), `clients` (how many it may read) and
 the `version` of nexbrand.
-
-### `GET /api/v1/spaces`
-
-The spaces the token may read: `id`, `name`, `color` and `clients` (how many).
 
 ### `GET /api/v1/clients`
 
 The clients the token may read. `?search=` keeps those whose name or sector contains it.
 
-Each: `id`, `name`, `sector`, `space`, `current_version` (the label of the version that holds today, or `null`),
+Each: `id`, `name`, `sector`, `current_version` (the label of the version that holds today, or `null`),
 `colors` (up to twelve hex values of that version) and `projects` (`id`, `name`).
 
 ### `GET /api/v1/clients/{client}`

@@ -15,7 +15,7 @@ import { useAuth } from '../state/auth'
 import { Managed } from './Suite'
 import { Avatar } from './Avatar'
 import { Dialog } from './Dialog'
-import { SPACE_COLORS } from './NewSpaceDialog'
+import { TEAM_COLORS } from '../lib/palette'
 
 const ROLES: Role[] = ['read', 'write', 'manage']
 
@@ -123,7 +123,7 @@ function InviteButton() {
 function TeamDialog({ team, operator, people, onClose, onSaved }: { team: Team | null; operator: boolean; people: Person[]; onClose: () => void; onSaved: () => Promise<void> }) {
   const { t } = useTranslation()
   const [name, setName] = useState(team?.name ?? '')
-  const [color, setColor] = useState(team?.color ?? SPACE_COLORS[0])
+  const [color, setColor] = useState(team?.color ?? TEAM_COLORS[0])
   const [members, setMembers] = useState<number[]>(team?.members ?? [])
   const [lead, setLead] = useState<number | null>(team?.lead ?? null)
   const [confirming, setConfirming] = useState(false)
@@ -159,7 +159,7 @@ function TeamDialog({ team, operator, people, onClose, onSaved }: { team: Team |
               <input className="nc-field" value={name} onChange={(e) => setName(e.target.value)} autoFocus placeholder={t('teams.namePlaceholder')} />
             </label>
             <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t('teams.color')}>
-              {SPACE_COLORS.map((c) => (
+              {TEAM_COLORS.map((c) => (
                 <button key={c} type="button" role="radio" aria-checked={color === c} aria-label={c} onClick={() => setColor(c)} className={'h-7 w-7 rounded-full ring-offset-2 ring-offset-ink-900 ' + (color === c ? 'ring-2 ring-accent-500' : '')} style={{ background: c }} />
               ))}
             </div>

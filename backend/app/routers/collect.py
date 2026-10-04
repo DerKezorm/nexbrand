@@ -45,7 +45,7 @@ class CollectIn(BaseModel):
 
 
 class LogoIn(BaseModel):
-    space_id: int = Field(ge=1)
+    client_id: str = Field(min_length=6, max_length=24, pattern=r"^[A-Za-z0-9_-]+$")
     url: str = Field(min_length=8, max_length=2000)
 
 
@@ -107,13 +107,13 @@ async def run(payload: CollectIn, account: Account) -> dict[str, Any]:
     return await run_in_threadpool(_collect, account.id, payload)
 
 
-@router.post("/logo", status_code=201, summary="Take a logo found while collecting into a space")
+@router.post("/logo", status_code=201, summary="Take a logo found while collecting into a client's files")
 async def take_logo(payload: LogoIn, account: Account) -> dict[str, Any]:
     with SessionLocal() as db:
         if not settings_service.get(db, "collect_allowed"):
             raise error("collect_off", "The operator has not allowed collecting from outside.", 403)
         try:
-            rights.check(db, account, payload.space_id, WRITE)
+            space_id = rights.client_for(db, account, payload.client_id, WRITE).space_id
         except rights.RightsError as exc:
             raise error(exc.code, exc.text, exc.status) from exc
         limit = min(media_store.max_bytes(db), 5 * 1024 * 1024)
@@ -130,7 +130,7 @@ async def take_logo(payload: LogoIn, account: Account) -> dict[str, Any]:
 
     def finish() -> media_store.Stored:
         with SessionLocal() as db:
-            return media_store.finish(db, account, payload.space_id, received, name)
+            return media_store.finish(db, account, space_id, received, name)
 
     try:
         stored = await run_in_threadpool(finish)

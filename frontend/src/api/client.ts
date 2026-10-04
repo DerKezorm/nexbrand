@@ -153,6 +153,8 @@ export type Me = {
   suite_mail?: boolean
   /** Connected: this account is the app's emergency account. */
   suite_emergency?: boolean
+  /** Whether "New client" makes one here (not while nexsuite keeps the clients; else the operator's switch). */
+  may_create_clients?: boolean
 }
 
 export type Preferences = {
@@ -162,14 +164,16 @@ export type Preferences = {
 
 export type Member = { id: number; name: string; display_name: string; role: Role; avatar: string | null }
 
+/** The group of rights behind one client: who has access, with which right. Never shown as a place of its own. */
 export type SpaceInfo = {
   id: number
   name: string
   color: string
   role: Role | null
-  clients: number
+  /** The client whose group this is. */
+  client: string | null
   members: Member[]
-  /** The teams with a right in the space. */
+  /** The teams with a right in the client. */
   teams: TeamGrantInfo[]
   /** Its rights come from nexsuite. */
   managed?: boolean
@@ -206,8 +210,12 @@ export type ClientFace = { colors: string[]; logo: BrandLogo | null; mark?: Bran
 
 export type ClientInfo = {
   id: string
+  /** Its group of rights (members, teams, files). */
   space_id: number
   name: string
+  color: string
+  /** Kept in nexsuite: name, sector, contact, colour and who may see it are changed there. */
+  managed: boolean
   sector: string
   contact: string
   created_at: string
@@ -354,9 +362,6 @@ export const authApi = {
 
 export const spacesApi = {
   list: () => api<SpaceInfo[]>('/api/spaces'),
-  create: (name: string, color?: string) => api<SpaceInfo>('/api/spaces', { method: 'POST', body: { name, color } }),
-  change: (id: number, change: { name?: string; color?: string }) => api<SpaceInfo>(`/api/spaces/${id}`, { method: 'PATCH', body: change }),
-  trash: (id: number) => api<void>(`/api/spaces/${id}`, { method: 'DELETE' }),
   members: (id: number) =>
     api<{ space: string; members: { name: string; role: Role; you: boolean }[]; invites: Invite[]; role: Role | null; suite?: boolean; managed?: boolean }>(
       `/api/spaces/${id}/members`,
@@ -390,16 +395,16 @@ export type ApiToken = {
   last_used_at: string | null
   expires_at: string | null
   blocked: boolean
-  /** The names of the spaces it may see; null: every space its account may read. */
-  spaces: string[] | null
+  /** The clients it may see; null: every client its account may read. */
+  clients: { id: string; name: string }[] | null
 }
-export type AnyApiToken = Omit<ApiToken, 'spaces'> & { account: string; spaces: number | null }
+export type AnyApiToken = Omit<ApiToken, 'clients'> & { account: string; clients: number | null }
 
 /** API tokens for programs (`/api/v1`); reading only. */
 export const apiTokensApi = {
   list: () => api<{ allowed: boolean; tokens: ApiToken[] }>('/api/api-tokens'),
-  make: (name: string, spaces: number[] | null, days: number | null, level: 'read' | 'draft' = 'read') =>
-    api<{ token: ApiToken; secret: string }>('/api/api-tokens', { method: 'POST', body: { name, spaces, days, level } }),
+  make: (name: string, clients: string[] | null, days: number | null, level: 'read' | 'draft' = 'read') =>
+    api<{ token: ApiToken; secret: string }>('/api/api-tokens', { method: 'POST', body: { name, clients, days, level } }),
   remove: (id: number) => api<void>(`/api/api-tokens/${id}`, { method: 'DELETE' }),
   every: () => api<AnyApiToken[]>('/api/admin/api-tokens'),
   block: (id: number) => api<AnyApiToken>(`/api/admin/api-tokens/${id}/block`, { method: 'POST' }),
@@ -408,11 +413,12 @@ export const apiTokensApi = {
 export type Invite = { id: number; role: string; email: string; by: string | null; created_at: string; expires_at: string }
 
 export const clientsApi = {
-  list: (query: { space?: number; deleted?: boolean } = {}) => api<ClientInfo[]>('/api/clients', { query }),
+  list: (query: { deleted?: boolean } = {}) => api<ClientInfo[]>('/api/clients', { query }),
   read: (id: string) => api<ClientWhole>(`/api/clients/${id}`),
-  create: (body: { space_id: number; name: string; sector?: string; contact?: string; note?: string; label: string; data?: BrandSet; project?: string }) =>
+  /** A client; `label` empty: without a design set yet. */
+  create: (body: { name: string; color?: string; sector?: string; contact?: string; note?: string; label: string; data?: BrandSet; project?: string }) =>
     api<ClientWhole>('/api/clients', { method: 'POST', body }),
-  change: (id: string, change: { name?: string; sector?: string; contact?: string; note?: string; favorite?: boolean }) =>
+  change: (id: string, change: { name?: string; color?: string; sector?: string; contact?: string; note?: string; favorite?: boolean }) =>
     api<ClientInfo>(`/api/clients/${id}`, { method: 'PATCH', body: change }),
   visit: (id: string) => api<void>(`/api/clients/${id}/visit`, { method: 'POST' }),
   files: (id: string) => api<Record<string, FileInfo & { width?: number; height?: number }>>(`/api/clients/${id}/files`),
@@ -498,5 +504,5 @@ export const aiApi = {
 export const collectApi = {
   run: (sources: { kind: SourceKind; value: string }[], useAi: boolean, language: string) =>
     api<Collected>('/api/collect', { method: 'POST', body: { sources, use_ai: useAi, language } }),
-  logo: (spaceId: number, url: string) => api<MediaInfo>('/api/collect/logo', { method: 'POST', body: { space_id: spaceId, url } }),
+  logo: (clientId: string, url: string) => api<MediaInfo>('/api/collect/logo', { method: 'POST', body: { client_id: clientId, url } }),
 }

@@ -13,7 +13,7 @@ from app.models import Account, Space, utcnow
 from app.services import cleanup, settings_service, suite
 
 from . import test_suite
-from .conftest import PASSWORD, join, make_account, new_client, sign_in
+from .conftest import PASSWORD, client_of, join, make_account, new_client, new_group, sign_in
 from .test_suite import SUITE, FakeSuite, connect
 
 # The fixtures of the suite tests, under the names pytest looks for.
@@ -22,22 +22,25 @@ world = test_suite.world
 
 
 def _client(client: TestClient, space: int, name: str = "Plan") -> str:
-    made = client.post("/api/clients", json={"space_id": space, "name": name})
-    assert made.status_code == 201, made.text
-    return str(made.json()["id"])
+    """The client of the group ``space``, under ``name``."""
+    cid = client_of(client, space)
+    assert client.patch(f"/api/clients/{cid}", json={"name": name}).status_code == 200
+    return cid
 
 
-def test_a8_a_public_page_of_a_space_in_the_bin_is_gone(client: TestClient, operator: Account, space: int) -> None:
+def test_a8_a_public_page_of_a_client_in_the_bin_is_gone(client: TestClient, operator: Account, space: int) -> None:
+    from .test_brands import make_client
+
     with SessionLocal() as db:
         settings_service.save(db, {"shares_allowed": True})
         db.commit()
-    made = _client(client, space)
+    made = make_client(client, space)["id"]
     version = client.get(f"/api/clients/{made}").json()["versions"][0]["id"]
     client.post(f"/api/clients/{made}/versions/{version}/publish", json={})
     token = client.post(f"/api/clients/{made}/shares", json={"days": 7}).json()["link"].rsplit("/", 1)[1]
     with new_client() as visitor:
         assert visitor.get(f"/api/public/{token}").status_code == 200
-        assert client.delete(f"/api/spaces/{space}").status_code == 204
+        assert client.delete(f"/api/clients/{made}").status_code == 204
         assert visitor.get(f"/api/public/{token}").status_code == 404
 
 
@@ -127,31 +130,35 @@ def _id(name: str) -> int:
         return db.query(Account).filter_by(name=name).one().id
 
 
-def test_d4_the_operator_sees_and_brings_back_every_space_in_the_bin(client: TestClient, operator: Account) -> None:
+def test_d4_the_operator_sees_and_brings_back_every_client_in_the_bin(client: TestClient, operator: Account) -> None:
     anna = make_account("anna")
     with new_client(anna) as browser:
-        own = browser.post("/api/spaces", json={"name": "Annas"}).json()["id"]
-        assert browser.delete(f"/api/spaces/{own}").status_code == 204
-    assert [s["id"] for s in client.get("/api/spaces/bin").json()] == [own]
-    assert client.post(f"/api/spaces/{own}/restore").status_code == 200
+        own = client_of(browser, new_group(browser, "Annas"))
+        assert browser.delete(f"/api/clients/{own}").status_code == 204
+    assert [c["id"] for c in client.get("/api/clients?deleted=true").json()] == [own]
+    assert client.post(f"/api/clients/{own}/restore").status_code == 200
 
 
-def test_e3_a_space_from_nexsuite_waits_for_nexsuite_not_for_the_clock(
+def test_e3_a_client_from_nexsuite_waits_for_nexsuite_not_for_the_clock(
     client: TestClient, operator: Account, world: dict, fake: FakeSuite
 ) -> None:
+    from app.models import Client
+
     connect(client, world, operator)
+    ideen = client_of(client, world["ideen"])
     with SessionLocal() as db:
-        ideen = db.get(Space, world["ideen"])
-        assert ideen is not None and ideen.external_id
-        ideen.deleted_at = utcnow() - timedelta(days=40)
-        local = Space(name="Alt", deleted_at=utcnow() - timedelta(days=40))
+        assert db.get(Space, world["ideen"]).external_id  # type: ignore[union-attr]
+        db.get(Client, ideen).deleted_at = utcnow() - timedelta(days=40)  # type: ignore[union-attr]
+        local = Space(name="Alt")
         db.add(local)
+        db.flush()
+        db.add(Client(id="local-client", space_id=local.id, name="Alt", deleted_at=utcnow() - timedelta(days=40)))
         db.commit()
         local_id = local.id
     cleanup.run_once()
     with SessionLocal() as db:
-        assert db.get(Space, world["ideen"]) is not None, "nexsuite says when it is gone"
-        assert db.get(Space, local_id) is None
+        assert db.get(Client, ideen) is not None, "nexsuite says when it is gone"
+        assert db.get(Client, "local-client") is None and db.get(Space, local_id) is None, "with its group"
 
 
 def test_d6_a_blocked_person_is_no_colleague_to_pick(client: TestClient, operator: Account) -> None:

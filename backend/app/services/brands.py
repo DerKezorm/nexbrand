@@ -28,6 +28,7 @@ from ..models import (
     Client,
     Favorite,
     Project,
+    Space,
     Visit,
     utcnow,
 )
@@ -89,29 +90,72 @@ def day(value: str | None) -> str:
 # --- Clients ----------------------------------------------------------------------------------------------------
 
 
+def may_create(db: Session, account: Account) -> bool:
+    """Who makes clients here: the operator always, members while the operator lets them (on until switched off)."""
+    from ..models import OPERATOR
+    from . import settings_service
+
+    return account.role == OPERATOR or bool(settings_service.get(db, "members_create_clients"))
+
+
 def create_client(
-    db: Session, account: Account, space_id: int, name: str, *, sector: str = "", contact: str = "", note: str = "",
-    label: str = "1", data: Any = None, origin: str = "hand", author: str = "",
-) -> tuple[Client, BrandVersion]:
-    """A client with its first version, a draft (empty, or the design set given)."""
-    client = Client(id=new_id(), space_id=space_id, name=_text(name, 120, "invalid_name", required=True),
+    db: Session, account: Account, name: str, *, sector: str = "", contact: str = "", note: str = "",
+    color: str | None = None, label: str | None = "1", data: Any = None, origin: str = "hand", author: str = "",
+) -> tuple[Client, BrandVersion | None]:
+    """A client with its own group of rights (the account manages it) and, unless ``label`` is None, a first version as
+    a draft (empty, or the design set given)."""
+    from . import spaces, suite
+
+    if suite.connected(db):
+        raise BrandError("managed_by_suite", "Clients are made in nexsuite now.", 409)
+    if not may_create(db, account):
+        raise BrandError("forbidden", "The operator has not allowed members to make clients.", 403)
+    clean = _text(name, 120, "invalid_name", required=True)
+    try:
+        space = spaces.create(db, account, clean, color, commit=False)
+    except spaces.SpaceError as exc:
+        raise BrandError(exc.code, exc.text, exc.status) from exc
+    client = Client(id=new_id(), space_id=space.id, name=clean,
                     sector=_text(sector, 120, "invalid_sector"), contact=_text(contact, 255, "invalid_contact"),
                     note=_note(note, 4000), created_by=account.id, updated_by=account.name)
     db.add(client)
     db.flush()
-    version = BrandVersion(id=new_id(), client_id=client.id, label=_text(label, 60, "invalid_label", required=True),
-                           status=DRAFT, origin=origin if origin in ORIGINS else "hand",
-                           author=author or account.display_name or account.name,
-                           data=checked(db, client, data if data is not None else brandset.empty()))
-    db.add(version)
+    version = None
+    if label is not None:
+        version = BrandVersion(id=new_id(), client_id=client.id, label=_text(label, 60, "invalid_label", required=True),
+                               status=DRAFT, origin=origin if origin in ORIGINS else "hand",
+                               author=author or account.display_name or account.name,
+                               data=checked(db, client, data if data is not None else brandset.empty()))
+        db.add(version)
     db.commit()
-    logger.info("Client created id=%s space=%s by=%s", client.id, space_id, account.name)
+    logger.info("Client created id=%s by=%s", client.id, account.name)
     return client, version
 
 
+def managed(db: Session, client: Client) -> bool:
+    """Whether nexsuite keeps this client (its name, sector, contact, colour and who may see it)."""
+    from . import suite
+
+    space = db.get(Space, client.space_id)
+    return bool(space is not None and space.external_id and suite.connected(db))
+
+
 def change_client(db: Session, account: Account, client: Client, **fields: str | None) -> Client:
+    from . import spaces
+
+    kept = {key for key in ("name", "sector", "contact", "color") if fields.get(key) is not None}
+    if kept and managed(db, client):
+        raise BrandError("managed_by_suite", "This is kept in nexsuite now.", 409)
+    space = db.get(Space, client.space_id)
     if fields.get("name") is not None:
         client.name = _text(fields["name"], 120, "invalid_name", required=True)
+        if space is not None:
+            space.name = spaces.clean_name(client.name[:spaces.MAX_NAME])
+    if fields.get("color") is not None and space is not None:
+        try:
+            space.color = spaces.clean_color(fields["color"], space.color)
+        except spaces.SpaceError as exc:
+            raise BrandError(exc.code, exc.text, exc.status) from exc
     if fields.get("sector") is not None:
         client.sector = _text(fields["sector"], 120, "invalid_sector")
     if fields.get("contact") is not None:
@@ -129,19 +173,27 @@ def touch(client: Client, account: Account) -> None:
 
 
 def trash(db: Session, client: Client) -> None:
+    if managed(db, client):
+        raise BrandError("managed_by_suite", "Clients are deleted in nexsuite now.", 409)
     client.deleted_at = utcnow()
     db.commit()
     logger.info("Client moved to the bin id=%s", client.id)
 
 
 def restore(db: Session, client: Client) -> None:
+    if managed(db, client):
+        raise BrandError("managed_by_suite", "Clients are restored in nexsuite now.", 409)
     client.deleted_at = None
     db.commit()
     logger.info("Client restored id=%s", client.id)
 
 
 def purge(db: Session, client: Client) -> None:
+    """The client and its group of rights, with the files in it (their bytes go with the next clean-up)."""
+    space = db.get(Space, client.space_id)
     db.delete(client)
+    if space is not None:
+        db.delete(space)
     db.commit()
     logger.info("Client deleted for good id=%s", client.id)
 

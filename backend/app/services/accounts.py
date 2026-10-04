@@ -250,7 +250,7 @@ def create_invite(
     if days not in INVITE_DAYS:
         raise AccountError("invalid_days", "Choose 1, 7 or 30 days.", 422)
     if space_id is None and space_role:
-        raise AccountError("invalid_role", "A right needs a space.", 422)
+        raise AccountError("invalid_role", "A right needs a client.", 422)
     if space_id is not None and space_role not in SPACE_ROLES:
         raise AccountError("invalid_role", "Unknown right.", 422)
     token = secrets.token_urlsafe(24)

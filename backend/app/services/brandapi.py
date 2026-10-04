@@ -58,7 +58,7 @@ def list_clients(db: Session, caller: Caller, search: str = "") -> list[dict[str
         current = brands.current(db, client)
         projects = db.scalars(select(Project).where(Project.client_id == client.id).order_by(Project.name))
         out.append({
-            "id": client.id, "name": client.name, "sector": client.sector, "space": spaces[client.space_id],
+            "id": client.id, "name": client.name, "sector": client.sector,
             "current_version": current.label if current else None,
             "colors": [c["hex"] for c in (current.data if current else {}).get("colors", [])][:12],
             "projects": [{"id": p.id, "name": p.name} for p in projects],

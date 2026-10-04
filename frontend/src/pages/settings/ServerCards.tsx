@@ -28,6 +28,7 @@ export type ServerSettings = {
   smtp_password_set: boolean
   smtp_from: string
   api_tokens_allowed: boolean
+  members_create_clients: boolean
   collect_allowed: boolean
   collect_github_token_set: boolean
   ai_allowed: boolean
@@ -227,9 +228,11 @@ export function AccountsCard() {
 
 type AdminSpace = { id: number; name: string; members: number; managers: string[]; role: SpaceInfo['role'] }
 
-/** Every space with who manages it, without its contents: the operator resets rights here, as in nexlore. */
-export function AllSpacesCard() {
+/** Every client with who manages it, without its design: the operator resets rights here, as in nexlore. Above it,
+ * whether members make clients (the operator always does); while nexsuite keeps the clients, that is decided there. */
+export function AllSpacesCard({ server }: { server: Server }) {
   const { t } = useTranslation()
+  const { me } = useAuth()
   const [spaces, setSpaces] = useState<AdminSpace[]>([])
   const [open, setOpen] = useState<AdminSpace | null>(null)
   const { problem, run } = useAction()
@@ -239,6 +242,14 @@ export function AllSpacesCard() {
   }, [load])
   return (
     <Card id="all-spaces" icon={Box} title={t('server.allSpaces.title')} text={t('server.allSpaces.text')}>
+      {server.settings && me?.suite !== 'connected' && (
+        <Toggle
+          label={t('server.allSpaces.membersCreate')}
+          hint={t('server.allSpaces.membersCreateHint')}
+          checked={server.settings.members_create_clients}
+          onChange={(members_create_clients) => void server.save({ members_create_clients })}
+        />
+      )}
       <ul className="divide-y divide-ink-700 rounded-xl border border-ink-700">
         {spaces.length === 0 && <li className="px-4 py-3 text-sm text-mist-500">{t('server.allSpaces.none')}</li>}
         {spaces.map((space) => (
@@ -258,7 +269,7 @@ export function AllSpacesCard() {
       <Feedback problem={problem} />
       {open && (
         <MembersDialog
-          space={{ id: open.id, name: open.name, color: '', role: open.role, clients: 0, members: [], teams: [] }}
+          space={{ id: open.id, name: open.name, color: '', role: open.role, client: null, members: [], teams: [] }}
           onClose={() => {
             setOpen(null)
             void load()
@@ -449,7 +460,7 @@ export function ApiTokensCard({ server }: { server: Server }) {
                   <td className="py-1.5 pr-3">
                     {token.name} <code className="font-mono text-xs text-mist-500">{token.prefix}…</code>
                   </td>
-                  <td className="py-1.5 pr-3">{token.spaces === null ? t('server.apiTokens.allSpaces') : t('server.apiTokens.someSpaces', { count: token.spaces })}</td>
+                  <td className="py-1.5 pr-3">{token.clients === null ? t('server.apiTokens.allSpaces') : t('server.apiTokens.someSpaces', { count: token.clients })}</td>
                   <td className="py-1.5 pr-3 text-mist-400">
                     {token.last_used_at ? new Date(token.last_used_at).toLocaleString(i18n.language, { dateStyle: 'short', timeStyle: 'short' }) : t('apiTokens.unused')}
                   </td>

@@ -43,7 +43,7 @@ from ..security import (
     session_account,
     start_session,
 )
-from ..services import accounts, avatars, locales, mailer, settings_service, spaces, suite, totp
+from ..services import accounts, avatars, brands, locales, mailer, settings_service, suite, totp
 from ..services.accounts import AccountError
 
 logger = logging.getLogger("nexbrand.auth")
@@ -206,8 +206,6 @@ def setup(payload: SetupIn, request: Request, response: Response, db: DbSession)
         raise fail(exc) from exc
     account.language = language
     db.commit()
-    # A first space to start in, named in the language chosen here.
-    spaces.create(db, account, "Persönlich" if language == "de" else "Personal")
     return sign_in(db, request, response, account)
 
 
@@ -312,6 +310,8 @@ def me(account: Account, db: DbSession) -> dict[str, Any]:
         "preferences": preferences_of(account.preferences),
         "suite": suite.state(db),
         "suite_mail": bool(settings_service.get(db, "suite_mail")),
+        # Whether "New client" makes one here: not while nexsuite keeps the clients, else by the operator's switch.
+        "may_create_clients": not suite.connected(db) and brands.may_create(db, account),
         # Connected: this account is the emergency account (its password and second factor are for that only).
         "suite_emergency": suite.connected(db)
         and account.id == int(settings_service.get(db, "suite_emergency_account") or 0),

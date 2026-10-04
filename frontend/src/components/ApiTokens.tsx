@@ -3,7 +3,7 @@
  * (`/api/v1`). List, make, delete. A token is shown once, right after it was made, with the header line a program
  * needs and a command to try it; afterwards only its first characters.
  *
- * A token only reads (design answer 03.10.2026); it sees every space its account may read or only those chosen; it runs
+ * A token only reads (design answer 03.10.2026); it sees every client its account may read or only those chosen; it runs
  * out after 30, 90 or 365 days, or never. A week before, the list marks it. A token the operator blocked stays in the
  * list, marked, until the account deletes it.
  */
@@ -22,7 +22,7 @@ import { copyText } from '../lib/copy'
 const LIFETIMES: (number | null)[] = [30, 90, 365, null]
 const WEEK = 7 * 24 * 60 * 60 * 1000
 /** What the API offers; the whole description is `docs/api.md`. */
-const ROUTES = ['/api/v1/me', '/api/v1/spaces', '/api/v1/clients', '/api/v1/clients/{client}', '/api/v1/clients/{client}/code', '/api/v1/clients/{client}/audit', '/api/v1/contrast', 'POST /api/mcp']
+const ROUTES = ['/api/v1/me', '/api/v1/clients', '/api/v1/clients/{client}', '/api/v1/clients/{client}/code', '/api/v1/clients/{client}/audit', '/api/v1/contrast', 'POST /api/mcp']
 
 function code(error: unknown): string {
   return error instanceof ApiError ? error.code : 'internal_error'
@@ -51,8 +51,8 @@ export function ApiTokens() {
   const [state, setState] = useState<{ allowed: boolean; tokens: ApiToken[] } | null>(null)
   const [making, setMaking] = useState(false)
   const [name, setName] = useState('')
-  // null: every space the account may read, later ones too; otherwise the ids chosen.
-  const [chosen, setChosen] = useState<number[] | null>(null)
+  // null: every client the account may read, later ones too; otherwise the ids chosen.
+  const [chosen, setChosen] = useState<string[] | null>(null)
   const [days, setDays] = useState<number | null>(null)
   const [level, setLevel] = useState<'read' | 'draft'>('read')
   const [shown, setShown] = useState<{ name: string; secret: string } | null>(null)
@@ -125,7 +125,7 @@ export function ApiTokens() {
     if (at <= now) return { text: t('apiTokens.ranOut', { day: day(token.expires_at) }), soon: true }
     return { text: t('apiTokens.runsOut', { day: day(token.expires_at) }), soon: at - now <= WEEK }
   }
-  const readable = brands.spaces
+  const readable = [...brands.clients].sort((a, b) => a.name.localeCompare(b.name))
 
   return (
     <section id="api-tokens" className="rounded-2xl border border-ink-700 bg-ink-900 p-5" aria-labelledby="api-tokens-title">
@@ -164,7 +164,7 @@ export function ApiTokens() {
                   <span className="font-medium text-mist-100">{token.name}</span>
                   <code className="font-mono text-xs text-mist-500">{token.prefix}…</code>
                   <span className="text-xs text-mist-400">
-                    {token.spaces === null ? t('apiTokens.spacesAll') : token.spaces.length ? token.spaces.join(', ') : t('apiTokens.spacesNone')}
+                    {token.clients === null ? t('apiTokens.spacesAll') : token.clients.length ? token.clients.map((c) => c.name).join(', ') : t('apiTokens.spacesNone')}
                   </span>
                   <button
                     type="button"
@@ -243,23 +243,23 @@ export function ApiTokens() {
           <fieldset className="space-y-2">
             <legend className="text-sm text-mist-300">{t('apiTokens.where')}</legend>
             <label className="flex cursor-pointer items-center gap-2 text-sm text-mist-100">
-              <input type="radio" name="api-spaces" checked={chosen === null} onChange={() => setChosen(null)} />
+              <input type="radio" name="api-clients" checked={chosen === null} onChange={() => setChosen(null)} />
               {t('apiTokens.allSpaces')}
             </label>
             <label className="flex cursor-pointer items-center gap-2 text-sm text-mist-100">
-              <input type="radio" name="api-spaces" checked={chosen !== null} onChange={() => setChosen([])} />
+              <input type="radio" name="api-clients" checked={chosen !== null} onChange={() => setChosen([])} />
               {t('apiTokens.someSpaces')}
             </label>
             {chosen !== null && (
               <div className="ml-6 flex flex-wrap gap-2">
-                {readable.map((space) => (
-                  <label key={space.id} className={'flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm ' + (chosen.includes(space.id) ? 'border-accent-500/60 bg-accent-500/10 text-mist-100' : 'border-ink-700 text-mist-300')}>
+                {readable.map((item) => (
+                  <label key={item.id} className={'flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm ' + (chosen.includes(item.id) ? 'border-accent-500/60 bg-accent-500/10 text-mist-100' : 'border-ink-700 text-mist-300')}>
                     <input
                       type="checkbox"
-                      checked={chosen.includes(space.id)}
-                      onChange={(event) => setChosen((before) => (event.target.checked ? [...(before ?? []), space.id] : (before ?? []).filter((id) => id !== space.id)))}
+                      checked={chosen.includes(item.id)}
+                      onChange={(event) => setChosen((before) => (event.target.checked ? [...(before ?? []), item.id] : (before ?? []).filter((id) => id !== item.id)))}
                     />
-                    {space.name}
+                    {item.name}
                   </label>
                 ))}
               </div>

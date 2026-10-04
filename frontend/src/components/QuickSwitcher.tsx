@@ -65,7 +65,6 @@ export function QuickSwitcher({ onClose }: { onClose: () => void }) {
         <ul className="nc-scroll max-h-[50vh] overflow-y-auto p-1.5" role="listbox" aria-label={t('search.button')}>
           {!query && hits.length > 0 && <li className="px-3 pt-1.5 pb-1 text-[11px] font-semibold tracking-wider text-mist-600 uppercase">{t('sidebar.recent')}</li>}
           {hits.map((client, i) => {
-            const space = brands.space(client.space_id)
             return (
               <li key={client.id} role="option" aria-selected={i === index}>
                 <button
@@ -79,10 +78,7 @@ export function QuickSwitcher({ onClose }: { onClose: () => void }) {
                     <span className="block truncate text-sm">{client.name}</span>
                     {client.sector && <span className="block truncate text-xs text-mist-600">{client.sector}</span>}
                   </span>
-                  <span className="flex shrink-0 items-center gap-1.5 text-xs text-mist-600">
-                    <span className="h-2 w-2 rounded-full" style={{ background: space?.color }} />
-                    {space?.name}
-                  </span>
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: client.color }} aria-hidden />
                 </button>
               </li>
             )

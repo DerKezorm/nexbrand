@@ -77,7 +77,7 @@ def make(
     if spaces is not None:
         # A space the account may not read is refused like one that does not exist.
         if not spaces or not set(spaces) <= rights.readable_ids(db, account):
-            raise TokenError("invalid_input", "Choose spaces you may read.", 422)
+            raise TokenError("invalid_input", "Choose clients you may read.", 422)
         spaces = sorted(set(spaces))
     count = len(db.scalars(select(ApiToken.id).where(ApiToken.account_id == account.id)).all())
     if count >= MAX_TOKENS:

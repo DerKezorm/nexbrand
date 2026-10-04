@@ -21,12 +21,14 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from fastapi.testclient import TestClient
 
 from app.db import SessionLocal
-from app.models import Account, AuthSession, Membership, Space, Team, TeamGrant, TeamMember
+from app.models import Account, AuthSession, Client, Membership, Space, Team, TeamGrant, TeamMember
 from app.services import settings_service, suite
 
-from .conftest import PASSWORD, make_account, new_client
+from .conftest import PASSWORD, client_of, make_account, new_client, new_group
 
 SUITE = "https://suite.example.com"
+#: The colours nexsuite takes for a client; any other is refused.
+PALETTE = ("#f472b6", "#38a9c4", "#fbbf24", "#4ade80", "#ff8a70", "#60a5fa", "#a78bfa", "#a1a1aa")
 
 
 class FakeSuite:
@@ -41,19 +43,21 @@ class FakeSuite:
                   "blocked": False},
         }
         self.teams: dict[str, dict[str, Any]] = {}
-        self.spaces: dict[str, dict[str, Any]] = {"10": {"id": "10", "name": "Ideen", "color": "#f472b6",
-                                                          "people": [{"id": "1", "role": "manage"}], "teams": []}}
-        self.ticked: set[str] = set()
+        self.clients: dict[str, dict[str, Any]] = {"10": {"id": "10", "name": "Ideen", "color": "#f472b6",
+                                                           "sector": "Bakery", "contact": "",
+                                                           "people": [{"id": "1", "role": "manage"}], "teams": []}}
+        #: The clients nexsuite lists (all of them, unless a test hides one).
+        self.ticked: set[str] = {"10"}
         self.connected = False
         self.known = True
         self.mail: dict[str, Any] | None = None
         self.emergency: list[str] = []
-        self.bin: list[dict[str, str]] = []
+        self.clients_bin: list[dict[str, str]] = []
         self.pictures: dict[str, bytes] = {}
         #: The next request to this path fails once (nexsuite going away in the middle of connecting).
         self.fail_on = ""
         self.fetched: list[str] = []
-        self.gone: list[str] = []
+        self.clients_gone: list[str] = []
         self.calls: list[tuple[str, str]] = []
         self.next = 100
 
@@ -91,11 +95,11 @@ class FakeSuite:
             return {
                 "revision": 7, "suite": {"name": "nexsuite", "url": SUITE},
                 "people": list(self.people.values()), "teams": list(self.teams.values()),
-                "spaces": [s for k, s in self.spaces.items() if k in self.ticked],
+                "clients": [s for k, s in self.clients.items() if k in self.ticked],
                 "mail": self.seal(self.mail) if self.mail else None, "emergency": self.emergency,
-                "bin": self.bin, "gone": self.gone,
-                "candidates": [] if self.connected else [{"id": k, "name": s["name"], "color": s["color"]}
-                                                         for k, s in self.spaces.items()],
+                "clients_bin": self.clients_bin, "clients_gone": self.clients_gone,
+                "clients_candidates": [] if self.connected else [{"id": k, "name": s["name"], "color": s["color"]}
+                                                                 for k, s in self.clients.items()],
             }
         if path == "/people":
             if self.fail_on == "/people":
@@ -110,26 +114,28 @@ class FakeSuite:
             self.teams[tid] = {"id": tid, "name": body["name"], "color": body["color"], "lead": body["lead"],
                                "members": body["members"]}
             return {"id": tid, "name": body["name"]}
-        if path == "/spaces":
-            if self.fail_on == "/spaces":
+        if path == "/clients":
+            if self.fail_on == "/clients":
                 self.fail_on = ""
                 raise suite.SuiteError("suite_unreachable", "nexsuite cannot be reached.")
+            if body.get("color") and body["color"] not in PALETTE:
+                raise suite.SuiteError("invalid_color", "nexsuite refused.", 409)
             sid = self._id()
-            self.spaces[sid] = {"id": sid, "name": body["name"], "color": body["color"] or "#f472b6",
-                                "people": body["people"],
-                                "teams": body["teams"]}
+            self.clients[sid] = {"id": sid, "name": body["name"], "color": body.get("color") or "#f472b6",
+                                 "sector": body.get("sector", ""), "contact": body.get("contact", ""),
+                                 "people": body["people"], "teams": body["teams"]}
             self.ticked.add(sid)
             return {"id": sid, "name": body["name"]}
-        if path.startswith("/spaces/") and path.endswith("/tick"):
+        if path.startswith("/clients/") and path.endswith("/tick"):
             sid = path.split("/")[2]
             self.ticked.add(sid)
             rank = {"read": 1, "write": 2, "manage": 3}
             for key in ("people", "teams"):
-                have = {g["id"]: g["role"] for g in self.spaces[sid][key]}
+                have = {g["id"]: g["role"] for g in self.clients[sid][key]}
                 for grant in (body or {}).get(key, []):
                     if rank[grant["role"]] > rank.get(have.get(grant["id"], ""), 0):
                         have[grant["id"]] = grant["role"]
-                self.spaces[sid][key] = [{"id": k, "role": v} for k, v in have.items()]
+                self.clients[sid][key] = [{"id": k, "role": v} for k, v in have.items()]
             return None
         if path.startswith("/teams/") and path.endswith("/join"):
             tid = path.split("/")[2]
@@ -179,8 +185,8 @@ def world(client: TestClient, operator: Account) -> dict[str, Any]:
         db.get(Account, anna.id).email = "anna@example.com"  # type: ignore[union-attr]
         db.commit()
     team = client.post("/api/teams", json={"name": "Design", "members": [anna.id, ben.id], "lead": anna.id}).json()
-    studio = client.post("/api/spaces", json={"name": "Studio"}).json()["id"]
-    ideen = client.post("/api/spaces", json={"name": "ideen"}).json()["id"]
+    studio = new_group(client, "Studio")
+    ideen = new_group(client, "ideen")
     from .conftest import join
 
     join(client, studio, "anna", "write")
@@ -194,8 +200,8 @@ def connect(client: TestClient, world: dict[str, Any], operator: Account) -> dic
     found = proposal.json()
     choices = {a["id"]: a["suggest"] for a in found["accounts"]}
     choices[world["cleo"].id] = "skip"
-    spaces = {s["id"]: s["suggest"] for s in found["spaces"]}
-    done = client.post("/api/suite/finish", json={"accounts": choices, "spaces": spaces})
+    spaces = {s["id"]: s["suggest"] for s in found["clients"]}
+    done = client.post("/api/suite/finish", json={"accounts": choices, "clients": spaces})
     assert done.status_code == 200, done.text
     return found
 
@@ -205,7 +211,7 @@ def test_connecting_matches_accounts_and_spaces_and_brings_the_rest(client: Test
     found = connect(client, world, operator)
     suggested = {a["name"]: a["suggest"] for a in found["accounts"]}
     assert suggested == {"tester": "1", "anna": "2", "ben": "new", "cleo": "new", "erik": "3"}
-    assert {s["name"]: s["suggest"] for s in found["spaces"]}["ideen"] == "10", "names match whatever the case"
+    assert {s["name"]: s["suggest"] for s in found["clients"]}["ideen"] == "10", "names match whatever the case"
     assert _setting("suite_state") == "connected"
     assert _setting("oidc_issuer") == SUITE and _setting("oidc_client_id") == "nxs-client"
     assert _setting("password_login") is False
@@ -218,8 +224,8 @@ def test_connecting_matches_accounts_and_spaces_and_brings_the_rest(client: Test
         assert team is not None and team.source == "admin" and fake.teams[team.external_id]["members"] == ["2", ben_id]
         studio = db.get(Space, world["studio"])
         assert studio is not None and studio.external_id in fake.ticked
-        assert fake.spaces[studio.external_id]["people"] == [{"id": "1", "role": "manage"}, {"id": "2", "role": "write"}]
-        assert fake.spaces[studio.external_id]["teams"] == [{"id": team.external_id, "role": "read"}]
+        assert fake.clients[studio.external_id]["people"] == [{"id": "1", "role": "manage"}, {"id": "2", "role": "write"}]
+        assert fake.clients[studio.external_id]["teams"] == [{"id": team.external_id, "role": "read"}]
         assert db.get(Space, world["ideen"]).external_id == "10"  # type: ignore[union-attr]
     assert ("POST", "/finish") in fake.calls
 
@@ -231,7 +237,7 @@ def test_the_operator_must_keep_a_person_and_a_wrong_code_changes_nothing(
     found = client.post("/api/suite/start", json={"url": SUITE, "code": "GOOD-CODE-1234"}).json()
     choices = {a["id"]: a["suggest"] for a in found["accounts"]}
     choices[operator.id] = "skip"
-    refused = client.post("/api/suite/finish", json={"accounts": choices, "spaces": {}})
+    refused = client.post("/api/suite/finish", json={"accounts": choices, "clients": {}})
     assert refused.status_code == 422 and refused.json()["detail"]["code"] == "operator_unmatched"
     assert _setting("suite_state") == "connecting"
     assert client.post("/api/suite/abort").status_code == 204
@@ -252,7 +258,7 @@ def test_keeping_in_step_follows_people_teams_spaces_and_mail(client: TestClient
     fake.people["50"] = {"id": "50", "name": "dora", "display_name": "Dora", "email": "dora@example.com",
                          "operator": False, "blocked": False}
     studio_id = _row_space(world["studio"]).external_id
-    fake.spaces[studio_id]["people"] = [{"id": "1", "role": "manage"}, {"id": "50", "role": "read"}]
+    fake.clients[studio_id]["people"] = [{"id": "1", "role": "manage"}, {"id": "50", "role": "read"}]
     fake.ticked.discard("10")
     fake.mail = {"host": "smtp.example.com", "port": 465, "security": "tls", "user": "suite", "password": "pw",
                  "from": "suite@example.com"}
@@ -269,7 +275,7 @@ def test_keeping_in_step_follows_people_teams_spaces_and_mail(client: TestClient
         assert db.query(Membership).filter_by(space_id=world["ideen"]).count() == 0
         assert db.query(TeamGrant).filter_by(space_id=world["ideen"]).count() == 0
     assert _setting("smtp_host") == "smtp.example.com" and _setting("suite_mail") is True
-    fake.spaces["10"]["color"] = "#123456"
+    fake.clients["10"]["color"] = "#123456"
     fake.ticked.add("10")
     client.post("/api/suite/sync")
     assert _row_space(world["ideen"]).color == "#123456", "the colour comes from nexsuite too"
@@ -287,11 +293,12 @@ def _row_space(space_id: int) -> Space:
 def test_what_nexsuite_keeps_cannot_be_changed_here(client: TestClient, operator: Account, world: dict,
                                                     fake: FakeSuite) -> None:
     connect(client, world, operator)
-    with SessionLocal() as db:  # a space the app keeps itself (connecting hands the existing ones to nexsuite)
+    with SessionLocal() as db:  # a client the app keeps itself (connecting hands the existing ones to nexsuite)
         row = Space(name="Only here")
         db.add(row)
         db.flush()
         db.add(Membership(space_id=row.id, account_id=operator.id, role="manage"))
+        db.add(Client(id="only-here-01", space_id=row.id, name="Only here"))
         db.commit()
         own = row.id
     listing = client.get(f"/api/spaces/{own}/members").json()
@@ -300,8 +307,10 @@ def test_what_nexsuite_keeps_cannot_be_changed_here(client: TestClient, operator
     for answer in (
         client.post("/api/teams", json={"name": "New"}),
         client.patch(f"/api/teams/{world['team']}", json={"name": "Renamed"}),
-        client.post("/api/spaces", json={"name": "Another"}),
-        client.patch(f"/api/spaces/{world['studio']}", json={"name": "Renamed"}),
+        client.post("/api/clients", json={"name": "Another"}),
+        client.patch(f"/api/clients/{client_of(client, world['studio'])}", json={"name": "Renamed"}),
+        client.patch(f"/api/clients/{client_of(client, world['studio'])}", json={"sector": "Other"}),
+        client.delete(f"/api/clients/{client_of(client, world['studio'])}"),
         client.put(f"/api/spaces/{world['studio']}/members/ben", json={"role": "read"}),
         client.post("/api/invites", json={"days": 7}),
         client.post(f"/api/spaces/{own}/invites", json={"role": "read", "days": 7}),
@@ -423,33 +432,55 @@ def test_without_a_mail_server_in_nexsuite_the_app_has_none_and_gets_its_own_bac
     assert _setting("smtp_host") == "own.example.com" and _setting("smtp_from") == "boards@example.com"
 
 
-def test_a_space_deleted_in_nexsuite_goes_into_the_bin_here_and_for_good_with_it(
+def test_a_client_deleted_in_nexsuite_goes_into_the_bin_here_and_for_good_with_it(
         client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
     from datetime import timedelta
 
-    from app.models import Client, utcnow
+    from app.models import utcnow
 
     connect(client, world, operator)
-    with SessionLocal() as db:
-        db.add(Client(id="client-in-ideen", space_id=world["ideen"], name="Sammlung"))
-        db.commit()
+    ideen = client_of(client, world["ideen"])
     fake.ticked.discard("10")
     when = utcnow() - timedelta(days=3)
-    fake.bin = [{"id": "10", "deleted_at": when.isoformat()}]
+    fake.clients_bin = [{"id": "10", "deleted_at": when.isoformat()}]
     client.post("/api/suite/sync")
-    space = _row_space(world["ideen"])
-    assert space.deleted_at is not None and abs((space.deleted_at - when).total_seconds()) < 1
-    assert world["ideen"] not in [s["id"] for s in client.get("/api/spaces").json()], "gone for the operator too"
-    # Brought back in nexsuite: back here, clients and all.
-    fake.bin, fake.ticked = [], {"10"}
+    with SessionLocal() as db:
+        row = db.get(Client, ideen)
+        assert row is not None and row.deleted_at is not None
+        assert abs((row.deleted_at - when).total_seconds()) < 1, "with nexsuite's date"
+    assert ideen not in [c["id"] for c in client.get("/api/clients").json()], "gone for the operator too"
+    refused = client.post(f"/api/clients/{ideen}/restore")
+    assert refused.status_code == 409 and refused.json()["detail"]["code"] == "managed_by_suite"
+    # Brought back in nexsuite: back here, versions and all.
+    fake.clients_bin, fake.ticked = [], {"10", *fake.ticked}
     client.post("/api/suite/sync")
-    assert _row_space(world["ideen"]).deleted_at is None
+    assert ideen in [c["id"] for c in client.get("/api/clients").json()]
     fake.ticked.discard("10")
-    fake.gone = ["10"]
+    fake.clients_gone = ["10"]
     client.post("/api/suite/sync")
     with SessionLocal() as db:
         assert db.get(Space, world["ideen"]) is None
-        assert db.query(Client).filter_by(name="Sammlung").count() == 0
+        assert db.get(Client, ideen) is None
+
+
+def test_a_client_made_in_nexsuite_comes_here_without_a_design_set(
+        client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
+    connect(client, world, operator)
+    fake.clients["90"] = {"id": "90", "name": "Example Bakery", "color": "#fbbf24", "sector": "Bakery",
+                          "contact": "Jo Example", "people": [{"id": "2", "role": "write"}], "teams": []}
+    fake.ticked.add("90")
+    client.post("/api/suite/sync")
+    made = next(c for c in client.get("/api/clients").json() if c["name"] == "Example Bakery")
+    assert (made["sector"], made["contact"], made["color"], made["managed"]) == ("Bakery", "Jo Example", "#fbbf24", True)
+    whole = client.get(f"/api/clients/{made['id']}").json()
+    assert whole["versions"] == [] and whole["current"] is None
+    first = client.post(f"/api/clients/{made['id']}/versions", json={"label": "1.0"})
+    assert first.status_code == 201, "its design set is made here"
+    with new_client(world["anna"]) as anna:
+        assert anna.get(f"/api/clients/{made['id']}").json()["role"] == "write"
+    fake.clients["90"]["name"] = "Example Bakery and Cafe"
+    client.post("/api/suite/sync")
+    assert client.get(f"/api/clients/{made['id']}").json()["name"] == "Example Bakery and Cafe"
 
 
 def _picture(name: str) -> bytes | None:
@@ -487,10 +518,10 @@ def test_a_right_nexsuite_takes_away_closes_the_client_at_once(client: TestClien
     connect(client, world, operator)
     client.post("/api/suite/sync")
     external = _row_space(world["studio"]).external_id
-    made = client.post("/api/clients", json={"space_id": world["studio"], "name": "Plan"}).json()["id"]
+    made = client_of(client, world["studio"])
     with new_client(world["anna"]) as anna:
         assert anna.get(f"/api/clients/{made}").status_code == 200
-        fake.spaces[external]["people"], fake.spaces[external]["teams"] = [], []
+        fake.clients[external]["people"], fake.clients[external]["teams"] = [], []
         client.post("/api/suite/sync")
         assert anna.get(f"/api/clients/{made}").status_code == 404
 
@@ -555,20 +586,20 @@ def test_no_person_space_or_team_is_matched_twice(client: TestClient, operator: 
     with SessionLocal() as db:
         db.get(Account, twin.id).email = "anna@example.com"  # type: ignore[union-attr]
         db.commit()
-    client.post("/api/spaces", json={"name": "Ideen"})  # a second space named like nexsuite's Ideen
+    client.post("/api/clients", json={"name": "Ideen", "label": ""})  # a second client named like nexsuite's Ideen
     found = client.post("/api/suite/start", json={"url": SUITE + "/", "code": "GOOD-CODE-1234"}).json()
     suggested = {a["name"]: a["suggest"] for a in found["accounts"]}
     assert suggested["anna"] == "2" and suggested["anna2"] == "new", "each person is suggested once"
-    assert sorted(s["suggest"] for s in found["spaces"] if s["name"].lower() == "ideen") == ["10", "new"]
+    assert sorted(s["suggest"] for s in found["clients"] if s["name"].lower() == "ideen") == ["10", "new"]
     choices = {a["id"]: a["suggest"] for a in found["accounts"]}
-    spaces = {s["id"]: s["suggest"] for s in found["spaces"]}
+    spaces = {s["id"]: s["suggest"] for s in found["clients"]}
     for twice in ({**choices, twin.id: "2"}, choices):
         bad_spaces = spaces if twice is not choices else {k: "10" for k in spaces}
-        refused = client.post("/api/suite/finish", json={"accounts": twice, "spaces": bad_spaces})
+        refused = client.post("/api/suite/finish", json={"accounts": twice, "clients": bad_spaces})
         assert refused.status_code == 422, refused.text
-        assert refused.json()["detail"]["code"] in ("person_twice", "space_twice")
+        assert refused.json()["detail"]["code"] in ("person_twice", "client_twice")
     assert _setting("suite_state") == "connecting", "nothing was applied"
-    assert not any(call[1] in ("/people", "/teams", "/spaces") for call in fake.calls), "nothing reached nexsuite"
+    assert not any(call[1] in ("/people", "/teams", "/clients") for call in fake.calls), "nothing reached nexsuite"
 
 
 def test_a_matched_space_keeps_its_rights_and_a_matched_team_is_not_made_twice(
@@ -578,25 +609,25 @@ def test_a_matched_space_keeps_its_rights_and_a_matched_team_is_not_made_twice(
 
     fake.teams["70"] = {"id": "70", "name": "design", "color": "#123456", "lead": None, "members": ["1"]}
     join(client, world["ideen"], "anna", "write")
-    with SessionLocal() as db:  # a colour of its own, not the default
-        db.get(Space, world["studio"]).color = "#0a7c5a"  # type: ignore[union-attr]
+    with SessionLocal() as db:  # a colour of its own nexsuite also has, and one it does not
+        db.get(Space, world["studio"]).color = "#4ade80"  # type: ignore[union-attr]
         db.commit()
     found = client.post("/api/suite/start", json={"url": SUITE + "/", "code": "GOOD-CODE-1234"}).json()
     assert {t["name"]: t["suggest"] for t in found["teams"]} == {"Design": "70"}, "matched by name, any case"
     choices = {a["id"]: a["suggest"] for a in found["accounts"]}
     choices[world["cleo"].id] = "skip"
-    spaces = {s["id"]: s["suggest"] for s in found["spaces"]}
+    spaces = {s["id"]: s["suggest"] for s in found["clients"]}
     teams = {t["id"]: t["suggest"] for t in found["teams"]}
-    assert client.post("/api/suite/finish", json={"accounts": choices, "spaces": spaces, "teams": teams}).status_code == 200
+    assert client.post("/api/suite/finish", json={"accounts": choices, "clients": spaces, "teams": teams}).status_code == 200
     assert list(fake.teams) == ["70"], "no second Design in nexsuite"
     ben = next(pid for pid, p in fake.people.items() if p["name"] == "ben")
     assert set(fake.teams["70"]["members"]) == {"1", "2", ben}, "the members here came along"
     assert fake.teams["70"]["lead"] == "2", "the team in nexsuite had no lead and takes anna"
-    ideen = {g["id"]: g["role"] for g in fake.spaces["10"]["people"]}
+    ideen = {g["id"]: g["role"] for g in fake.clients["10"]["people"]}
     assert ideen["2"] == "write", "anna keeps her right in the matched space"
     assert ideen["1"] == "manage", "the higher right holds"
-    studio = next(s for s in fake.spaces.values() if s["name"] == "Studio")
-    assert studio["color"] == "#0a7c5a", "a new space keeps its colour (a2-9)"
+    studio = next(s for s in fake.clients.values() if s["name"] == "Studio")
+    assert studio["color"] == "#4ade80", "a new client keeps its colour where nexsuite has it (a2-9)"
     client.post("/api/suite/sync")
     with SessionLocal() as db:
         grants = {m.account_id: m.role for m in db.query(Membership).filter_by(space_id=world["ideen"])}
@@ -609,7 +640,7 @@ def test_a_matched_space_keeps_its_rights_and_a_matched_team_is_not_made_twice(
     assert {t["name"]: t["suggest"] for t in again["teams"]} == {"design": "70"}
     choices = {a["id"]: a["suggest"] for a in again["accounts"]}
     done = client.post("/api/suite/finish", json={"accounts": choices,
-                                                  "spaces": {s["id"]: s["suggest"] for s in again["spaces"]},
+                                                  "clients": {s["id"]: s["suggest"] for s in again["clients"]},
                                                   "teams": {t["id"]: t["suggest"] for t in again["teams"]}})
     assert done.status_code == 200, done.text
     assert list(fake.teams) == ["70"]
@@ -628,7 +659,7 @@ def test_new_people_hear_how_they_get_a_password(client: TestClient, operator: A
         db.get(Account, world["ben"].id).email = "ben@example.com"  # type: ignore[union-attr]
         db.commit()
     done = client.post("/api/suite/finish", json={"accounts": choices,
-                                                  "spaces": {s["id"]: s["suggest"] for s in found["spaces"]}})
+                                                  "clients": {s["id"]: s["suggest"] for s in found["clients"]}})
     assert done.status_code == 200, done.text
     assert done.json()["new_people"] == [{"name": "ben", "password": "mailed"}]
 
@@ -692,15 +723,15 @@ def test_connecting_again_after_a_failure_makes_nothing_twice(client: TestClient
     again = client.post("/api/suite/start", json={"url": SUITE + "/", "code": "GOOD-CODE-1234"})
     assert again.status_code == 409 and again.json()["detail"]["code"] == "connecting_already"
     choices = {a["id"]: a["suggest"] for a in found["accounts"]}
-    spaces = {s["id"]: s["suggest"] for s in found["spaces"]}
-    fake.fail_on = "/spaces"
-    failed = client.post("/api/suite/finish", json={"accounts": choices, "spaces": spaces})
+    spaces = {s["id"]: s["suggest"] for s in found["clients"]}
+    fake.fail_on = "/clients"
+    failed = client.post("/api/suite/finish", json={"accounts": choices, "clients": spaces})
     assert failed.status_code >= 400 and _setting("suite_state") == "connecting"
     people, teams = len(fake.people), len(fake.teams)
-    done = client.post("/api/suite/finish", json={"accounts": choices, "spaces": spaces})
+    done = client.post("/api/suite/finish", json={"accounts": choices, "clients": spaces})
     assert done.status_code == 200, done.text
     assert len(fake.people) == people and len(fake.teams) == teams, "what was made before is used, not made again"
-    assert len([s for s in fake.spaces.values() if s["name"] == "Studio"]) == 1
+    assert len([s for s in fake.clients.values() if s["name"] == "Studio"]) == 1
 
 
 def test_connected_an_old_invitation_is_no_way_in_through_nexsuite(client: TestClient, operator: Account,
@@ -711,3 +742,13 @@ def test_connected_an_old_invitation_is_no_way_in_through_nexsuite(client: TestC
     with new_client() as stranger:
         answer = stranger.get(f"/api/oidc/start?invite={token}", follow_redirects=False)
         assert answer.status_code in (302, 303) and "invite_invalid" in answer.headers["location"]
+
+
+def test_a_colour_from_before_that_nexsuite_does_not_take_is_left_to_nexsuite(
+        client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
+    with SessionLocal() as db:  # the cobalt clients had before the palette became nexsuite's
+        db.get(Space, world["studio"]).color = "#2f7bff"  # type: ignore[union-attr]
+        db.commit()
+    connect(client, world, operator)
+    studio = next(c for c in fake.clients.values() if c["name"] == "Studio")
+    assert studio["color"] == "#f472b6", "nexsuite chose one; the connection did not fail on the colour"

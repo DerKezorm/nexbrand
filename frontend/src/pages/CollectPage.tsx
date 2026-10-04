@@ -60,10 +60,8 @@ export function CollectPage() {
   const brands = useBrands()
   const detailText = useDetail()
   const writable = brands.clients.filter((c) => c.role === 'write' || c.role === 'manage')
-  const spaces = brands.spaces.filter((s) => s.role === 'write' || s.role === 'manage')
   const [target, setTarget] = useState<string>(params.get('client') ?? '')
   const [newName, setNewName] = useState('')
-  const [newSpace, setNewSpace] = useState<number>(0)
   const [mode, setMode] = useState<Mode>(params.get('mode') === 'audit' ? 'audit' : 'draft')
   const [sources, setSources] = useState<Source[]>([{ kind: 'website', value: '' }])
   const [useAi, setUseAi] = useState(false)
@@ -87,7 +85,25 @@ export function CollectPage() {
     clientsApi.read(target).then(setWhole, () => setWhole(null))
   }, [target])
 
-  const space = target ? (whole?.space_id ?? 0) : newSpace || spaces[0]?.id || 0
+  const mayCreate = !!me?.may_create_clients
+  // Without the right to make clients, a draft goes to one that exists: the first one writable is chosen.
+  useEffect(() => {
+    if (mode === 'draft' && !target && !mayCreate && writable[0]) setTarget(writable[0].id)
+  }, [mode, target, mayCreate, writable])
+
+  /** The client the files go to: the one chosen, or a new one under the name typed, made once and then chosen. */
+  const ensure = async (): Promise<{ id: string; space_id: number }> => {
+    if (target) {
+      if (!whole) throw new ApiError(400, 'collect_space_first')
+      return { id: whole.id, space_id: whole.space_id }
+    }
+    if (!newName.trim()) throw new ApiError(400, 'collect_name_first')
+    const fresh = await clientsApi.create({ name: newName.trim(), label: '' })
+    await brands.refresh()
+    setWhole(fresh)
+    setTarget(fresh.id)
+    return { id: fresh.id, space_id: fresh.space_id }
+  }
   // The current version as the client's page shows it: the latest published one (`current` names its label only).
   const current = whole?.versions.filter((v) => v.status === 'published').at(-1) ?? null
   const ci = useMemo(() => current?.data.colors ?? [], [current])
@@ -124,7 +140,7 @@ export function CollectPage() {
       const next = [...sources]
       for (const [index, source] of next.entries()) {
         if (source.kind === 'pdf' && source.file && !source.value) {
-          if (!space) throw new ApiError(400, 'collect_space_first')
+          const space = (await ensure()).space_id
           const media = await upload<MediaInfo>('/api/media', { space, name: source.file.name }, source.file)
           next[index] = { ...source, value: media.id, name: media.name }
         }
@@ -141,8 +157,7 @@ export function CollectPage() {
 
   const takeLogo = (url: string) =>
     act(async () => {
-      if (!space) throw new ApiError(400, 'collect_space_first')
-      const media = await collectApi.logo(space, url)
+      const media = await collectApi.logo((await ensure()).id, url)
       setTaken((list) => [...list.filter((x) => x.url !== url), { url, media }])
     })
 
@@ -172,14 +187,14 @@ export function CollectPage() {
         const version = await clientsApi.newVersion(target, { label, data: designSet(), origin: 'collect', note: t('collect.note', { count: sources.filter((s) => s.value).length }) })
         navigate(`/c/${target}?v=${version.id}`)
       } else {
-        const made = await clientsApi.create({ space_id: space, name: newName.trim(), label, data: designSet() })
+        const made = await clientsApi.create({ name: newName.trim(), label, data: designSet() })
         await brands.refresh()
         navigate(`/c/${made.id}`)
       }
     })
 
   const ready = sources.some((s) => s.value.trim() || s.file)
-  const canTake = kept.length > 0 && (target ? !!whole : newName.trim().length > 0 && space > 0)
+  const canTake = kept.length > 0 && (target ? !!whole : newName.trim().length > 0 && mayCreate)
 
   return (
     <main className="nc-scroll min-w-0 flex-1 overflow-y-auto">
@@ -208,7 +223,7 @@ export function CollectPage() {
             <label className="text-sm">
               <span className="block text-xs font-medium text-mist-400">{t('collect.client')}</span>
               <select value={target} onChange={(event) => setTarget(event.target.value)} aria-label={t('collect.client')} className={FIELD + ' mt-1 w-64 max-w-full'}>
-                {mode === 'draft' && <option value="">{t('collect.newClient')}</option>}
+                {mode === 'draft' && mayCreate && <option value="">{t('collect.newClient')}</option>}
                 {mode === 'audit' && <option value="">{t('collect.pick')}</option>}
                 {(mode === 'audit' ? brands.clients : writable).map((c) => (
                   <option key={c.id} value={c.id}>
@@ -223,18 +238,6 @@ export function CollectPage() {
                   <span className="block text-xs font-medium text-mist-400">{t('collect.newName')}</span>
                   <input value={newName} onChange={(event) => setNewName(event.target.value)} maxLength={120} className={FIELD + ' mt-1 w-56'} />
                 </label>
-                {spaces.length > 1 && (
-                  <label className="text-sm">
-                    <span className="block text-xs font-medium text-mist-400">{t('collect.space')}</span>
-                    <select value={space} onChange={(event) => setNewSpace(Number(event.target.value))} aria-label={t('collect.space')} className={FIELD + ' mt-1 w-48'}>
-                      {spaces.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
               </>
             )}
           </div>
@@ -458,7 +461,7 @@ export function CollectPage() {
                           {logo.url}
                         </span>
                         <span className="text-mist-500">{logo.kind}</span>
-                        <button type="button" disabled={busy || done || !space} onClick={() => void takeLogo(logo.url)} className="nc-btn nc-btn-ghost !px-2.5 !py-0.5 !text-xs">
+                        <button type="button" disabled={busy || done || (!target && !newName.trim())} onClick={() => void takeLogo(logo.url)} className="nc-btn nc-btn-ghost !px-2.5 !py-0.5 !text-xs">
                           {done ? <Check className="h-3.5 w-3.5" /> : null} {done ? t('collect.logoTaken') : t('collect.logoTake')}
                         </button>
                       </li>

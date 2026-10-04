@@ -4,13 +4,15 @@ The contract is nexsuite's ``docs/connect.md``. In short:
 
 * **Connecting** (the operator, here): the address of nexsuite and a one-time code made there. nexbrand sends the code
   with its own address and gets a client for signing in through nexsuite and a token to fetch the directory. Then the
-  operator matches every account here to a person there (or a new one), every space to a space there (or a new one),
-  and the local teams go along. Only then nexbrand counts as connected: from now on people sign in through nexsuite.
+  operator matches every account here to a person there (or a new one), every client to a client there (or a new
+  one), and the local teams go along. Only then nexbrand counts as connected: from now on people sign in through
+  nexsuite.
 * **Keeping in step**: nexbrand fetches the directory once a minute and whenever nexsuite says something changed
   (``POST /api/suite/event``, signed with the token). Accounts follow their person (``oidc_subject`` = the person's id),
-  teams and spaces follow theirs (``external_id``). A blocked person is signed out at once. A space nexsuite no longer
-  gives this app keeps its clients, but nobody but the operator sees it.
-* **What is kept there** cannot be changed here: accounts, teams, rights in spaces from nexsuite, sign-in, mail.
+  teams follow theirs, and each client follows its client there (``external_id`` of its group of rights): name,
+  sector, contact, colour and who may see it. A client nexsuite brought comes without a design set; it gets one here.
+  A blocked person is signed out at once.
+* **What is kept there** cannot be changed here: accounts, teams, clients and who may see them, sign-in, mail.
 * **The way back**: the operator disconnects here (nexsuite forgets the app), or nexsuite disconnects the app, or, with
   nexsuite out of reach, an emergency code does it. nexbrand keeps everything it got and runs on its own again: the
   operator's own sign-in with password stays throughout (the emergency account).
@@ -46,6 +48,7 @@ from ..models import (
     TEAM_LOCAL,
     Account,
     AuthSession,
+    Client,
     Membership,
     Space,
     Team,
@@ -60,7 +63,10 @@ logger = logging.getLogger("nexbrand.suite")
 
 KIND = "nexbrand"
 #: What nexbrand takes from nexsuite. Links between the apps come later; until then they are not claimed.
-CAPABILITIES = ["people", "teams", "spaces", "mail"]
+CAPABILITIES = ["people", "teams", "clients", "mail"]
+#: The colours nexsuite takes for a client (its palette, the clients' palette here too); a colour from before, outside
+#: it, is left out and nexsuite chooses.
+SUITE_COLORS = ("#f472b6", "#38a9c4", "#fbbf24", "#4ade80", "#ff8a70", "#60a5fa", "#a78bfa", "#a1a1aa")
 TIMEOUT = 10.0
 #: A notice older than this is refused (against a notice caught and sent again later).
 NOTICE_SECONDS = 300
@@ -226,7 +232,7 @@ def clean_url(value: str) -> str:
 class Proposal:
     people: list[dict[str, Any]]
     accounts: list[dict[str, Any]]
-    spaces: list[dict[str, Any]]
+    clients: list[dict[str, Any]]
     candidates: list[dict[str, Any]]
     #: The teams here and the teams in nexsuite to match them to (by name), so none is brought twice.
     teams: list[dict[str, Any]] = field(default_factory=list)
@@ -282,17 +288,18 @@ def proposal(db: Session) -> Proposal:
         accounts_out.append({"id": row.id, "name": row.name, "display_name": row.display_name, "email": row.email,
                              "role": row.role, "suggest": guess or "new"})
     accounts_out.sort(key=lambda entry: entry["id"])
-    candidates = list(seen.get("candidates") or [])
-    spaces_out = _suggest([{"id": s.id, "name": s.name, "color": s.color}
-                           for s in db.scalars(select(Space).where(Space.deleted_at.is_(None)).order_by(Space.id))],
-                          candidates)
+    candidates = list(seen.get("clients_candidates") or [])
+    clients_out = _suggest([{"id": c.id, "name": c.name, "color": s.color}
+                            for c, s in db.execute(select(Client, Space).join(Space, Space.id == Client.space_id)
+                                                   .where(Client.deleted_at.is_(None)).order_by(Client.name))],
+                           candidates)
     team_candidates = [{"id": str(t["id"]), "name": t["name"], "color": t.get("color", "")}
                        for t in seen.get("teams") or []]
     teams_out = _suggest([{"id": t.id, "name": t.name, "color": t.color}
                           for t in db.scalars(select(Team).where(Team.source == TEAM_LOCAL).order_by(Team.id))],
                          team_candidates)
-    return Proposal(people=people, accounts=accounts_out, spaces=spaces_out, candidates=candidates, teams=teams_out,
-                    team_candidates=team_candidates)
+    return Proposal(people=people, accounts=accounts_out, clients=clients_out, candidates=candidates,
+                    teams=teams_out, team_candidates=team_candidates)
 
 
 def _suggest(rows: list[dict[str, Any]], candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -315,22 +322,22 @@ def operator_id(db: Session) -> int:
 
 
 def _no_twice(choices: dict[int, str], what: str) -> None:
-    """A person, space or team in nexsuite gets at most one counterpart here (A7)."""
+    """A person, client or team in nexsuite gets at most one counterpart here (A7)."""
     chosen = [choice for choice in choices.values() if choice not in ("new", "skip")]
     twice = sorted({choice for choice in chosen if chosen.count(choice) > 1})
     if twice:
         raise SuiteError(f"{what}_twice", f"Each {what} in nexsuite can be chosen once only.", 422)
 
 
-def finish(db: Session, operator: Account, accounts_map: dict[int, str], spaces_map: dict[int, str],
+def finish(db: Session, operator: Account, accounts_map: dict[int, str], clients_map: dict[str, str],
            teams_map: dict[int, str] | None = None) -> list[dict[str, str]]:
-    """Applies the operator's choices: ``person id`` | ``new`` | ``skip`` per account, ``space id`` | ``new`` per
-    space, ``team id`` | ``new`` per team. Then nexbrand signs in through nexsuite and fetches the directory."""
+    """Applies the operator's choices: ``person id`` | ``new`` | ``skip`` per account, ``client id`` | ``new`` per
+    client, ``team id`` | ``new`` per team. Then nexbrand signs in through nexsuite and fetches the directory."""
     if state(db) != "connecting":
         raise SuiteError("not_connecting", "Start with the address and the code.", 409)
     teams_map = teams_map or {}
     _no_twice(accounts_map, "person")
-    _no_twice(spaces_map, "space")
+    _no_twice(clients_map, "client")
     _no_twice(teams_map, "team")
     token = _token(db)
     made_before = dict((settings_service.get(db, "suite_pending") or {}).get("made") or {})
@@ -378,10 +385,11 @@ def finish(db: Session, operator: Account, accounts_map: dict[int, str], spaces_
             made = request("POST", _api(db, f"/teams/{int(choice)}/join"), token=token,
                            body={"members": members, "lead": lead})
         team_of[team.id] = str(made["id"])
-    spaces_done = 0
-    for space_id, choice in spaces_map.items():
-        space = db.get(Space, space_id)
-        if space is None or space.deleted_at is not None:
+    clients_done = 0
+    for client_id, choice in clients_map.items():
+        client = db.get(Client, client_id)
+        space = db.get(Space, client.space_id) if client is not None and client.deleted_at is None else None
+        if client is None or space is None:
             continue
         people = [{"id": person_of[m.account_id], "role": m.role}
                   for m in db.scalars(select(Membership).where(Membership.space_id == space.id))
@@ -389,18 +397,21 @@ def finish(db: Session, operator: Account, accounts_map: dict[int, str], spaces_
         grants = db.scalars(select(TeamGrant).where(TeamGrant.space_id == space.id))
         teams = [{"id": team_of[g.team_id], "role": g.role} for g in grants if g.team_id in team_of]
         if choice == "new":
-            made = made_before.get(f"space:{space.id}")
+            made = made_before.get(f"client:{client.id}")
             if made is None:
-                made = {"id": str(request("POST", _api(db, "/spaces"), token=token, body={
-                    "name": space.name, "color": space.color, "people": people, "teams": teams})["id"])}
-                remember(f"space:{space.id}", made)
+                body = {"name": client.name[:80], "sector": client.sector[:80], "contact": client.contact[:120],
+                        "people": people, "teams": teams}
+                if space.color.lower() in SUITE_COLORS:
+                    body["color"] = space.color.lower()
+                made = {"id": str(request("POST", _api(db, "/clients"), token=token, body=body)["id"])}
+                remember(f"client:{client.id}", made)
             space.external_id = made["id"]
         else:
             # Matched: the rights it has here come along, nexsuite keeps the higher where it has one (B1).
-            request("POST", _api(db, f"/spaces/{int(choice)}/tick"), token=token,
+            request("POST", _api(db, f"/clients/{int(choice)}/tick"), token=token,
                     body={"people": people, "teams": teams})
             space.external_id = str(int(choice))
-        spaces_done += 1
+        clients_done += 1
     for account_id, person in person_of.items():
         accounts_here[account_id].oidc_subject = person
     for account_id, choice in accounts_map.items():
@@ -411,7 +422,7 @@ def finish(db: Session, operator: Account, accounts_map: dict[int, str], spaces_
         if team is not None:
             team.source, team.external_id = TEAM_ADMIN, external
     db.commit()
-    request("POST", _api(db, "/finish"), token=token, body={"people": len(person_of), "spaces": spaces_done})
+    request("POST", _api(db, "/finish"), token=token, body={"people": len(person_of), "clients": clients_done})
     pending = settings_service.get(db, "suite_pending") or {}
     values = settings_service.get_all(db)
     settings_service.save(db, {
@@ -427,7 +438,7 @@ def finish(db: Session, operator: Account, accounts_map: dict[int, str], spaces_
         "suite_state": "connected",
         "suite_emergency_account": operator.id,
     })
-    logger.info("Connected to nexsuite: %s accounts, %s spaces", len(person_of), spaces_done)
+    logger.info("Connected to nexsuite: %s accounts, %s clients", len(person_of), clients_done)
     sync(db)
     return new_people
 
@@ -557,39 +568,7 @@ def _apply(db: Session, seen: dict[str, Any], token: str) -> None:
     for gone in existing.values():
         db.delete(gone)
     db.flush()
-    spaces = {s.external_id: s for s in db.scalars(select(Space).where(Space.external_id != ""))}
-    given: set[str] = set()
-    for item in seen.get("spaces", []):
-        sid = str(item["id"])
-        given.add(sid)
-        space = spaces.get(sid)
-        if space is None:
-            space = Space(name=str(item["name"])[:80], external_id=sid)
-            db.add(space)
-            db.flush()
-        space.name = str(item["name"])[:80]
-        space.color = str(item.get("color") or space.color)[:16]
-        if space.deleted_at is not None:
-            space.deleted_at = None
-        _set_grants(db, space.id,
-                    {account_of[g["id"]]: g["role"] for g in item.get("people", []) if g["id"] in account_of},
-                    {team_of[g["id"]]: g["role"] for g in item.get("teams", []) if g["id"] in team_of})
-    # A space nexsuite no longer gives this app: its clients stay, only the operator sees them.
-    for sid, space in spaces.items():
-        if sid not in given:
-            _set_grants(db, space.id, {}, {})
-    # Deleted in nexsuite: into this bin too, with nexsuite's date, so both empty after the same 30 days. A restore
-    # there brings it back above (it is given again).
-    for item in seen.get("bin") or []:
-        space = spaces.get(str(item.get("id")))
-        if space is not None and space.deleted_at is None:
-            space.deleted_at = _moment(item.get("deleted_at"))
-    # Deleted for good there: here too, with its clients (their files go with the next clean-up).
-    for sid in seen.get("gone") or []:
-        space = spaces.get(str(sid))
-        if space is not None:
-            logger.info("Space deleted for good in nexsuite, here too id=%s", space.id)
-            db.delete(space)
+    _apply_clients(db, seen, account_of, team_of)
     sealed = seen.get("mail")
     if sealed:
         mail = _open_mail(token, sealed)
@@ -608,6 +587,65 @@ def _apply(db: Session, seen: dict[str, Any], token: str) -> None:
     db.commit()
     for account_id in signed_out:
         end_all_sessions(db, account_id)
+
+
+def _apply_clients(db: Session, seen: dict[str, Any], account_of: dict[str, int], team_of: dict[str, int]) -> None:
+    """Clients by their id in nexsuite: name, sector, contact, colour and rights follow. One nexsuite made comes here
+    without a design set. In nexsuite's bin: in this bin too, with its date; deleted there for good: here too."""
+    from . import brands
+
+    spaces = {s.external_id: s for s in db.scalars(select(Space).where(Space.external_id != ""))}
+    ids = [s.id for s in spaces.values()]
+    client_of = {c.space_id: c for c in db.scalars(select(Client).where(Client.space_id.in_(ids)))}
+    binned = {str(item.get("id")): item for item in seen.get("clients_bin") or []}
+    given: set[str] = set()
+    for item in seen.get("clients", []):
+        sid = str(item["id"])
+        given.add(sid)
+        space = spaces.get(sid)
+        if space is None:
+            space = Space(name=str(item["name"])[:80] or "?", external_id=sid)
+            db.add(space)
+            db.flush()
+            spaces[sid] = space
+        client = client_of.get(space.id)
+        if client is None:
+            client = Client(id=brands.new_id(), space_id=space.id, name=str(item["name"])[:120] or "?",
+                            updated_by="nexsuite")
+            db.add(client)
+            db.flush()
+            client_of[space.id] = client
+            logger.info("Client brought by nexsuite id=%s", client.id)
+        client.name = str(item["name"])[:120] or client.name
+        client.sector = str(item.get("sector") or "")[:120]
+        client.contact = str(item.get("contact") or "")[:255]
+        space.name = client.name[:80]
+        space.color = str(item.get("color") or space.color)[:16]
+        if client.deleted_at is not None and sid not in binned:
+            client.deleted_at = None
+        _set_grants(db, space.id,
+                    {account_of[g["id"]]: g["role"] for g in item.get("people", []) if g["id"] in account_of},
+                    {team_of[g["id"]]: g["role"] for g in item.get("teams", []) if g["id"] in team_of})
+    # Deleted in nexsuite: into this bin too, with nexsuite's date, so both empty after the same 30 days. A restore
+    # there brings it back above.
+    for sid, item in binned.items():
+        space = spaces.get(sid)
+        client = client_of.get(space.id) if space is not None else None
+        if client is not None and client.deleted_at is None:
+            client.deleted_at = _moment(item.get("deleted_at"))
+    # A client nexsuite no longer lists and has not binned: nobody but the operator sees it any more.
+    for sid, space in spaces.items():
+        if sid not in given and sid not in binned:
+            _set_grants(db, space.id, {}, {})
+    # Deleted for good there: here too, with its versions (their files go with the next clean-up).
+    for sid in seen.get("clients_gone") or []:
+        space = spaces.get(str(sid))
+        if space is not None:
+            client = client_of.get(space.id)
+            logger.info("Client deleted for good in nexsuite, here too id=%s", client.id if client else "-")
+            if client is not None:
+                db.delete(client)
+            db.delete(space)
 
 
 def _set_grants(db: Session, space_id: int, people: dict[int, str], teams: dict[int, str]) -> None:

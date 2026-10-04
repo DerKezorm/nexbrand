@@ -1,4 +1,4 @@
-"""Spaces: made by any account, which then manages it; renamed, coloured and deleted by their managers."""
+"""The group of rights behind each client (``Space``): made with the client, by the account that then manages it."""
 
 from __future__ import annotations
 
@@ -8,12 +8,13 @@ import re
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..models import MANAGE, Account, Membership, Space, utcnow
+from ..models import MANAGE, Account, Membership, Space
 
 logger = logging.getLogger("nexbrand.spaces")
 
-#: The colours a space may have: the palette of the interface, nothing else.
-COLORS = ("#2f7bff", "#fbbf24", "#4ade80", "#2dd4bf", "#ff8a70", "#a78bfa", "#f472b6", "#a1a1aa")
+#: The colours a client may have: those nexsuite also has, so a colour comes along when nexbrand connects (nexsuite
+#: refuses any other). ``lib/palette.ts`` holds the same list for the interface.
+COLORS = ("#60a5fa", "#38a9c4", "#4ade80", "#fbbf24", "#ff8a70", "#f472b6", "#a78bfa", "#a1a1aa")
 COLOR = re.compile(r"^#[0-9a-f]{6}$")
 MAX_NAME = 80
 
@@ -29,7 +30,7 @@ class SpaceError(Exception):
 def clean_name(name: str) -> str:
     text = " ".join(name.split())
     if not text or len(text) > MAX_NAME or any(ord(char) < 32 for char in text):
-        raise SpaceError("invalid_name", "A space needs a name of 1 to 80 characters.")
+        raise SpaceError("invalid_name", "A client needs a name of 1 to 80 characters.")
     return text
 
 
@@ -42,30 +43,15 @@ def clean_color(color: str | None, fallback: str) -> str:
     return value
 
 
-def create(db: Session, account: Account, name: str, color: str | None = None) -> Space:
-    """A new space; the account that made it manages it."""
-    taken = db.scalar(select(Space.id).where(Space.deleted_at.is_(None)).order_by(Space.id.desc()))
+def create(db: Session, account: Account | None, name: str, color: str | None = None, *, commit: bool = True) -> Space:
+    """The group of rights for a new client; the account that made it manages it (none: brought by nexsuite)."""
+    taken = db.scalar(select(Space.id).order_by(Space.id.desc()))
     fallback = COLORS[(taken or 0) % len(COLORS)]
-    space = Space(name=clean_name(name), color=clean_color(color, fallback))
+    space = Space(name=clean_name(name[:MAX_NAME]), color=clean_color(color, fallback))
     db.add(space)
     db.flush()
-    db.add(Membership(space_id=space.id, account_id=account.id, role=MANAGE))
-    db.commit()
-    logger.info("Space created id=%s by=%s", space.id, account.name)
+    if account is not None:
+        db.add(Membership(space_id=space.id, account_id=account.id, role=MANAGE))
+    if commit:
+        db.commit()
     return space
-
-
-def change(db: Session, space: Space, name: str | None, color: str | None) -> Space:
-    if name is not None:
-        space.name = clean_name(name)
-    if color is not None:
-        space.color = clean_color(color, space.color)
-    db.commit()
-    return space
-
-
-def trash(db: Session, space: Space) -> None:
-    """Into the bin with all its clients; the members stay, so a restore brings everything back as it was."""
-    space.deleted_at = utcnow()
-    db.commit()
-    logger.info("Space moved to the bin id=%s", space.id)

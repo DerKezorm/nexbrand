@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from app.models import Account
 from app.services import brandset, tokens
 
-from .conftest import join, make_account, new_client
+from .conftest import join, make_account, new_client, new_group
 
 SET: dict[str, Any] = {
     "colors": [
@@ -28,10 +28,22 @@ SET: dict[str, Any] = {
 
 
 def make_client(client: TestClient, space: int, data: dict[str, Any] | None = None, **extra: Any) -> dict[str, Any]:
-    answer = client.post("/api/clients", json={"space_id": space, "name": "Bäckerei Morgenrot", "label": "Draft 1",
-                                               "data": data if data is not None else SET, **extra})
-    assert answer.status_code == 201, answer.text
-    return answer.json()
+    """The client of the group ``space`` gets its name and a first draft (and a first project); a second call for the
+    same group makes a client of its own."""
+    cid = next(s["client"] for s in client.get("/api/spaces").json() if s["id"] == space)
+    if client.get(f"/api/clients/{cid}").json()["versions"]:
+        answer = client.post("/api/clients", json={"name": "Bäckerei Morgenrot", "label": "Draft 1",
+                                                   "data": data if data is not None else SET, **extra})
+        assert answer.status_code == 201, answer.text
+        return answer.json()
+    assert client.patch(f"/api/clients/{cid}", json={"name": "Bäckerei Morgenrot"}).status_code == 200
+    made = client.post(f"/api/clients/{cid}/versions", json={"label": "Draft 1",
+                                                             "data": data if data is not None else SET})
+    assert made.status_code == 201, made.text
+    if extra.get("project"):
+        assert client.post(f"/api/clients/{cid}/projects",
+                           json={"name": extra["project"], "version_id": made.json()["id"]}).status_code == 201
+    return client.get(f"/api/clients/{cid}").json()
 
 
 def upload(client: TestClient, space: int, name: str, body: bytes) -> str:
@@ -76,7 +88,7 @@ def test_what_does_not_belong_in_a_set_is_refused_with_its_place(change: dict[st
 
 def test_files_must_be_in_the_clients_space_and_of_a_fitting_kind(client: TestClient, operator: Account,
                                                                    space: int) -> None:
-    other = client.post("/api/spaces", json={"name": "Other"}).json()["id"]
+    other = new_group(client, "Other")
     font = upload(client, space, "brand.woff2", WOFF2)
     logo = upload(client, space, "logo.svg", SVG)
     foreign = upload(client, other, "logo.svg", SVG + b" ")
@@ -87,7 +99,7 @@ def test_files_must_be_in_the_clients_space_and_of_a_fitting_kind(client: TestCl
     for bad, where in (({"logos": [{"id": "m", "name": "L", "media": foreign}]}, "logos.0.media"),
                        ({"logos": [{"id": "m", "name": "L", "media": font}]}, "logos.0.media"),
                        ({"fonts": [{"family": "B", "files": [logo]}]}, "fonts.0.files.0")):
-        answer = client.post("/api/clients", json={"space_id": space, "name": "X", "data": bad})
+        answer = client.put(f"/api/clients/{made['id']}/versions/{made['versions'][0]['id']}", json={"data": bad})
         assert answer.status_code == 422 and answer.json()["detail"]["where"] == where
 
 

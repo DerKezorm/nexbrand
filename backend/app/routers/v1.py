@@ -7,8 +7,8 @@ Walls, in this order: a request that carries an ``Origin`` is refused (browsers 
 can use a token it found); API tokens must be switched on by the operator; the token must be valid; the token must stay
 under its rate. The session cookie counts for nothing here.
 
-A token reads with the rights of its account, limited to its spaces: a space or client it may not read answers like
-one that does not exist. Only a ``draft`` token proposes, and only as a draft.
+A token reads with the rights of its account, limited to its clients: a client it may not read answers like one
+that does not exist. Only a ``draft`` token proposes, and only as a draft.
 """
 
 from __future__ import annotations
@@ -74,22 +74,10 @@ def _fail(exc: brandapi.ApiError) -> Exception:
 def me(found: Reader) -> dict[str, Any]:
     with SessionLocal() as db:
         ids = rights.readable_ids(db, found.account)
+        count = db.scalar(select(func.count()).select_from(Client).where(
+            Client.space_id.in_(ids), Client.deleted_at.is_(None))) if ids else 0
     return {"name": found.account.name, "display_name": found.account.display_name, "level": found.level,
-            "spaces": len(ids), "version": __version__}
-
-
-@router.get("/spaces", summary="The spaces the token may read, with how many clients each holds")
-def spaces(found: Reader) -> list[dict[str, Any]]:
-    from ..models import Space
-
-    with SessionLocal() as db:
-        ids = rights.readable_ids(db, found.account)
-        if not ids:
-            return []
-        counts = dict(db.execute(select(Client.space_id, func.count()).where(
-            Client.space_id.in_(ids), Client.deleted_at.is_(None)).group_by(Client.space_id)).all())
-        rows = db.scalars(select(Space).where(Space.id.in_(ids)).order_by(Space.name))
-        return [{"id": s.id, "name": s.name, "color": s.color, "clients": int(counts.get(s.id, 0))} for s in rows]
+            "clients": int(count or 0), "version": __version__}
 
 
 @router.get("/clients", summary="Clients the token may read, with their current version and projects")

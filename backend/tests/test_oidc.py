@@ -26,7 +26,7 @@ from app.main import app
 from app.models import Account
 from app.services import oidc
 
-from .conftest import PASSWORD, make_account, sign_in
+from .conftest import PASSWORD, make_account, new_group, sign_in
 
 #: The test clients name their tab already (the header every change needs).
 UI: dict[str, str] = {}
@@ -592,7 +592,7 @@ def test_no_secret_leaves_no_trace_in_the_log(
 
 
 def _invite(client: TestClient, space: str = "Team", role: str = "write") -> str:
-    space_id = client.post("/api/spaces", json={"name": space}).json()["id"]
+    space_id = new_group(client, space)
     made = client.post(f"/api/spaces/{space_id}/invites", json={"role": role})
     assert made.status_code == 201, made.text
     return made.json()["link"].rsplit("/", 1)[1]

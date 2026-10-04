@@ -89,6 +89,11 @@ def init_db() -> None:
     for table in Base.metadata.sorted_tables:
         for table_index in table.indexes:
             table_index.create(engine, checkfirst=True)
+    # Data from before clients stood on their own: every client gets its own group of rights.
+    from .services import regroup
+
+    with SessionLocal() as db:
+        regroup.run(db)
 
 
 def _sql_literal(value: Any) -> str:

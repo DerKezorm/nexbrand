@@ -157,7 +157,7 @@ def check(db: Session, account: Account, space_id: int | None, need: str) -> Spa
     if not at_least(role, READ):
         raise RightsError("not_found", "Not found.", 404)
     if not at_least(role, need):
-        raise RightsError("forbidden", "Your right in this space does not allow this.", 403)
+        raise RightsError("forbidden", "Your right on this client does not allow this.", 403)
     space = db.get(Space, space_id)
     assert space is not None
     return space

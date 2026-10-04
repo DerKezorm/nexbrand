@@ -41,6 +41,8 @@ DEFAULTS: dict[str, Any] = {
     "shares_allowed": False,
     #: Tokens for programs such as n8n or nexdeck (``/api/v1``): closed until the operator opens it.
     "api_tokens_allowed": False,
+    #: Whether members make clients (and then manage them), not only the operator. On, as before spaces went.
+    "members_create_clients": True,
     #: Collecting from websites and repositories (``services/collect.py``): a way out, closed until opened.
     "collect_allowed": False,
     #: A token for private GitHub repositories when collecting, encrypted; empty: public repositories only.

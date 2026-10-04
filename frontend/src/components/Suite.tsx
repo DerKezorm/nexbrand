@@ -1,6 +1,6 @@
 /**
  * nexbrand and nexsuite, as the operator sees it: connecting (address and one-time code, then matching accounts and
- * spaces), the state of the connection, disconnecting with the password or with an emergency code. And the line other
+ * clients), the state of the connection, disconnecting with the password or with an emergency code. And the line other
  * cards show where a setting is kept in nexsuite now.
  */
 import { Box, KeyRound, Lock, Plug, RefreshCw, ShieldAlert, Unplug , Users } from 'lucide-react'
@@ -17,18 +17,19 @@ type Status = { state: '' | 'connecting' | 'connected'; url: string; last_sync: 
 type SuitePerson = { id: string; name: string; display_name: string; email: string }
 type LocalAccount = { id: number; name: string; display_name: string; email: string; role: string; suggest: string }
 type LocalSpace = { id: number; name: string; color: string; suggest: string }
+type LocalClient = { id: string; name: string; color: string; suggest: string }
 type Proposal = {
   people: SuitePerson[]
   accounts: LocalAccount[]
-  spaces: LocalSpace[]
+  clients: LocalClient[]
   candidates: { id: string; name: string }[]
   teams: LocalSpace[]
   team_candidates: { id: string; name: string }[]
 }
 
-/** Every person, space or team in nexsuite gets at most one counterpart here: taken elsewhere, it is shown, not offered. */
-function takenElsewhere(choices: Record<number, string>, own: number): Set<string> {
-  return new Set(Object.entries(choices).filter(([id, value]) => Number(id) !== own && value !== 'new' && value !== 'skip').map(([, value]) => value))
+/** Every person, client or team in nexsuite gets at most one counterpart here: taken elsewhere, it is shown, not offered. */
+function takenElsewhere(choices: Record<string, string>, own: number | string): Set<string> {
+  return new Set(Object.entries(choices).filter(([id, value]) => id !== String(own) && value !== 'new' && value !== 'skip').map(([, value]) => value))
 }
 
 /** The lock line: this is kept in nexsuite now. */
@@ -215,14 +216,14 @@ function ConnectWizard({ resume, onClose }: { resume: boolean; onClose: () => vo
   const [code, setCode] = useState('')
   const [proposal, setProposal] = useState<Proposal | null>(null)
   const [accounts, setAccounts] = useState<Record<number, string>>({})
-  const [spaces, setSpaces] = useState<Record<number, string>>({})
+  const [clients, setClients] = useState<Record<string, string>>({})
   const [teams, setTeams] = useState<Record<number, string>>({})
   const [fresh, setFresh] = useState<{ name: string; password: string }[]>([])
   const action = useAction()
   const take = (found: Proposal) => {
     setProposal(found)
     setAccounts(Object.fromEntries(found.accounts.map((a) => [a.id, a.suggest])))
-    setSpaces(Object.fromEntries(found.spaces.map((s) => [s.id, s.suggest])))
+    setClients(Object.fromEntries(found.clients.map((c) => [c.id, c.suggest])))
     setTeams(Object.fromEntries((found.teams ?? []).map((team) => [team.id, team.suggest])))
   }
   useEffect(() => {
@@ -236,7 +237,7 @@ function ConnectWizard({ resume, onClose }: { resume: boolean; onClose: () => vo
     })
   const finish = () =>
     void action.run(async () => {
-      const answer = await api<{ new_people?: { name: string; password: string }[] }>('/api/suite/finish', { method: 'POST', body: { accounts, spaces, teams } })
+      const answer = await api<{ new_people?: { name: string; password: string }[] }>('/api/suite/finish', { method: 'POST', body: { accounts, clients, teams } })
       setFresh(answer.new_people ?? [])
       setStep(4)
     })
@@ -324,7 +325,7 @@ function ConnectWizard({ resume, onClose }: { resume: boolean; onClose: () => vo
         <div className="space-y-3">
           <p className="text-sm text-mist-300">{t('suite.step3Text')}</p>
           <ul className="divide-y divide-ink-700 rounded-xl border border-ink-700">
-            {proposal.spaces.map((s) => (
+            {proposal.clients.map((s) => (
               <li key={s.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm">
                 <Box className="h-4 w-4 shrink-0" style={{ color: s.color }} aria-hidden />
                 <span className="min-w-0 flex-1 font-medium text-mist-100">{s.name}</span>
@@ -332,16 +333,16 @@ function ConnectWizard({ resume, onClose }: { resume: boolean; onClose: () => vo
                   →
                 </span>
                 <select
-                  value={spaces[s.id] ?? 'new'}
-                  onChange={(e) => setSpaces((m) => ({ ...m, [s.id]: e.target.value }))}
+                  value={clients[s.id] ?? 'new'}
+                  onChange={(e) => setClients((m) => ({ ...m, [s.id]: e.target.value }))}
                   className="max-w-56 rounded-lg border border-ink-700 bg-ink-850 px-2 py-1 text-sm text-mist-100"
                   aria-label={t('suite.matchFor', { name: s.name })}
                 >
                   <option value="new">{t('suite.newSpace')}</option>
                   {proposal.candidates.map((c) => (
-                    <option key={c.id} value={c.id} disabled={takenElsewhere(spaces, s.id).has(c.id)}>
+                    <option key={c.id} value={c.id} disabled={takenElsewhere(clients, s.id).has(c.id)}>
                       {c.name}
-                      {takenElsewhere(spaces, s.id).has(c.id) ? ` (${t('suite.takenElsewhere')})` : c.id === s.suggest ? ` (${t('suite.suggested')})` : ''}
+                      {takenElsewhere(clients, s.id).has(c.id) ? ` (${t('suite.takenElsewhere')})` : c.id === s.suggest ? ` (${t('suite.suggested')})` : ''}
                     </option>
                   ))}
                 </select>

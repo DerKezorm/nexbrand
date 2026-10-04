@@ -16,7 +16,7 @@ from app.db import SessionLocal
 from app.models import Account, AiEvent, Media
 from app.services import ai, collect, outbound, settings_service
 
-from .conftest import join, make_account, new_client
+from .conftest import client_of, join, make_account, new_client
 
 PUBLIC = "93.184.215.14"
 Pages = dict[str, tuple[int, str, bytes]]
@@ -270,11 +270,12 @@ PNG = _png()
 def test_a_logo_found_is_taken_into_the_space(client: TestClient, opened: None, space: int, web: Pages) -> None:
     web["example.com/img/logo.png"] = (200, "image/png", PNG)
     web["example.com/page"] = (200, "text/html", b"<html>not a logo</html>")
-    answer = client.post("/api/collect/logo", json={"space_id": space, "url": "https://example.com/img/logo.png"})
+    cid = client_of(client, space)
+    answer = client.post("/api/collect/logo", json={"client_id": cid, "url": "https://example.com/img/logo.png"})
     assert answer.status_code == 201, answer.text
     assert answer.json()["kind"] == "png"
     assert answer.json()["name"] == "logo.png"
-    refused = client.post("/api/collect/logo", json={"space_id": space, "url": "https://example.com/page"})
+    refused = client.post("/api/collect/logo", json={"client_id": cid, "url": "https://example.com/page"})
     assert refused.status_code == 422
     with SessionLocal() as db:
         assert db.query(Media).count() == 1
@@ -291,7 +292,8 @@ def test_a_logo_needs_the_right_to_write(client: TestClient, opened: None, space
         mia = db.query(Account).filter_by(name="mia").one()
         db.expunge(mia)
     sign_in(reader, mia)
-    answer = reader.post("/api/collect/logo", json={"space_id": space, "url": "https://example.com/logo.png"})
+    answer = reader.post("/api/collect/logo", json={"client_id": client_of(client, space),
+                                                     "url": "https://example.com/logo.png"})
     assert answer.status_code == 403
 
 

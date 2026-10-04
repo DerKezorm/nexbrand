@@ -38,6 +38,7 @@ class SettingsOut(BaseModel):
     smtp_password_set: bool
     smtp_from: str
     api_tokens_allowed: bool
+    members_create_clients: bool
     collect_allowed: bool
     collect_github_token_set: bool
     ai_allowed: bool
@@ -63,6 +64,7 @@ class SettingsIn(BaseModel):
     smtp_password: str | None = Field(default=None, max_length=500)
     smtp_from: str | None = Field(default=None, max_length=255)
     api_tokens_allowed: bool | None = None
+    members_create_clients: bool | None = None
     collect_allowed: bool | None = None
     #: Empty removes the token; left out keeps it.
     collect_github_token: str | None = Field(default=None, max_length=500)
@@ -93,6 +95,7 @@ def _view(db: DbSession) -> SettingsOut:
         smtp_password_set=bool(values["smtp_password_enc"]),
         smtp_from=values["smtp_from"],
         api_tokens_allowed=bool(values["api_tokens_allowed"]),
+        members_create_clients=bool(values["members_create_clients"]),
         collect_allowed=bool(values["collect_allowed"]),
         collect_github_token_set=bool(values["collect_github_token_enc"]),
         ai_allowed=bool(values["ai_allowed"]),

@@ -7,27 +7,27 @@ import { clientsApi, mediaUrl, type ClientInfo } from '../api/client'
 import { useShell } from '../components/AppShell'
 import { LogoView } from '../components/brand/LogoView'
 import { Sidebar } from '../components/Sidebar'
+import { useAuth } from '../state/auth'
 import { useBrands } from '../state/brands'
 
-/** The overview: every client the account may see, or those of one space, or the bin. */
+/** The overview: every client the account may see, or the bin. */
 export function ClientsPage() {
   const { t, i18n } = useTranslation()
   const brands = useBrands()
   const shell = useShell()
+  const { me } = useAuth()
   const [params, setParams] = useSearchParams()
-  const spaceId = params.get('space') ? Number(params.get('space')) : null
   const bin = params.get('bin') === '1'
   const [query, setQuery] = useState('')
   useEffect(() => {
     if (bin) void brands.loadBin()
   }, [bin, brands.loadBin]) // eslint-disable-line react-hooks/exhaustive-deps
-  const space = spaceId ? brands.space(spaceId) : undefined
   const list = useMemo(() => {
     const all = bin ? brands.bin : brands.clients
     const q = query.trim().toLocaleLowerCase()
-    return all.filter((c) => (spaceId === null || c.space_id === spaceId) && (!q || c.name.toLocaleLowerCase().includes(q) || c.sector.toLocaleLowerCase().includes(q)))
-  }, [bin, brands.bin, brands.clients, spaceId, query])
-  const canWrite = space ? space.role === 'write' || space.role === 'manage' : brands.spaces.some((s) => s.role === 'write' || s.role === 'manage')
+    return all.filter((c) => !q || c.name.toLocaleLowerCase().includes(q) || c.sector.toLocaleLowerCase().includes(q))
+  }, [bin, brands.bin, brands.clients, query])
+  const canCreate = !!me?.may_create_clients
   return (
     <div className="flex min-h-0 flex-1">
       <Sidebar />
@@ -35,7 +35,7 @@ export function ClientsPage() {
         <div className="mx-auto max-w-6xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">{bin ? t('clients.bin') : space ? space.name : t('clients.title')}</h1>
+              <h1 className="text-2xl font-bold tracking-tight">{bin ? t('clients.bin') : t('clients.title')}</h1>
               <p className="mt-1 max-w-2xl text-sm text-mist-500">{bin ? t('clients.binText') : t('clients.text')}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -46,8 +46,8 @@ export function ClientsPage() {
               <button type="button" className="nc-btn nc-btn-ghost" onClick={() => setParams(bin ? {} : { bin: '1' })}>
                 {bin ? <RotateCcw className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />} {bin ? t('clients.back') : t('clients.binOpen')}
               </button>
-              {canWrite && !bin && (
-                <button type="button" className="nc-btn nc-btn-accent" onClick={() => shell.newClient(spaceId ?? undefined)}>
+              {canCreate && !bin && (
+                <button type="button" className="nc-btn nc-btn-accent" onClick={() => shell.newClient()}>
                   <Plus className="h-4 w-4" /> {t('client.new')}
                 </button>
               )}
@@ -56,15 +56,16 @@ export function ClientsPage() {
           {brands.loaded && list.length === 0 && (
             <div className="rounded-2xl border border-dashed border-ink-700 p-10 text-center">
               <p className="text-mist-300">{bin ? t('clients.binEmpty') : query ? t('search.nothing') : t('clients.empty')}</p>
-              {!bin && !query && canWrite && (
-                <button type="button" className="nc-btn nc-btn-accent mt-4" onClick={() => shell.newClient(spaceId ?? undefined)}>
+              {!bin && !query && !canCreate && me?.suite === 'connected' && <p className="mt-2 text-sm text-mist-500">{t('clients.fromSuite')}</p>}
+              {!bin && !query && canCreate && (
+                <button type="button" className="nc-btn nc-btn-accent mt-4" onClick={() => shell.newClient()}>
                   <Plus className="h-4 w-4" /> {t('client.new')}
                 </button>
               )}
             </div>
           )}
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {list.map((c) => (bin ? <BinCard key={c.id} client={c} /> : <ClientCard key={c.id} client={c} spaceName={spaceId ? undefined : brands.space(c.space_id)?.name} locale={i18n.language} />))}
+            {list.map((c) => (bin ? <BinCard key={c.id} client={c} /> : <ClientCard key={c.id} client={c} locale={i18n.language} />))}
           </div>
         </div>
       </main>
@@ -72,13 +73,13 @@ export function ClientsPage() {
   )
 }
 
-function ClientCard({ client, spaceName, locale }: { client: ClientInfo; spaceName?: string; locale: string }) {
+function ClientCard({ client, locale }: { client: ClientInfo; locale: string }) {
   const { t } = useTranslation()
   const logo = client.face.logo
   const ground = logo && logo.ground !== 'transparent' ? logo.ground : '#FFFFFF'
   return (
     <Link to={`/c/${client.id}`} className="group overflow-hidden rounded-2xl border border-ink-700 bg-ink-900 hover:border-ink-600">
-      <div className="grid h-28 place-items-center px-6" style={{ background: logo ? ground : client.face.colors[0] ?? 'var(--color-ink-800)' }}>
+      <div className="grid h-28 place-items-center px-6" style={{ background: logo ? ground : (client.face.colors[0] ?? client.color) }}>
         {logo ? <LogoView logo={logo} fonts={[]} fileUrl={(id) => mediaUrl(id, true)} className={logo.compact ? 'h-16' : 'h-12'} /> : <span className="text-3xl font-bold text-white/90">{client.name.trim()[0]?.toUpperCase()}</span>}
       </div>
       <div className="flex h-2">
@@ -90,9 +91,15 @@ function ClientCard({ client, spaceName, locale }: { client: ClientInfo; spaceNa
         <div className="flex items-center gap-2">
           <span className="mr-auto truncate font-semibold">{client.name}</span>
           {client.favorite && <Star className="h-4 w-4 shrink-0 text-accent-400" aria-label={t('client.favorite')} />}
-          {client.current ? <span className="shrink-0 rounded-full border border-accent-500/40 px-2 py-0.5 text-[11px] text-accent-400">{t('client.versionLabel', { label: client.current })}</span> : <span className="shrink-0 rounded-full border border-magenta-500/50 px-2 py-0.5 text-[11px] text-magenta-text">{t('client.onlyDraft')}</span>}
+          {client.current ? (
+            <span className="shrink-0 rounded-full border border-accent-500/40 px-2 py-0.5 text-[11px] text-accent-400">{t('client.versionLabel', { label: client.current })}</span>
+          ) : client.drafts > 0 ? (
+            <span className="shrink-0 rounded-full border border-magenta-500/50 px-2 py-0.5 text-[11px] text-magenta-text">{t('client.onlyDraft')}</span>
+          ) : (
+            <span className="shrink-0 rounded-full border border-ink-600 px-2 py-0.5 text-[11px] text-mist-400">{t('client.noCi')}</span>
+          )}
         </div>
-        <p className="truncate text-sm text-mist-500">{[client.sector, spaceName].filter(Boolean).join(' · ') || ' '}</p>
+        <p className="truncate text-sm text-mist-500">{client.sector || ' '}</p>
         <p className="flex items-center gap-3 text-xs text-mist-600">
           <span className="inline-flex items-center gap-1">
             <FolderKanban className="h-3.5 w-3.5" /> {t('client.projects', { count: client.projects })}

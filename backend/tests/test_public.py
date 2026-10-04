@@ -62,7 +62,7 @@ def test_a_fixed_page_keeps_its_version_and_a_bin_closes_it(client: TestClient, 
     client.post(f"/api/clients/{cid}/versions/{newer['id']}/publish", json={})
     with new_client() as visitor:
         assert visitor.get(f"/api/public/{token}").json()["version"]["label"] == "2026"
-        assert client.delete(f"/api/spaces/{space}").status_code == 204
+        assert client.delete(f"/api/clients/{cid}").status_code == 204
         assert visitor.get(f"/api/public/{token}").status_code == 404
 
 
