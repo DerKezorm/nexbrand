@@ -168,6 +168,22 @@ def test_a_second_draft_of_the_same_name_gets_a_number_and_deleting_one_is_logge
     assert f"Draft deleted client={cid} version={again['id']}" in caplog.text
 
 
+def test_a_draft_keeps_what_it_was_made_from(client: TestClient, operator: Account, space: int) -> None:
+    made = make_client(client, space)
+    cid, first = made["id"], made["versions"][0]["id"]
+    assert made["versions"][0]["source_id"] is None
+    copy = client.post(f"/api/clients/{cid}/versions", json={"label": "Copy", "source": first}).json()
+    assert copy["source_id"] == first and copy["source_label"] == "Draft 1"
+    given = {**SET, "colors": SET["colors"][:2]}
+    both = client.post(f"/api/clients/{cid}/versions", json={"label": "Logo", "source": copy["id"], "data": given}).json()
+    assert both["source_id"] == copy["id"] and len(both["data"]["colors"]) == 2
+    assert client.delete(f"/api/clients/{cid}/versions/{copy['id']}").status_code == 204
+    kept = next(v for v in client.get(f"/api/clients/{cid}").json()["versions"] if v["id"] == both["id"])
+    assert kept["source_id"] == copy["id"] and kept["source_label"] == "Copy"
+    empty = client.post(f"/api/clients/{cid}/versions", json={"label": "Empty"}).json()
+    assert empty["source_id"] is None and empty["source_label"] == ""
+
+
 def test_a_draft_a_project_builds_on_stays(client: TestClient, operator: Account, space: int) -> None:
     made = make_client(client, space, project="Website")
     cid, vid = made["id"], made["versions"][0]["id"]

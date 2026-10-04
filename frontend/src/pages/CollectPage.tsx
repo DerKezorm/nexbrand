@@ -229,7 +229,7 @@ export function CollectPage() {
       }
       const note = t('collect.licenceNote', { name: me?.display_name || me?.name || '', date: new Date().toLocaleDateString(i18n.language) })
       if (into) {
-        const version = await clientsApi.newVersion(into, { label, data: designSet(fontFiles, note), origin: 'collect', note: t('collect.note', { count: sources.filter((s) => s.value).length }) })
+        const version = await clientsApi.newVersion(into, { label, source: current && into === whole?.id ? current.id : undefined, data: designSet(fontFiles, note), origin: 'collect', note: t('collect.note', { count: sources.filter((s) => s.value).length }) })
         await brands.refresh()
         navigate(`/c/${into}?v=${version.id}`)
       } else {

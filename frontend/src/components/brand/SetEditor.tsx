@@ -318,6 +318,9 @@ function FontsEditor({ fonts, onChange, ctx }: { fonts: BrandFont[]; onChange: (
           <Plus className="h-4 w-4" /> {t('editor.addShipped')}
         </button>
         <FileButton label={t('editor.uploadFont')} accept=".woff2,.woff,.otf,.ttf" multiple busy={upload.busy} onFiles={(files) => void addFiles(files)} />
+        <button type="button" className="nc-btn nc-btn-ghost" onClick={() => onChange([...fonts, { family: t('editor.newFont'), role: fonts.length ? t('editor.roleBody') : t('editor.roleHead'), weights: [400], license: 'system', fallback: 'sans-serif' }])}>
+          <Plus className="h-4 w-4" /> {t('editor.fontByName')}
+        </button>
       </div>
       <p className="text-xs text-mist-500">{t('editor.fontLicenseNote')}</p>
       {upload.problem && <p role="alert" className="text-sm text-bad-500">{errorText(upload.problem)}</p>}

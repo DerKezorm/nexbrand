@@ -174,6 +174,7 @@ def test_mcp_proposes_with_a_draft_token_and_says_what_is_wrong(client: TestClie
             "client": "Bäckerei Morgenrot", "label": "R", "based_on": "2026",
             "data": {"colors": [{"name": "Ofenrot", "hex": "#C23B2E", "role": "primary"}]}}})
         assert good["isError"] is False and good["structuredContent"]["version"]["status"] == "draft"
+        assert good["structuredContent"]["version"]["based_on"]["label"] == "2026"
 
 
 def test_mcp_refuses_browsers_and_unknown_tokens(client: TestClient, space: int) -> None:

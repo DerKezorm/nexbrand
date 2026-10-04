@@ -1021,7 +1021,9 @@
     "links": "Addresses",
     "linksHint": "The client's websites and GitHub repositories. They stand ready when collecting; the first website shows at the top of the client's page.",
     "linkUrl": "Address",
-    "linkAdd": "Add an address"
+    "linkAdd": "Add an address",
+    "derivedFrom": "Made from {{label}}.",
+    "derivedFromGone": "Made from {{label}} (deleted)."
   },
   "projects": {
     "text": "A project builds on a version and stays there until somebody lifts it. Its own colours hold in the project only.",
@@ -1433,7 +1435,9 @@
     "suggestRules": "Suggestions from the checks",
     "noSamples": "No example files yet.",
     "uploadSamples": "Upload examples",
-    "tabScale": "Sizes"
+    "tabScale": "Sizes",
+    "fontByName": "By name only",
+    "newFont": "New font"
   },
   "gen": {
     "primary": "Main colour",

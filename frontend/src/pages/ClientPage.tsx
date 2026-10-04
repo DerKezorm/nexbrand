@@ -228,7 +228,7 @@ export function ClientPage() {
             <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-mist-200">
               <span className={'rounded-full border px-2 py-0.5 text-[11px] ' + ORIGIN_TONE[shown.origin]}>{t(`origin.${shown.origin}`)}</span>
               <span className="min-w-0 flex-1">
-                {t('client.draftBanner', { author: shown.author })} {shown.note} {current ? t('client.draftHolds', { label: current.label }) : t('client.draftOnly')}
+                {t('client.draftBanner', { author: shown.author })} <DerivedFrom version={shown} versions={versions} /> {shown.note} {current ? t('client.draftHolds', { label: current.label }) : t('client.draftOnly')}
               </span>
             </p>
             <div className="flex flex-wrap items-center gap-2">
@@ -651,6 +651,14 @@ function NewProject({ whole, onClose, onMade }: { whole: ClientWhole; onClose: (
   )
 }
 
+/** "Made from 1.0": the version a draft started as a copy of, by its name now, or by its name then when it is gone. */
+function DerivedFrom({ version, versions }: { version: VersionInfo; versions: VersionInfo[] }) {
+  const { t } = useTranslation()
+  if (!version.source_id) return null
+  const source = versions.find((v) => v.id === version.source_id)
+  return <>{source ? t('client.derivedFrom', { label: source.label }) : t('client.derivedFromGone', { label: version.source_label })}</>
+}
+
 function HistoryPanel({ versions, start, canWrite, onDelete }: { versions: VersionInfo[]; start: VersionInfo; canWrite: boolean; onDelete: () => void }) {
   const { t, i18n } = useTranslation()
   const index = versions.indexOf(start)
@@ -670,6 +678,11 @@ function HistoryPanel({ versions, start, canWrite, onDelete }: { versions: Versi
             <div className="text-xs text-mist-500">
               {v.status === 'published' ? t('client.from', { date: new Date(v.valid_from).toLocaleDateString(i18n.language) }) : t('client.draft')} · {v.published_by || v.author}
             </div>
+            {v.source_id && (
+              <p className="mt-1 text-xs text-mist-400">
+                <DerivedFrom version={v} versions={versions} />
+              </p>
+            )}
             {v.note && <p className="mt-1 text-xs text-mist-400">{v.note}</p>}
             {v === start && v.status === 'draft' && canWrite && (
               <button type="button" className="mt-2 text-xs text-mist-500 hover:text-bad-500" onClick={onDelete}>

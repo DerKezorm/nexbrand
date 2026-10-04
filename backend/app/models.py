@@ -296,6 +296,10 @@ class BrandVersion(Base):
     author: Mapped[str] = mapped_column(String(120), default="")
     note: Mapped[str] = mapped_column(String(500), default="")
     data: Mapped[Any] = mapped_column(JSON)
+    #: The version this one was made from, and its name then (kept when that one is deleted). None: started from a
+    #: design set given, or empty, or made before 05.10.2026.
+    source_id: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    source_label: Mapped[str | None] = mapped_column(String(60), nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utcnow)
     published_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)

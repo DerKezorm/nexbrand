@@ -291,7 +291,9 @@ def create_version(
     db: Session, account: Account, client: Client, *, label: str, source: BrandVersion | None = None,
     data: Any = None, note: str = "", origin: str = "hand", author: str = "",
 ) -> BrandVersion:
-    """A new draft: a copy of ``source``, the design set given, or an empty one."""
+    """A new draft: a copy of ``source``, the design set given, or an empty one. With both, the set given is the
+    content and ``source`` is kept as where it came from (a redesign over MCP, a collected logo on the current
+    version)."""
     count = db.scalar(select(func.count()).select_from(BrandVersion).where(BrandVersion.client_id == client.id)) or 0
     drafts = db.scalar(select(func.count()).select_from(BrandVersion).where(
         BrandVersion.client_id == client.id, BrandVersion.status == DRAFT)) or 0
@@ -301,7 +303,9 @@ def create_version(
     label = _free_label(db, client, _text(label, 60, "invalid_label", required=True))
     row = BrandVersion(id=new_id(), client_id=client.id, label=label,
                        status=DRAFT, origin=origin if origin in ORIGINS else "hand", note=_note(note, 500),
-                       author=author or account.display_name or account.name, data=checked(db, client, content))
+                       author=author or account.display_name or account.name, data=checked(db, client, content),
+                       source_id=source.id if source is not None else None,
+                       source_label=source.label if source is not None else None)
     db.add(row)
     touch(client, account)
     db.commit()

@@ -56,7 +56,8 @@ class ClientChange(BaseModel):
 
 class VersionIn(BaseModel):
     label: str = Field(min_length=1, max_length=120)
-    #: A version to start from (copied); empty: the design set given, or an empty one.
+    #: A version to start from (copied, and kept as where the draft came from); with ``data`` too, only kept as
+    #: where it came from. Empty: the design set given, or an empty one.
     source: str | None = Field(default=None, max_length=24)
     data: dict[str, Any] | None = None
     note: str = Field(default="", max_length=1000)
@@ -110,6 +111,8 @@ def version_view(row: BrandVersion, *, data: bool = True) -> dict[str, Any]:
         "origin": row.origin,
         "author": row.author,
         "note": row.note,
+        "source_id": row.source_id,
+        "source_label": row.source_label or "",
         "created_at": row.created_at.isoformat(),
         "updated_at": row.updated_at.isoformat(),
         "published_at": row.published_at.isoformat() if row.published_at else None,

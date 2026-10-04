@@ -1021,7 +1021,9 @@
     "links": "Adressen",
     "linksHint": "Webseiten und GitHub-Repos des Kunden. Sie stehen beim Sammeln zum Anklicken bereit; die erste Webseite steht oben auf der Kundenseite.",
     "linkUrl": "Adresse",
-    "linkAdd": "Adresse hinzufügen"
+    "linkAdd": "Adresse hinzufügen",
+    "derivedFrom": "Abgeleitet von {{label}}.",
+    "derivedFromGone": "Abgeleitet von {{label}} (gelöscht)."
   },
   "projects": {
     "text": "Ein Projekt baut auf einer Fassung auf und bleibt dort, bis jemand es hebt. Eigene Farben gelten nur im Projekt.",
@@ -1433,7 +1435,9 @@
     "suggestRules": "Vorschläge aus der Prüfung",
     "noSamples": "Noch keine Beispieldateien.",
     "uploadSamples": "Beispiele hochladen",
-    "tabScale": "Größen"
+    "tabScale": "Größen",
+    "fontByName": "Nur mit Namen",
+    "newFont": "Neue Schrift"
   },
   "gen": {
     "primary": "Hauptfarbe",

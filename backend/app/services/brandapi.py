@@ -42,7 +42,8 @@ def _spaces(db: Session, caller: Caller) -> dict[int, str]:
 
 def version_summary(row: BrandVersion) -> dict[str, Any]:
     return {"id": row.id, "label": row.label, "status": row.status, "valid_from": row.valid_from or None,
-            "origin": row.origin, "author": row.author, "note": row.note}
+            "origin": row.origin, "author": row.author, "note": row.note,
+            "based_on": {"id": row.source_id, "label": row.source_label} if row.source_id else None}
 
 
 def list_clients(db: Session, caller: Caller, search: str = "") -> list[dict[str, Any]]:

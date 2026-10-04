@@ -196,6 +196,9 @@ export type VersionInfo = {
   origin: 'hand' | 'collect' | 'mcp' | 'review'
   author: string
   note: string
+  /** The version this one was made from, and its name then; null: started from a set given, or empty. */
+  source_id: string | null
+  source_label: string
   created_at: string
   updated_at: string
   published_at: string | null
