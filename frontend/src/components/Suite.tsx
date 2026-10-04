@@ -229,7 +229,9 @@ function ConnectWizard({ resume, onClose }: { resume: boolean; onClose: () => vo
   useEffect(() => {
     if (resume) api<Proposal>('/api/suite/proposal').then(take, () => setStep(1))
   }, [resume])
-  const titles = ['', t('suite.step1'), t('suite.step2'), t('suite.step3'), t('suite.step4')]
+  // Without clients of its own nothing goes from here: the step is about teams, and the clients come from nexsuite.
+  const ownClients = (proposal?.clients ?? []).length > 0
+  const titles = ['', t('suite.step1'), t('suite.step2'), ownClients || !proposal ? t('suite.step3') : t('suite.step3Teams'), t('suite.step4')]
   const pair = () =>
     void action.run(async () => {
       take(await api<Proposal>('/api/suite/start', { method: 'POST', body: { url: url.trim(), code: code.trim() } }))
@@ -323,8 +325,16 @@ function ConnectWizard({ resume, onClose }: { resume: boolean; onClose: () => vo
       )}
       {step === 3 && proposal && (
         <div className="space-y-3">
-          <p className="text-sm text-mist-300">{t('suite.step3Text')}</p>
-          <ul className="divide-y divide-ink-700 rounded-xl border border-ink-700">
+          {ownClients ? (
+            <p className="text-sm text-mist-300">{t('suite.step3Text')}</p>
+          ) : (
+            <p className="text-sm text-mist-300" data-testid="suite-no-clients">
+              {proposal.candidates.length
+                ? t('suite.noClientsHere', { names: proposal.candidates.map((c) => c.name).join(', '), count: proposal.candidates.length })
+                : t('suite.noClientsAnywhere')}
+            </p>
+          )}
+          <ul className="divide-y divide-ink-700 rounded-xl border border-ink-700" hidden={!ownClients}>
             {proposal.clients.map((s) => (
               <li key={s.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm">
                 <Box className="h-4 w-4 shrink-0" style={{ color: s.color }} aria-hidden />
@@ -351,7 +361,7 @@ function ConnectWizard({ resume, onClose }: { resume: boolean; onClose: () => vo
           </ul>
           {(proposal.teams ?? []).length > 0 && (
             <>
-              <p className="text-sm text-mist-300">{t('suite.teamsText')}</p>
+              <p className="text-sm text-mist-300">{ownClients ? t('suite.teamsText') : t('suite.teamsTextAlone')}</p>
               <ul className="divide-y divide-ink-700 rounded-xl border border-ink-700">
                 {proposal.teams.map((team) => (
                   <li key={team.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm">

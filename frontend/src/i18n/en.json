@@ -908,7 +908,12 @@
     "stillBlocked": "Blocked from the time with nexsuite: {{names}}. Unblock them under Server, Accounts if they are to get in again.",
     "newPersonHint": "“Make it in nexsuite”: nexsuite sends the person a link to set a password by mail; otherwise it is in nexsuite under People.",
     "freshMailed": "New in nexsuite and asked by mail to set a password: {{names}}.",
-    "freshInSuite": "New in nexsuite but without a mail (no address or no mail server): {{names}}. Get the link to set the password in nexsuite under People, Edit."
+    "freshInSuite": "New in nexsuite but without a mail (no address or no mail server): {{names}}. Get the link to set the password in nexsuite under People, Edit.",
+    "step3Teams": "Match teams",
+    "noClientsHere_one": "There are no clients here yet. The client from nexsuite ({{names}}) comes here after connecting, without a CI yet.",
+    "noClientsHere_other": "There are no clients here yet. The {{count}} clients from nexsuite ({{names}}) come here after connecting, without a CI yet.",
+    "noClientsAnywhere": "There are no clients here yet, and nexsuite has none either. After connecting you make clients in nexsuite; here they get their CI.",
+    "teamsTextAlone": "Teams: if nexsuite already has the same team, you join them and the members from here come along. Otherwise it is made there."
   },
   "origin": {
     "hand": "by hand",

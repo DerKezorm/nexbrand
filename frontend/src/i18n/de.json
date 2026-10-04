@@ -908,7 +908,12 @@
     "stillBlocked": "Gesperrt aus der Zeit mit nexsuite: {{names}}. Entsperren unter Server, Konten, wenn sie wieder hinein sollen.",
     "newPersonHint": "„Neu in nexsuite anlegen“: Die Person bekommt von nexsuite einen Link zum Passwort setzen, per Mail, sonst liegt er in nexsuite unter Personen.",
     "freshMailed": "Neu in nexsuite und per Mail um ein Passwort gebeten: {{names}}.",
-    "freshInSuite": "Neu in nexsuite, aber ohne Mail (keine Adresse oder kein Mailserver): {{names}}. Den Link zum Passwort setzen holst du in nexsuite unter Personen, Bearbeiten."
+    "freshInSuite": "Neu in nexsuite, aber ohne Mail (keine Adresse oder kein Mailserver): {{names}}. Den Link zum Passwort setzen holst du in nexsuite unter Personen, Bearbeiten.",
+    "step3Teams": "Teams zuordnen",
+    "noClientsHere_one": "Hier gibt es noch keine Kunden. Der Kunde aus nexsuite ({{names}}) kommt nach dem Verbinden hierher, noch ohne CI.",
+    "noClientsHere_other": "Hier gibt es noch keine Kunden. Die {{count}} Kunden aus nexsuite ({{names}}) kommen nach dem Verbinden hierher, noch ohne CI.",
+    "noClientsAnywhere": "Hier gibt es noch keine Kunden, und nexsuite hat auch noch keine. Kunden legst du nach dem Verbinden in nexsuite an; hier bekommen sie ihre CI.",
+    "teamsTextAlone": "Teams: Gibt es in nexsuite schon das passende Team, verbindest du beide, und die Mitglieder von hier kommen dazu. Sonst entsteht es dort neu."
   },
   "origin": {
     "hand": "von Hand",
