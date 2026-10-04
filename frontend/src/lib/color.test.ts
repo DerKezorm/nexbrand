@@ -1,10 +1,20 @@
 import { describe, expect, it } from 'vitest'
 
-import checkCases from '../../../backend/tests/data/check_cases.json'
-import colorCases from '../../../backend/tests/data/color_cases.json'
 import type { BrandSet } from './brand'
 import { check } from './checks'
 import { cmyk, contrast, deltaE, hsl, luminance, reach, scaleOf, simulate, type Vision } from './color'
+
+// The server's files, read when the tests run (from the frontend folder). A static import would put them into the
+// app's type check, and the image build has no backend/tests: it stopped there on the first deploy (04.10.2026).
+type Files = { readFileSync: (file: string, encoding: string) => string }
+const fsName = 'node:fs'
+const files = (await import(/* @vite-ignore */ fsName)) as Files
+const read = (name: string): unknown => JSON.parse(files.readFileSync(`../backend/tests/data/${name}`, 'utf-8'))
+const colorCases = read('color_cases.json') as {
+  colors: unknown
+  pairs: { a: string; b: string; contrast: number; delta_e: number; reach: string }[]
+}
+const checkCases = read('check_cases.json') as { sets: unknown[]; hints: unknown[] }
 
 /** The browser and the server compute the same numbers: both are held to the files the server writes. */
 describe('colour arithmetic, as the server does it', () => {
