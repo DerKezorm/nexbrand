@@ -12,6 +12,7 @@ on purpose. A project's own colours replace a colour of its version by name, or 
 from __future__ import annotations
 
 import logging
+import re
 import secrets
 from datetime import UTC, date, datetime
 from typing import Any
@@ -140,7 +141,28 @@ def managed(db: Session, client: Client) -> bool:
     return bool(space is not None and space.external_id and suite.connected(db))
 
 
-def change_client(db: Session, account: Account, client: Client, **fields: str | None) -> Client:
+LINK_KINDS = ("website", "repo")
+MAX_LINKS = 10
+
+
+def clean_links(value: Any) -> list[dict[str, str]]:
+    """A client's addresses: at most ten, each a website or a repository at an http(s) address; doubles go."""
+    if not isinstance(value, list) or len(value) > MAX_LINKS:
+        raise BrandError("invalid_links", "At most ten addresses.", 422)
+    out: list[dict[str, str]] = []
+    for item in value:
+        if not isinstance(item, dict) or item.get("kind") not in LINK_KINDS:
+            raise BrandError("invalid_links", "An address is a website or a repository.", 422)
+        url = str(item.get("url") or "").strip()
+        if len(url) > 500 or not re.match(r"^https?://[^\s/?#@]+(/[^\s]*)?$", url):
+            raise BrandError("invalid_links", "An address starts with http:// or https://.", 422)
+        label = " ".join(str(item.get("label") or "").split())[:60]
+        if all(seen["url"].rstrip("/") != url.rstrip("/") for seen in out):
+            out.append({"kind": str(item["kind"]), "url": url, "label": label})
+    return out
+
+
+def change_client(db: Session, account: Account, client: Client, **fields: Any) -> Client:
     from . import spaces
 
     kept = {key for key in ("name", "sector", "contact", "color") if fields.get(key) is not None}
@@ -162,6 +184,8 @@ def change_client(db: Session, account: Account, client: Client, **fields: str |
         client.contact = _text(fields["contact"], 255, "invalid_contact")
     if fields.get("note") is not None:
         client.note = _note(fields["note"], 4000)
+    if fields.get("links") is not None:
+        client.links = clean_links(fields["links"])
     touch(client, account)
     db.commit()
     return client

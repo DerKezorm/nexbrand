@@ -105,8 +105,20 @@ export function CollectPage() {
   }, [])
   useEffect(() => {
     if (!target) return setWhole(null)
-    clientsApi.read(target).then(setWhole, () => setWhole(null))
+    clientsApi.read(target).then((found) => {
+      setWhole(found)
+      // The client's addresses stand ready: with nothing typed yet, they are the sources.
+      setSources((now) => (now.every((s) => !s.value.trim() && !s.file) && found.links.length ? found.links.map((l) => ({ kind: l.kind, value: l.url })) : now))
+    }, () => setWhole(null))
   }, [target])
+  const canKeep = !!whole && (whole.role === 'write' || whole.role === 'manage')
+  const known = (url: string) => (whole?.links ?? []).some((l) => l.url.replace(/\/$/, '') === url.trim().replace(/\/$/, ''))
+  const remember = (kind: SourceKind, url: string) =>
+    act(async () => {
+      if (!whole || kind === 'pdf') return
+      await clientsApi.change(whole.id, { links: [...whole.links, { kind, url: url.trim(), label: '' }] })
+      setWhole(await clientsApi.read(whole.id))
+    })
 
   const mayCreate = !!me?.may_create_clients
   // Without the right to make clients, a draft goes to one that exists: the first one writable is chosen.
@@ -229,7 +241,9 @@ export function CollectPage() {
 
   const ready = sources.some((s) => s.value.trim() || s.file)
   const filesWanted = fonts.some((f) => f.keep && withFiles[f.family] && f.files.length)
-  const canTake = kept.length > 0 && (target ? !!whole : newName.trim().length > 0 && mayCreate) && (!filesWanted || licensed)
+  // Something to take: colours, a font, or a logo. Without colours ticked, the current version's colours stay.
+  const something = kept.length > 0 || fonts.some((f) => f.keep) || taken.length > 0
+  const canTake = something && (target ? !!whole : newName.trim().length > 0 && mayCreate) && (!filesWanted || licensed)
 
   return (
     <main className="nc-scroll min-w-0 flex-1 overflow-y-auto">
@@ -318,6 +332,11 @@ export function CollectPage() {
                       className={FIELD + ' min-w-0 flex-1 font-mono text-xs'}
                     />
                   )}
+                  {canKeep && source.kind !== 'pdf' && /^https?:\/\/\S+/.test(source.value.trim()) && !known(source.value) && (
+                    <button type="button" onClick={() => void remember(source.kind, source.value)} className="nc-btn nc-btn-ghost !px-2.5 !py-0.5 !text-xs" title={t('collect.rememberHint', { name: whole?.name })}>
+                      <Plus className="h-3.5 w-3.5" /> {t('collect.remember')}
+                    </button>
+                  )}
                   {sources.length > 1 && (
                     <button type="button" onClick={() => setSources((list) => list.filter((_, i) => i !== index))} aria-label={t('collect.remove')} className="rounded-full p-1.5 text-mist-500 hover:bg-ink-850 hover:text-bad-500">
                       <Trash2 className="h-4 w-4" />
@@ -330,6 +349,29 @@ export function CollectPage() {
               <button type="button" onClick={() => setSources((list) => [...list, { kind: 'website', value: '' }])} className="nc-btn nc-btn-ghost !px-2.5 !py-0.5 !text-xs">
                 <Plus className="h-3.5 w-3.5" /> {t('collect.add')}
               </button>
+            )}
+            {whole && whole.links.some((l) => !sources.some((s) => s.value.trim().replace(/\/$/, '') === l.url.replace(/\/$/, ''))) && (
+              <div className="flex flex-wrap items-center gap-2 text-xs text-mist-500" data-testid="client-links">
+                {t('collect.stored')}
+                {whole.links
+                  .filter((l) => !sources.some((s) => s.value.trim().replace(/\/$/, '') === l.url.replace(/\/$/, '')))
+                  .map((l) => (
+                    <button
+                      key={l.url}
+                      type="button"
+                      onClick={() =>
+                        setSources((list) => {
+                          const free = list.findIndex((s) => !s.value.trim() && !s.file)
+                          const item = { kind: l.kind as SourceKind, value: l.url }
+                          return free >= 0 ? list.map((s, i) => (i === free ? item : s)) : [...list, item].slice(0, MAX_SOURCES)
+                        })
+                      }
+                      className="rounded-full border border-ink-700 px-2.5 py-0.5 font-mono text-mist-300 hover:bg-ink-850"
+                    >
+                      {l.label || l.url.replace(/^https?:\/\//, '')}
+                    </button>
+                  ))}
+              </div>
             )}
           </div>
 
@@ -533,9 +575,11 @@ export function CollectPage() {
               </section>
             )}
 
-            {mode === 'draft' && colors.length > 0 && (
+            {mode === 'draft' && (colors.length > 0 || fonts.length > 0 || result.logos.length > 0) && (
               <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-accent-500/40 bg-accent-500/8 p-4">
-                <span className="flex-1 text-sm">{target ? t('collect.takeHint', { count: kept.length }) : t('collect.takeNewHint', { count: kept.length })}</span>
+                <span className="flex-1 text-sm">
+                  {!target ? t('collect.takeNewHint', { count: kept.length }) : kept.length ? t('collect.takeHint', { count: kept.length }) : t('collect.takeKeepColors')}
+                </span>
                 {filesWanted && (
                   <label className="flex w-full items-start gap-2 rounded-xl border border-warn-500/40 bg-warn-500/8 px-3 py-2 text-sm" data-testid="font-licence">
                     <input type="checkbox" className="mt-1" checked={licensed} onChange={(event) => setLicensed(event.target.checked)} />

@@ -208,6 +208,8 @@ export type ProjectInfo = { id: string; name: string; version_id: string; note: 
 /** What the overview shows of a client: colours, the small logo and fonts of its current version. */
 export type ClientFace = { colors: string[]; logo: BrandLogo | null; mark?: BrandLogo | null; fonts?: string[] }
 
+export type ClientLink = { kind: 'website' | 'repo'; url: string; label: string }
+
 export type ClientInfo = {
   id: string
   /** Its group of rights (members, teams, files). */
@@ -218,6 +220,8 @@ export type ClientInfo = {
   managed: boolean
   sector: string
   contact: string
+  /** The client's addresses, for collecting with a click; nexbrand's own, also for a client nexsuite keeps. */
+  links: ClientLink[]
   created_at: string
   updated_at: string
   updated_by: string
@@ -430,7 +434,7 @@ export const clientsApi = {
   /** A client; `label` empty: without a design set yet. */
   create: (body: { name: string; color?: string; sector?: string; contact?: string; note?: string; label: string; data?: BrandSet; project?: string }) =>
     api<ClientWhole>('/api/clients', { method: 'POST', body }),
-  change: (id: string, change: { name?: string; color?: string; sector?: string; contact?: string; note?: string; favorite?: boolean }) =>
+  change: (id: string, change: { name?: string; color?: string; sector?: string; contact?: string; note?: string; links?: ClientLink[]; favorite?: boolean }) =>
     api<ClientInfo>(`/api/clients/${id}`, { method: 'PATCH', body: change }),
   visit: (id: string) => api<void>(`/api/clients/${id}/visit`, { method: 'POST' }),
   files: (id: string) => api<Record<string, FileInfo & { width?: number; height?: number }>>(`/api/clients/${id}/files`),

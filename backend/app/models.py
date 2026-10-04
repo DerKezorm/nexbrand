@@ -259,6 +259,9 @@ class Client(Base):
     sector: Mapped[str] = mapped_column(String(120), default="")
     contact: Mapped[str] = mapped_column(String(255), default="")
     note: Mapped[str] = mapped_column(Text, default="")
+    #: The client's addresses, for collecting with a click: ``[{"kind": "website"|"repo", "url", "label"}]``. nexbrand's
+    #: own, like the note: also for a client nexsuite keeps. None: none yet.
+    links: Mapped[Any] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utcnow)
     created_by: Mapped[int | None] = mapped_column(ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utcnow)

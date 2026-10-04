@@ -156,3 +156,41 @@ def test_a_group_from_before_takes_its_clients_name(client: TestClient, operator
         db.commit()
         regroup.run(db)
         assert db.get(Space, space).name == "Home", "the access lists name the client"  # type: ignore[union-attr]
+
+
+def test_a_client_keeps_its_addresses(client: TestClient, operator, space: int) -> None:
+    cid = client_of(client, space)
+    links = [{"kind": "website", "url": "https://www.example.com/", "label": "Site"},
+             {"kind": "repo", "url": "https://github.com/example/site"},
+             {"kind": "website", "url": "https://www.example.com"}]
+    changed = client.patch(f"/api/clients/{cid}", json={"links": links})
+    assert changed.status_code == 200, changed.text
+    assert changed.json()["links"] == [
+        {"kind": "website", "url": "https://www.example.com/", "label": "Site"},
+        {"kind": "repo", "url": "https://github.com/example/site", "label": ""}], "a double goes"
+    for bad in ([{"kind": "ftp", "url": "https://example.com"}], [{"kind": "website", "url": "javascript:alert(1)"}],
+                [{"kind": "website", "url": f"https://example.com/{n}"} for n in range(11)]):
+        answer = client.patch(f"/api/clients/{cid}", json={"links": bad})
+        assert answer.status_code == 422, bad
+    assert client.get(f"/api/clients/{cid}").json()["links"][0]["label"] == "Site", "a refusal changes nothing"
+
+
+def test_addresses_are_nexbrands_also_for_a_client_nexsuite_keeps(client: TestClient, operator, space: int,
+                                                                  monkeypatch) -> None:
+    from app.services import brands
+
+    monkeypatch.setattr(brands, "managed", lambda db, row: True)
+    cid = client_of(client, space)
+    assert client.patch(f"/api/clients/{cid}", json={"name": "Other"}).status_code == 409
+    kept = client.patch(f"/api/clients/{cid}", json={"links": [{"kind": "website", "url": "https://example.com"}]})
+    assert kept.status_code == 200 and kept.json()["links"][0]["url"] == "https://example.com"
+
+
+def test_reading_a_client_does_not_give_the_right_to_change_its_addresses(client: TestClient, operator,
+                                                                         space: int) -> None:
+    mia = make_account("mia")
+    join(client, space, "mia", "read")
+    with new_client(mia) as browser:
+        answer = browser.patch(f"/api/clients/{client_of(client, space)}",
+                               json={"links": [{"kind": "website", "url": "https://example.com"}]})
+        assert answer.status_code == 403

@@ -49,6 +49,8 @@ class ClientChange(BaseModel):
     contact: str | None = Field(default=None, max_length=400)
     color: str | None = Field(default=None, max_length=16)
     note: str | None = Field(default=None, max_length=8000)
+    #: The client's addresses (websites, repositories), the whole list.
+    links: list[dict[str, Any]] | None = Field(default=None, max_length=10)
     favorite: bool | None = None
 
 
@@ -159,6 +161,7 @@ def client_view(db: DbSession, account: AccountRow, client: Client) -> dict[str,
         "managed": brands.managed(db, client),
         "sector": client.sector,
         "contact": client.contact,
+        "links": client.links or [],
         "created_at": client.created_at.isoformat(),
         "updated_at": client.updated_at.isoformat(),
         "updated_by": client.updated_by,

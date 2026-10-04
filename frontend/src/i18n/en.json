@@ -555,7 +555,8 @@
     "ai_unreachable": "The server cannot reach the service.",
     "client_twice": "Each client in nexsuite can be chosen once only.",
     "collect_name_first": "Enter the name of the new client first.",
-    "licence_not_confirmed": "Confirm first that you hold the licence for this font."
+    "licence_not_confirmed": "Confirm first that you hold the licence for this font.",
+    "invalid_links": "An address starts with http:// or https://, ten at most."
   },
   "auth": {
     "name": "Name",
@@ -1015,7 +1016,12 @@
     "noCiCollectText": "From a website, a GitHub repository or a PDF style guide.",
     "noCiEmpty": "Begin empty",
     "noCiEmptyText": "An empty draft you fill in the editor.",
-    "noCiRead": "Everyone with the right to write can make a CI."
+    "noCiRead": "Everyone with the right to write can make a CI.",
+    "compare": "Compare",
+    "links": "Addresses",
+    "linksHint": "The client's websites and GitHub repositories. They stand ready when collecting; the first website shows at the top of the client's page.",
+    "linkUrl": "Address",
+    "linkAdd": "Add an address"
   },
   "projects": {
     "text": "A project builds on a version and stays there until somebody lifts it. Its own colours hold in the project only.",
@@ -1699,6 +1705,10 @@
       "og:image": "Preview picture for social networks"
     },
     "framework": "from the framework",
-    "frameworkHint": "A colour Bootstrap or a similar framework brings along, not one of the brand. Left out; tick it if you want it after all."
+    "frameworkHint": "A colour Bootstrap or a similar framework brings along, not one of the brand. Left out; tick it if you want it after all.",
+    "stored": "Kept with the client:",
+    "remember": "Keep with the client",
+    "rememberHint": "Keep this address with {{name}}, ready for the next collecting.",
+    "takeKeepColors": "No colour ticked: the current version's colours stay. Fonts and logos go into a new draft as marked."
   }
 }

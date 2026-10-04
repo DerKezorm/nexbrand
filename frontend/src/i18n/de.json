@@ -555,7 +555,8 @@
     "ai_unreachable": "Der Server erreicht den Dienst nicht.",
     "client_twice": "Jeder Kunde in nexsuite lässt sich nur einmal zuordnen.",
     "collect_name_first": "Erst den Namen des neuen Kunden eintragen.",
-    "licence_not_confirmed": "Erst bestätigen, dass ihr die Lizenz für diese Schrift habt."
+    "licence_not_confirmed": "Erst bestätigen, dass ihr die Lizenz für diese Schrift habt.",
+    "invalid_links": "Eine Adresse beginnt mit http:// oder https://, höchstens zehn."
   },
   "auth": {
     "name": "Name",
@@ -1015,7 +1016,12 @@
     "noCiCollectText": "Aus Webseite, GitHub-Repo oder PDF-Styleguide.",
     "noCiEmpty": "Leer beginnen",
     "noCiEmptyText": "Ein leerer Entwurf, den du im Editor füllst.",
-    "noCiRead": "Eine CI anlegen können alle mit dem Recht zu schreiben."
+    "noCiRead": "Eine CI anlegen können alle mit dem Recht zu schreiben.",
+    "compare": "Vergleichen",
+    "links": "Adressen",
+    "linksHint": "Webseiten und GitHub-Repos des Kunden. Sie stehen beim Sammeln zum Anklicken bereit; die erste Webseite steht oben auf der Kundenseite.",
+    "linkUrl": "Adresse",
+    "linkAdd": "Adresse hinzufügen"
   },
   "projects": {
     "text": "Ein Projekt baut auf einer Fassung auf und bleibt dort, bis jemand es hebt. Eigene Farben gelten nur im Projekt.",
@@ -1699,6 +1705,10 @@
       "og:image": "Vorschaubild für soziale Netze"
     },
     "framework": "aus dem Baukasten",
-    "frameworkHint": "Eine Farbe, die Bootstrap oder ein ähnlicher Baukasten mitbringt, keine der Marke. Abgewählt; wer sie doch will, hakt sie an."
+    "frameworkHint": "Eine Farbe, die Bootstrap oder ein ähnlicher Baukasten mitbringt, keine der Marke. Abgewählt; wer sie doch will, hakt sie an.",
+    "stored": "Beim Kunden hinterlegt:",
+    "remember": "Beim Kunden merken",
+    "rememberHint": "Diese Adresse bei {{name}} hinterlegen, damit sie beim nächsten Sammeln bereitsteht.",
+    "takeKeepColors": "Keine Farbe angehakt: Die Farben der aktuellen Fassung bleiben. Schriften und Logos kommen wie markiert in einen neuen Entwurf."
   }
 }

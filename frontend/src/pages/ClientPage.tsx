@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
-import { ApiError, clientsApi, mediaUrl, type ClientWhole, type MediaInfo, type VersionInfo } from '../api/client'
+import { ApiError, clientsApi, mediaUrl, type ClientLink, type ClientWhole, type MediaInfo, type VersionInfo } from '../api/client'
 import { DiffView } from '../components/brand/DiffView'
 import { ExportDialog } from '../components/brand/ExportDialog'
 import { ClientMark } from '../components/brand/LogoView'
@@ -138,6 +138,14 @@ export function ClientPage() {
                 {t('clients.title')}
               </Link>
               {whole.sector && <> · {whole.sector}</>}
+              {whole.links.find((l) => l.kind === 'website') && (
+                <>
+                  {' · '}
+                  <a href={whole.links.find((l) => l.kind === 'website')!.url} target="_blank" rel="noreferrer noopener" className="hover:text-mist-200 hover:underline">
+                    {whole.links.find((l) => l.kind === 'website')!.url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                  </a>
+                </>
+              )}
             </div>
             <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
               {whole.name}
@@ -214,36 +222,43 @@ export function ClientPage() {
         </section>
 
         {shown.status === 'draft' ? (
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-magenta-500/40 bg-magenta-500/8 px-4 py-3 text-sm">
-            <span className={'rounded-full border px-2 py-0.5 text-[11px] ' + ORIGIN_TONE[shown.origin]}>{t(`origin.${shown.origin}`)}</span>
-            <span className="min-w-0 flex-1 text-mist-200">
-              {t('client.draftBanner', { author: shown.author })} {shown.note} {current ? t('client.draftHolds', { label: current.label }) : t('client.draftOnly')}
-            </span>
-            {canWrite && !editing && (
-              <button type="button" className="nc-btn nc-btn-ghost" onClick={() => choose(shown.id, { edit: '1' })}>
-                <Pencil className="h-4 w-4" /> {t('client.editDraft')}
-              </button>
-            )}
-            {current && (
-              <button type="button" className="nc-btn nc-btn-ghost" onClick={() => choose(shown.id, { tab: 'history' })}>
-                <GitCompare className="h-4 w-4" /> {t('client.compareWith', { label: current.label })}
-              </button>
-            )}
-            {canWrite && (
-              <button type="button" className="nc-btn nc-btn-ghost text-mist-400 hover:text-bad-500" onClick={() => setDialog('deleteDraft')}>
-                <Trash2 className="h-4 w-4" /> {t('client.deleteDraft')}
-              </button>
-            )}
-            {canManage && !openReview && (
-              <button type="button" className="nc-btn nc-btn-ghost" onClick={() => setDialog('review')}>
-                <Send className="h-4 w-4" /> {t('client.toClient')}
-              </button>
-            )}
-            {canWrite && (
-              <button type="button" className="nc-btn nc-btn-accent" disabled={dirty} title={dirty ? t('client.saveFirst') : undefined} onClick={() => setDialog('publish')}>
-                <Upload className="h-4 w-4" /> {t('client.publish')}
-              </button>
-            )}
+          <div className="space-y-3 rounded-xl border border-magenta-500/40 bg-magenta-500/8 px-4 py-3 text-sm" data-testid="draft-bar">
+            {/* The words over the whole width, the actions in one row below: five buttons beside a sentence squeezed it
+                into a narrow column (04.10.2026). */}
+            <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-mist-200">
+              <span className={'rounded-full border px-2 py-0.5 text-[11px] ' + ORIGIN_TONE[shown.origin]}>{t(`origin.${shown.origin}`)}</span>
+              <span className="min-w-0 flex-1">
+                {t('client.draftBanner', { author: shown.author })} {shown.note} {current ? t('client.draftHolds', { label: current.label }) : t('client.draftOnly')}
+              </span>
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              {canWrite && !editing && (
+                <button type="button" className="nc-btn nc-btn-ghost" onClick={() => choose(shown.id, { edit: '1' })}>
+                  <Pencil className="h-4 w-4" /> {t('client.editDraft')}
+                </button>
+              )}
+              {current && (
+                <button type="button" className="nc-btn nc-btn-ghost" onClick={() => choose(shown.id, { tab: 'history' })} title={t('client.compareWith', { label: current.label })}>
+                  <GitCompare className="h-4 w-4" /> {t('client.compare')}
+                </button>
+              )}
+              {canManage && !openReview && (
+                <button type="button" className="nc-btn nc-btn-ghost" onClick={() => setDialog('review')}>
+                  <Send className="h-4 w-4" /> {t('client.toClient')}
+                </button>
+              )}
+              <span className="flex-1" />
+              {canWrite && (
+                <button type="button" className="rounded-full px-2 py-1 text-xs text-mist-500 hover:text-bad-500" onClick={() => setDialog('deleteDraft')}>
+                  <Trash2 className="mr-1 inline h-3.5 w-3.5 align-[-2px]" /> {t('client.deleteDraft')}
+                </button>
+              )}
+              {canWrite && (
+                <button type="button" className="nc-btn nc-btn-accent" disabled={dirty} title={dirty ? t('client.saveFirst') : undefined} onClick={() => setDialog('publish')}>
+                  <Upload className="h-4 w-4" /> {t('client.publish')}
+                </button>
+              )}
+            </div>
           </div>
         ) : shown !== current ? (
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-gelb-500/40 bg-gelb-500/8 px-4 py-3 text-sm text-mist-200">
@@ -438,10 +453,12 @@ function EditClient({ whole, onClose, onSaved }: { whole: ClientWhole; onClose: 
   const [contact, setContact] = useState(whole.contact)
   const [color, setColor] = useState(whole.color)
   const [note, setNote] = useState(whole.note)
+  const [links, setLinks] = useState<ClientLink[]>(whole.links)
   const { busy, problem, run } = useAction()
-  // Kept in nexsuite: name, sector, contact and colour are changed there; the note is nexbrand's.
+  // Kept in nexsuite: name, sector, contact and colour are changed there; the note and the addresses are nexbrand's.
   const kept = whole.managed
-  const change = kept ? { note } : { name, sector, contact, note, ...(CLIENT_COLORS.includes(color) ? { color } : {}) }
+  const usable = links.filter((l) => l.url.trim())
+  const change = kept ? { note, links: usable } : { name, sector, contact, note, links: usable, ...(CLIENT_COLORS.includes(color) ? { color } : {}) }
   return (
     <Dialog title={t('client.edit')} onClose={onClose} medium>
       <div className="space-y-3">
@@ -470,6 +487,40 @@ function EditClient({ whole, onClose, onSaved }: { whole: ClientWhole; onClose: 
             </div>
           </>
         )}
+        <div className="text-sm">
+          <span className="text-xs font-medium text-mist-400">{t('client.links')}</span>
+          <p className="text-xs text-mist-500">{t('client.linksHint')}</p>
+          <div className="mt-1 space-y-2">
+            {links.map((link, index) => (
+              <div key={index} className="flex flex-wrap items-center gap-2">
+                <select
+                  value={link.kind}
+                  onChange={(e) => setLinks((all) => all.map((l, i) => (i === index ? { ...l, kind: e.target.value as ClientLink['kind'] } : l)))}
+                  aria-label={t('collect.kind')}
+                  className="h-9 rounded-lg border border-ink-700 bg-ink-850 px-2 text-sm"
+                >
+                  <option value="website">{t('collect.kinds.website')}</option>
+                  <option value="repo">{t('collect.kinds.repo')}</option>
+                </select>
+                <input
+                  value={link.url}
+                  onChange={(e) => setLinks((all) => all.map((l, i) => (i === index ? { ...l, url: e.target.value } : l)))}
+                  placeholder={link.kind === 'repo' ? 'https://github.com/example/site' : 'https://www.example.com'}
+                  aria-label={t('client.linkUrl')}
+                  className="h-9 min-w-0 flex-1 rounded-lg border border-ink-700 bg-ink-850 px-2 font-mono text-xs"
+                />
+                <button type="button" onClick={() => setLinks((all) => all.filter((_, i) => i !== index))} aria-label={t('collect.remove')} className="rounded-full p-1.5 text-mist-500 hover:text-bad-500">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+            {links.length < 10 && (
+              <button type="button" onClick={() => setLinks((all) => [...all, { kind: 'website', url: '', label: '' }])} className="nc-btn nc-btn-ghost !px-2.5 !py-0.5 !text-xs">
+                <Plus className="h-3.5 w-3.5" /> {t('client.linkAdd')}
+              </button>
+            )}
+          </div>
+        </div>
         <label className="block text-sm">
           <span className="text-xs font-medium text-mist-400">{t('client.note')}</span>
           <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={4} className="mt-1 w-full rounded-lg border border-ink-700 bg-ink-850 px-3 py-2 text-sm" />
