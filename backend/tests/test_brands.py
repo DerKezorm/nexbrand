@@ -152,6 +152,22 @@ def test_a_new_draft_copies_and_the_current_is_the_latest_day(client: TestClient
     assert [v["label"] for v in whole["versions"]] == ["2019", "2022", "2026"]
 
 
+def test_a_second_draft_of_the_same_name_gets_a_number_and_deleting_one_is_logged(
+        client: TestClient, operator: Account, space: int, caplog: pytest.LogCaptureFixture) -> None:
+    made = make_client(client, space)
+    cid, first = made["id"], made["versions"][0]["id"]
+    client.post(f"/api/clients/{cid}/versions/{first}/publish", json={"label": "Gesammelt am 4.10.2026"})
+    labels = [client.post(f"/api/clients/{cid}/versions", json={"label": "gesammelt am 4.10.2026", "source": first})
+              .json()["label"] for _ in range(2)]
+    assert labels == ["gesammelt am 4.10.2026 (2)", "gesammelt am 4.10.2026 (3)"]
+    long = client.post(f"/api/clients/{cid}/versions", json={"label": "x" * 60}).json()["label"]
+    again = client.post(f"/api/clients/{cid}/versions", json={"label": "x" * 60}).json()
+    assert long == "x" * 60 and again["label"] == "x" * 56 + " (2)"
+    with caplog.at_level("INFO", logger="nexbrand.brands"):
+        assert client.delete(f"/api/clients/{cid}/versions/{again['id']}").status_code == 204
+    assert f"Draft deleted client={cid} version={again['id']}" in caplog.text
+
+
 def test_a_draft_a_project_builds_on_stays(client: TestClient, operator: Account, space: int) -> None:
     made = make_client(client, space, project="Website")
     cid, vid = made["id"], made["versions"][0]["id"]

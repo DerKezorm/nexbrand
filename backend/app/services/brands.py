@@ -271,6 +271,22 @@ def version_for(db: Session, client: Client, version_id: str) -> BrandVersion:
     return row
 
 
+def _free_label(db: Session, client: Client, label: str) -> str:
+    """``label``, or with a number behind it when the client already has a version of that name: two collected
+    drafts of one day, or a draft named like the published version, could not be told apart (in the list, and in
+    the question before a draft is deleted)."""
+    names = db.scalars(select(BrandVersion.label).where(BrandVersion.client_id == client.id))
+    taken = {name.casefold() for name in names}
+    if label.casefold() not in taken:
+        return label
+    for number in range(2, MAX_VERSIONS + 2):
+        tail = f" ({number})"
+        candidate = label[:60 - len(tail)] + tail
+        if candidate.casefold() not in taken:
+            return candidate
+    return label
+
+
 def create_version(
     db: Session, account: Account, client: Client, *, label: str, source: BrandVersion | None = None,
     data: Any = None, note: str = "", origin: str = "hand", author: str = "",
@@ -282,7 +298,8 @@ def create_version(
     if count >= MAX_VERSIONS or drafts >= MAX_DRAFTS:
         raise BrandError("too_many_versions", "This client has as many versions as it may hold.", 409)
     content = data if data is not None else (source.data if source is not None else brandset.empty())
-    row = BrandVersion(id=new_id(), client_id=client.id, label=_text(label, 60, "invalid_label", required=True),
+    label = _free_label(db, client, _text(label, 60, "invalid_label", required=True))
+    row = BrandVersion(id=new_id(), client_id=client.id, label=label,
                        status=DRAFT, origin=origin if origin in ORIGINS else "hand", note=_note(note, 500),
                        author=author or account.display_name or account.name, data=checked(db, client, content))
     db.add(row)
@@ -339,6 +356,7 @@ def delete_draft(db: Session, account: Account, client: Client, row: BrandVersio
     db.delete(row)
     touch(client, account)
     db.commit()
+    logger.info("Draft deleted client=%s version=%s label=%s by=%s", client.id, row.id, row.label, account.name)
 
 
 # --- Projects ---------------------------------------------------------------------------------------------------
