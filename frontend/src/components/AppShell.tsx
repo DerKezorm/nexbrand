@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { useTranslation } from 'react-i18next'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 
+import { useAuth } from '../state/auth'
 import { AccountMenu } from './AccountMenu'
 import { Logo } from './Logo'
 import { QuickSwitcher } from './QuickSwitcher'
@@ -34,6 +35,8 @@ export function AppShell() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [searching, setSearching] = useState(false)
+  // Connected to nexsuite, clients are made there; without the operator's leave, only the operator makes them.
+  const mayCreate = !!useAuth().me?.may_create_clients
 
   const newClient = useCallback((client?: string) => navigate(client ? `/new?client=${client}` : '/new'), [navigate])
   const search = useCallback(() => setSearching(true), [])
@@ -45,14 +48,14 @@ export function AppShell() {
         e.preventDefault()
         setSearching(true)
       }
-      if (e.altKey && e.key.toLowerCase() === 'n') {
+      if (e.altKey && e.key.toLowerCase() === 'n' && mayCreate) {
         e.preventDefault()
         newClient()
       }
     }
     window.addEventListener('keydown', key)
     return () => window.removeEventListener('keydown', key)
-  }, [newClient])
+  }, [newClient, mayCreate])
 
   const items = [
     { to: '/', label: 'nav.clients', Icon: LayoutGrid, end: true },
@@ -76,10 +79,12 @@ export function AppShell() {
                 </NavLink>
               ))}
             </nav>
-            <button type="button" onClick={() => newClient()} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-accent-500 px-3 py-1.5 text-sm font-semibold text-on-accent hover:bg-accent-400" title={t('client.newShortcut')}>
-              <Plus className="h-4 w-4" strokeWidth={2.2} />
-              <span className="hidden sm:inline">{t('client.new')}</span>
-            </button>
+            {mayCreate && (
+              <button type="button" onClick={() => newClient()} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-accent-500 px-3 py-1.5 text-sm font-semibold text-on-accent hover:bg-accent-400" title={t('client.newShortcut')}>
+                <Plus className="h-4 w-4" strokeWidth={2.2} />
+                <span className="hidden sm:inline">{t('client.new')}</span>
+              </button>
+            )}
             <button type="button" onClick={() => setSearching(true)} className="inline-flex shrink-0 items-center gap-2 rounded-full border border-ink-700 bg-ink-850 px-2 py-1.5 text-sm text-mist-500 hover:text-mist-100 xl:pr-2 xl:pl-3" aria-label={t('search.button')}>
               <Search className="h-4 w-4" strokeWidth={1.8} />
               <span className="hidden w-32 text-left xl:inline">{t('search.button')}</span>

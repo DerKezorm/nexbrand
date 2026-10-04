@@ -16,6 +16,7 @@ import { SharesPanel } from '../components/brand/SharesPanel'
 import { Dialog } from '../components/Dialog'
 import { MembersDialog } from '../components/MembersDialog'
 import { TeamRightsDialog } from '../components/Teams'
+import { textOn } from '../lib/color'
 import { CLIENT_COLORS } from '../lib/palette'
 import type { BrandSet } from '../lib/brand'
 import { Button, Confirm, Feedback, Input, Select, useAction } from './settings/ui'
@@ -368,7 +369,7 @@ function NoDesignYet({ whole, reload, onMade }: { whole: ClientWhole; reload: ()
     <main className="nc-scroll min-w-0 flex-1 overflow-y-auto">
       <div className="mx-auto max-w-4xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
         <div className="flex flex-wrap items-center gap-4">
-          <span className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl text-2xl font-bold text-white" style={{ background: whole.color }} aria-hidden>
+          <span className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl text-2xl font-bold" style={{ background: whole.color, color: textOn(whole.color) }} aria-hidden>
             {whole.name.slice(0, 1).toUpperCase()}
           </span>
           <div className="min-w-0 flex-1">

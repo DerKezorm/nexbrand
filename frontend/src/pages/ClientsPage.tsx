@@ -7,6 +7,7 @@ import { clientsApi, mediaUrl, type ClientInfo } from '../api/client'
 import { useShell } from '../components/AppShell'
 import { LogoView } from '../components/brand/LogoView'
 import { Sidebar } from '../components/Sidebar'
+import { textOn } from '../lib/color'
 import { useAuth } from '../state/auth'
 import { useBrands } from '../state/brands'
 
@@ -80,7 +81,7 @@ function ClientCard({ client, locale }: { client: ClientInfo; locale: string }) 
   return (
     <Link to={`/c/${client.id}`} className="group overflow-hidden rounded-2xl border border-ink-700 bg-ink-900 hover:border-ink-600">
       <div className="grid h-28 place-items-center px-6" style={{ background: logo ? ground : (client.face.colors[0] ?? client.color) }}>
-        {logo ? <LogoView logo={logo} fonts={[]} fileUrl={(id) => mediaUrl(id, true)} className={logo.compact ? 'h-16' : 'h-12'} /> : <span className="text-3xl font-bold text-white/90">{client.name.trim()[0]?.toUpperCase()}</span>}
+        {logo ? <LogoView logo={logo} fonts={[]} fileUrl={(id) => mediaUrl(id, true)} className={logo.compact ? 'h-16' : 'h-12'} /> : <span className="text-3xl font-bold" style={{ color: textOn(client.face.colors[0] ?? client.color) }}>{client.name.trim()[0]?.toUpperCase()}</span>}
       </div>
       <div className="flex h-2">
         {client.face.colors.map((c, i) => (
