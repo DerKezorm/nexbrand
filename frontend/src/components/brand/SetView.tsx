@@ -26,6 +26,8 @@ export function SetView({
   publicMode = false,
   actions,
   initialTab = 'colors',
+  tab: chosenTab,
+  onTab,
 }: {
   set: BrandSet
   /** The colours to show instead of the set's own (a project's, with its own ones). */
@@ -37,12 +39,17 @@ export function SetView({
   publicMode?: boolean
   actions?: ReactNode
   initialTab?: string
+  /** The tab, held by the page (in its address): a button elsewhere on the page can open one. */
+  tab?: string
+  onTab?: (tab: string) => void
 }) {
   const { t } = useTranslation()
   const shown: ShownColor[] = colors ?? set.colors
   const hints = useMemo(() => check(set, shown), [set, shown])
   const serious = hints.filter((h) => h.level !== 'info').length
-  const [tab, setTab] = useState<string>(initialTab)
+  const [ownTab, setOwnTab] = useState<string>(initialTab)
+  const tab = chosenTab ?? ownTab
+  const setTab = onTab ?? setOwnTab
   const tabs: Tab<string>[] = [
     { value: 'colors', label: t('set.tabs.colors', { count: shown.length }), icon: Palette },
     { value: 'fonts', label: t('set.tabs.fonts', { count: set.fonts.length }), icon: Type },

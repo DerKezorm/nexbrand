@@ -101,6 +101,11 @@ export function ClientPage() {
   }, [dirty])
 
   const choose = (versionId: string, extra: Record<string, string> = {}) => setParams({ v: versionId, ...extra }, { replace: true })
+  // A button above the tabs (a review waiting, comparing) opens one and brings it into view: the tabs can be far down.
+  const openTab = (tab: string) => {
+    if (shown) choose(shown.id, { tab })
+    requestAnimationFrame(() => document.getElementById('set-view')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
   const fileUrl = useCallback((media: string) => mediaUrl(media), [])
   const addFile = useCallback((m: MediaInfo) => setFiles((f) => ({ ...f, [m.id]: { name: m.name, kind: m.kind, size: m.size } })), [])
 
@@ -302,7 +307,7 @@ export function ClientPage() {
                 </button>
               )}
               {current && (
-                <button type="button" className="nc-btn nc-btn-ghost" onClick={() => choose(shown.id, { tab: 'history' })} title={t('client.compareWith', { label: current.label })}>
+                <button type="button" className="nc-btn nc-btn-ghost" onClick={() => openTab('history')} title={t('client.compareWith', { label: current.label })}>
                   <GitCompare className="h-4 w-4" /> {t('client.compare')}
                 </button>
               )}
@@ -339,7 +344,7 @@ export function ClientPage() {
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-magenta-500/50 bg-magenta-500/10 px-4 py-3 text-sm" role="status" data-testid="review-news">
             <MessagesSquare className="h-4 w-4 text-magenta-text" />
             <span className="flex-1 font-semibold">{t('client.reviewNews', { count: whole.news })}</span>
-            <button type="button" className="nc-btn nc-btn-accent" onClick={() => choose(shown.id, { tab: 'reviews' })}>
+            <button type="button" className="nc-btn nc-btn-accent" onClick={() => openTab('reviews')}>
               {t('client.seeReview')}
             </button>
           </div>
@@ -349,7 +354,7 @@ export function ClientPage() {
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-ink-700 bg-ink-900 px-4 py-3 text-sm">
             <MessagesSquare className="h-4 w-4 text-magenta-text" />
             <span className="flex-1">{t('client.inReview')}</span>
-            <button type="button" className="nc-btn nc-btn-ghost" onClick={() => choose(shown.id, { tab: 'reviews' })}>
+            <button type="button" className="nc-btn nc-btn-ghost" onClick={() => openTab('reviews')}>
               {t('client.seeReview')}
             </button>
           </div>
@@ -379,13 +384,15 @@ export function ClientPage() {
             </div>
           </>
         ) : (
+          <div id="set-view" className="scroll-mt-4">
           <SetView
-            key={shown.id + (params.get('tab') ?? '')}
+            key={shown.id}
             set={shown.data}
             colors={own ? shown.data.colors.map((c, i) => ({ ...c, from: own.parts.colors?.[i] !== 'project' ? 'inherited' : base?.data.colors.some((x) => x.name.toLowerCase() === c.name.toLowerCase()) ? 'replaced' : 'own' })) : undefined}
             fileUrl={fileUrl}
             files={files}
-            initialTab={params.get('tab') ?? 'colors'}
+            tab={params.get('tab') ?? 'colors'}
+            onTab={(tab) => choose(shown.id, { tab })}
             extra={[
               { value: 'ui', label: t('ui.tab'), icon: Copy, content: <UiElements set={shown.data} name={project?.name ?? whole.name} fileUrl={fileUrl} /> },
               ...(project ? [] : [{ value: 'projects', label: t('client.tabProjects', { count: whole.projects.length }), icon: FolderKanban, content: <Projects whole={whole} canWrite={canWrite} reload={load} /> }]),
@@ -394,6 +401,7 @@ export function ClientPage() {
               { value: 'reviews', label: whole.news ? t('client.tabReviewsNews', { count: whole.news }) : t('client.tabReviews'), icon: MessagesSquare, content: <ReviewsPanel client={whole.id} versions={versions} only={[...mine]} canWrite={canWrite} canManage={canManage} onChange={load} /> },
             ]}
           />
+          </div>
         )}
 
         {canWrite && (project || !whole.managed) && (
