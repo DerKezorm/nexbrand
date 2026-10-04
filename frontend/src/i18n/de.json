@@ -1691,6 +1691,12 @@
     "takeFiles_other": "{{count}} Dateien mit übernehmen",
     "fontsHint": "Übernommen wird der Name der Schrift. Ihre Dateien nur, wenn du sie markierst und bestätigst, dass ihr die Lizenz habt; dann holt nexbrand sie von der Webseite und legt sie zu den Dateien des Kunden.",
     "licence": "Wir haben für die markierten Schriften eine Lizenz, die es erlaubt, ihre Dateien zu kopieren und hier abzulegen. Die meisten Kaufschriften sind nur für die Webseite des Kunden lizenziert; das Kopieren ist dann nicht erlaubt. Webschriften sind außerdem oft gekürzt (nur die Zeichen, die die Seite braucht).",
-    "licenceNote": "Dateien von der Webseite des Kunden übernommen; Lizenz bestätigt von {{name}} am {{date}}."
+    "licenceNote": "Dateien von der Webseite des Kunden übernommen; Lizenz bestätigt von {{name}} am {{date}}.",
+    "systemFont": "Die Seite nutzt die Systemschrift des Geräts ({{stack}}): Jeder sieht sie in der Schrift seines Betriebssystems. Eine eigene Hausschrift ist das nicht; in der CI steht dann am besten eine Schrift, die ihr festlegt.",
+    "logoKinds": {
+      "img": "Bild auf der Seite",
+      "icon": "Symbol der Seite (Favicon)",
+      "og:image": "Vorschaubild für soziale Netze"
+    }
   }
 }

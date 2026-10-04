@@ -57,6 +57,15 @@ function fontOf(found: FoundFont, role: string, taken: FontFileTaken[] = [], not
   }
 }
 
+/** The last part of an address, without its query: a file's name to show instead of the whole address. */
+function fileName(url: string): string {
+  try {
+    return decodeURIComponent(new URL(url).pathname.split('/').filter(Boolean).pop() ?? url)
+  } catch {
+    return url
+  }
+}
+
 /** The server names where a font was found in English; the few fixed phrases are said in the page's language. */
 function useDetail() {
   const { t } = useTranslation()
@@ -437,6 +446,11 @@ export function CollectPage() {
               </section>
             )}
 
+            {result.system_font && (
+              <p className="rounded-xl border border-ink-700 bg-ink-900 px-4 py-3 text-sm text-mist-300" data-testid="collect-system-font">
+                {t('collect.systemFont', { stack: result.system_font })}
+              </p>
+            )}
             {fonts.length > 0 && (
               <section className="rounded-2xl border border-ink-700 bg-ink-900 p-5">
                 <h2 className="mb-1 font-semibold">{t('collect.fonts')}</h2>
@@ -495,10 +509,15 @@ export function CollectPage() {
                     const done = taken.some((x) => x.url === logo.url)
                     return (
                       <li key={logo.url} className="flex items-center gap-3 rounded-xl border border-ink-700 p-2 text-xs">
-                        <span className="min-w-0 flex-1 truncate font-mono" title={logo.url}>
-                          {logo.url}
+                        <span className="nb-checker grid h-14 w-20 shrink-0 place-items-center overflow-hidden rounded-lg border border-ink-700">
+                          <img src={collectApi.previewUrl(logo.url)} alt={fileName(logo.url)} loading="lazy" className="max-h-12 max-w-[4.5rem] object-contain" onError={(event) => (event.currentTarget.style.visibility = 'hidden')} />
                         </span>
-                        <span className="text-mist-500">{logo.kind}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-medium text-mist-200" title={logo.url}>
+                            {fileName(logo.url)}
+                          </span>
+                          <span className="block truncate text-mist-500">{t(`collect.logoKinds.${logo.kind}`, { defaultValue: logo.kind })}</span>
+                        </span>
                         <button type="button" disabled={busy || done || (!target && !newName.trim())} onClick={() => void takeLogo(logo.url)} className="nc-btn nc-btn-ghost !px-2.5 !py-0.5 !text-xs">
                           {done ? <Check className="h-3.5 w-3.5" /> : null} {done ? t('collect.logoTaken') : t('collect.logoTake')}
                         </button>

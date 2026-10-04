@@ -88,12 +88,47 @@ def _weight(prop: str) -> float:
     return 1.0
 
 
+#: Fonts that are no house font: symbols (FontAwesome and friends) and code. Left out of what was found.
+_ICON_FONT = re.compile(r"awesome|icon|glyph|symbols|dashicons|icomoon|feather|themify|linearicons|elegant",
+                        re.IGNORECASE)
+_CODE_FIRST = {"sfmono-regular", "sf mono", "menlo", "monaco", "consolas", "liberation mono", "courier new", "courier",
+               "ui-monospace", "monospace", "source code pro", "fira code", "jetbrains mono"}
+#: A stack that starts like this is the device's own font (Bootstrap and most frameworks), not a font of the brand.
+_SYSTEM_FIRST = {"-apple-system", "system-ui", "blinkmacsystemfont", "ui-sans-serif", "ui-serif"}
+_SIZE = re.compile(r"(?:^|\s)(?:\d*\.?\d+(?:px|em|rem|%|pt|pc|ex|ch|vw|vh|vmin|vmax)|0|xx-small|x-small|small|medium|"
+                   r"large|x-large|xx-large|smaller|larger)(?:\s*/\s*\S+)?\s+(.+)$", re.IGNORECASE)
+
+
+def _names(value: str) -> list[str]:
+    return [part.strip().strip("'\"").strip() for part in value.split(",") if part.strip()]
+
+
 def _first_family(value: str) -> str | None:
-    for part in value.split(","):
-        name = part.strip().strip("'\"").strip()
+    for name in _names(value):
         if name and name.lower() not in _GENERIC and not name.lower().startswith("var("):
             return name[:80]
     return None
+
+
+def _shorthand_families(value: str) -> str | None:
+    """The family list of a ``font:`` shorthand: what follows the size (and the line height after a slash). A
+    shorthand without a size names no family (``font: inherit``, ``font: caption``)."""
+    found = _SIZE.search(value.strip())
+    return found.group(1) if found else None
+
+
+def _kind_of_stack(value: str) -> str:
+    """``system`` for the device's own font, ``code`` for a code font, ``icon`` for a symbol font, else ``font``."""
+    names = [name.lower() for name in _names(value)]
+    if not names:
+        return "font"
+    if names[0] in _SYSTEM_FIRST:
+        return "system"
+    if names[0] in _CODE_FIRST:
+        return "code"
+    if _ICON_FONT.search(names[0]):
+        return "icon"
+    return "font"
 
 
 @dataclass
@@ -104,6 +139,9 @@ class Found:
     fonts: dict[str, dict[str, Any]] = field(default_factory=dict)
     logos: list[dict[str, str]] = field(default_factory=list)
     notes: list[dict[str, str]] = field(default_factory=list)
+    #: The device's own font, when a page uses it (a stack like ``-apple-system, Segoe UI, Roboto``): named, not
+    #: offered as a font of the brand.
+    system_font: str = ""
 
     def color(self, hexvalue: str, weight: float, where: str, *, name: str = "", detail: str = "", pantone: str = "",
               cmyk: str = "") -> None:
@@ -164,6 +202,8 @@ def _best_src(src: str, base: str) -> str | None:
 def read_css(found: Found, css: str, where: str, base: str = "") -> None:
     for block in _FONT_FACE.finditer(css):
         family = re.search(r"font-family\s*:\s*([^;]+)", block.group(1), re.IGNORECASE)
+        if family and _kind_of_stack(family.group(1)) != "font":
+            continue
         if family and (name := _first_family(family.group(1))):
             found.font(name, 0.5, where, detail="@font-face")
             src = re.search(r"(?<![-\w])src\s*:\s*([^;]+)", block.group(1), re.IGNORECASE)
@@ -175,9 +215,15 @@ def read_css(found: Found, css: str, where: str, base: str = "") -> None:
                                 (style.group(1).strip() if style else "normal")[:20])
     for match in _DECL.finditer(css):
         prop, value = match.group(1), match.group(2)
-        if prop.lower() in ("font-family", "font") and (name := _first_family(value.split("/")[-1] if prop == "font"
-                                                                                else value)):
-            found.font(name, 1.0, where, detail=f"font-family: {value.strip()[:60]}")
+        if prop.lower() in ("font-family", "font"):
+            stack = _shorthand_families(value) if prop.lower() == "font" else value
+            if stack is None:
+                continue
+            kind = _kind_of_stack(stack)
+            if kind == "system":
+                found.system_font = found.system_font or ", ".join(_names(stack)[:5])[:120]
+            elif kind == "font" and (name := _first_family(stack)) and len(name) > 1:
+                found.font(name, 1.0, where, detail=f"font-family: {stack.strip()[:60]}")
             continue
         for hexvalue in colors_in(value):
             name = prop[2:] if prop.startswith("--") else ""

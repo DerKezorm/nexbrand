@@ -566,3 +566,46 @@ def test_font_files_need_the_right_to_write_and_collecting_open(client: TestClie
         db.expunge(mia)
     sign_in(reader, mia)
     assert reader.post("/api/collect/fonts", json=body).status_code == 403
+
+
+# --- Walkthrough 04.10.2026: what is no house font, the shorthand, the logo preview ------------------------------------
+
+def test_symbol_code_and_system_fonts_are_no_candidates() -> None:
+    found = collect.Found()
+    collect.read_css(found, """
+        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+        code{font-family:SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+        .fa{font:normal normal normal 14px/1 FontAwesome}
+        .material{font-family:'Material Icons'}
+        .hide{font:0/0 a}
+        p{font:inherit}
+        h1{font:700 2rem/1.2 "Brand Serif", Georgia, serif}
+        @font-face{font-family:'FontAwesome';src:url(fa.woff2)}
+    """, "website:example.com", "https://example.com/")
+    assert [f["family"] for f in collect.fonts_of(found)] == ["Brand Serif"]
+    assert found.system_font.startswith("-apple-system, BlinkMacSystemFont, Segoe UI"), "named, not offered"
+
+
+def test_a_site_with_only_the_system_font_says_so(client: TestClient, opened: None, web: Pages) -> None:
+    page = b"<html><head><style>body{font-family:system-ui,sans-serif}</style></head></html>"
+    web["example.com/"] = (200, "text/html", page)
+    body = client.post("/api/collect", json={"sources": [{"kind": "website", "value": "https://example.com/"}]}).json()
+    assert body["fonts"] == [] and body["system_font"] == "system-ui, sans-serif"
+
+
+def test_a_found_logo_is_shown_through_the_server_and_only_a_picture(client: TestClient, operator: Account,
+                                                                    web: Pages) -> None:
+    web["example.com/logo.png"] = (200, "image/png", PNG)
+    web["example.com/page"] = (200, "text/html", b"<html>not a picture</html>")
+    url = "/api/collect/preview?url="
+    closed = client.get(url + "https://example.com/logo.png")
+    assert closed.status_code == 403, "collecting is closed: no way out for previews either"
+    client.put("/api/settings", json={"collect_allowed": True})
+    shown = client.get(url + "https://example.com/logo.png")
+    assert shown.status_code == 200 and shown.content == PNG and shown.headers["content-type"] == "image/png"
+    assert "sandbox" in shown.headers["content-security-policy"] and shown.headers["x-content-type-options"] == "nosniff"
+    assert client.get(url + "https://example.com/page").status_code == 422
+    inside = client.get(url + "http://nas.lan/logo.png")
+    assert inside.status_code == 502 and inside.json()["detail"]["problem"] == "not_public"
+    with new_client() as stranger:
+        assert stranger.get(url + "https://example.com/logo.png").status_code == 401

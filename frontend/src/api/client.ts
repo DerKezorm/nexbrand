@@ -341,7 +341,15 @@ export type FontFileFound = { url: string; weight: string; style: string }
 export type FontFileTaken = { id: string; name: string; kind: string; weight: string; style: string }
 export type FoundFont = { family: string; where: string[]; license: 'free' | 'unknown'; detail: string; use: 'headings' | 'body' | 'other'; keep: boolean; files: FontFileFound[] }
 export type FoundLogo = { url: string; kind: string; where: string }
-export type Collected = { colors: FoundColor[]; fonts: FoundFont[]; logos: FoundLogo[]; notes: { source: string; problem: string }[]; ai: boolean }
+export type Collected = {
+  colors: FoundColor[]
+  fonts: FoundFont[]
+  logos: FoundLogo[]
+  notes: { source: string; problem: string }[]
+  ai: boolean
+  /** The device's own font, when the page uses it (a stack like `-apple-system, Segoe UI, Roboto`), else empty. */
+  system_font: string
+}
 
 // ---- Calls ----------------------------------------------------------------------------------------------------------
 
@@ -507,6 +515,8 @@ export const collectApi = {
   run: (sources: { kind: SourceKind; value: string }[], useAi: boolean, language: string) =>
     api<Collected>('/api/collect', { method: 'POST', body: { sources, use_ai: useAi, language } }),
   logo: (clientId: string, url: string) => api<MediaInfo>('/api/collect/logo', { method: 'POST', body: { client_id: clientId, url } }),
+  /** A found logo as the server fetched it: the page never loads it from the other website itself. */
+  previewUrl: (url: string) => `/api/collect/preview?url=${encodeURIComponent(url)}`,
   /** A font's files, only with the licence confirmed (`licensed`). */
   fonts: (clientId: string, family: string, files: FontFileFound[], licensed: boolean) =>
     api<{ files: FontFileTaken[]; notes: { source: string; problem: string }[] }>('/api/collect/fonts', { method: 'POST', body: { client_id: clientId, family, files, licensed } }),

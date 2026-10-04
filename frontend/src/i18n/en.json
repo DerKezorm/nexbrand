@@ -1691,6 +1691,12 @@
     "takeFiles_other": "Take its {{count}} files too",
     "fontsHint": "The font's name is taken. Its files only when you tick them and confirm that you hold the licence; then nexbrand fetches them from the website and adds them to the client's files.",
     "licence": "We hold a licence for the ticked fonts that allows copying their files and keeping them here. Most commercial fonts are licensed for the client's website only; copying them is not allowed then. Web fonts are often cut down, too (only the characters the page needs).",
-    "licenceNote": "Files taken from the client's website; licence confirmed by {{name}} on {{date}}."
+    "licenceNote": "Files taken from the client's website; licence confirmed by {{name}} on {{date}}.",
+    "systemFont": "The page uses the device's own font ({{stack}}): everyone sees it in the font of their operating system. That is no house font of its own; the CI is best given a font you decide on.",
+    "logoKinds": {
+      "img": "Picture on the page",
+      "icon": "The page's icon (favicon)",
+      "og:image": "Preview picture for social networks"
+    }
   }
 }

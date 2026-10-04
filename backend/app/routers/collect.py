@@ -12,7 +12,7 @@ import os
 import re
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query, Response
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
@@ -23,6 +23,7 @@ from ..models import READ, WRITE, Media
 from ..models import Account as AccountRow
 from ..security import decrypt_secret
 from ..services import ai, brandset, collect, media, media_store, outbound, rights, settings_service
+from .media import FILE_POLICY
 
 logger = logging.getLogger("nexbrand.collect")
 
@@ -113,13 +114,37 @@ def _collect(account_id: int, payload: CollectIn) -> dict[str, Any]:
                 found.notes.append({"source": "ai", "problem": exc.code})
         ordered = collect.order_with_ai(items, answer, language) if used_ai else collect.order_by_rules(items, language)
         return {"colors": ordered, "fonts": collect.fonts_of(found, answer if used_ai else None), "logos": found.logos,
-                "notes": found.notes, "ai": used_ai}
+                "notes": found.notes, "ai": used_ai, "system_font": found.system_font}
 
 
 @router.post("", summary="Collect colours, fonts and logos from websites, repositories and PDFs")
 async def run(payload: CollectIn, account: Account) -> dict[str, Any]:
     logger.info("Collecting sources=%s by=%s", ",".join(s.kind for s in payload.sources), account.name)
     return await run_in_threadpool(_collect, account.id, payload)
+
+
+MAX_PREVIEW = 3 * 1024 * 1024
+
+
+@router.get("/preview", response_model=None, summary="A logo found while collecting, fetched by the server to look at")
+async def preview(account: Account, url: Annotated[str, Query(min_length=8, max_length=2000)]) -> Response:
+    """The page shows a found logo without loading it from the other website itself (that would tell it who looks).
+    Only pictures, only public addresses, as small as the collecting; served as a sandboxed file, never as a page."""
+    del account
+    with SessionLocal() as db:
+        if not settings_service.get(db, "collect_allowed"):
+            raise error("collect_off", "The operator has not allowed collecting from outside.", 403)
+    try:
+        fetched = await run_in_threadpool(outbound.get, url, limit=MAX_PREVIEW, accept="image/*")
+    except outbound.FetchError as exc:
+        raise error("collect_failed", "The picture could not be fetched.", 502, problem=exc.code) from exc
+    head = fetched.body[:1024]
+    kind = media.sniff(head[:64]) or ("svg" if media_store.is_svg(head) else "file")
+    if kind not in PICTURES:
+        raise error("not_a_picture", "This is not a picture.", 422)
+    return Response(fetched.body, media_type=media_store.SHOWN.get(kind, "application/octet-stream"), headers={
+        "Content-Security-Policy": FILE_POLICY, "X-Content-Type-Options": "nosniff",
+        "Cache-Control": "private, max-age=600"})
 
 
 MAX_FONT_FILE = 8 * 1024 * 1024
