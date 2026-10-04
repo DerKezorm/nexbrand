@@ -13,7 +13,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
-import { aiApi, ApiError, clientsApi, collectApi, upload, type ClientWhole, type Collected, type FoundColor, type FoundFont, type MediaInfo, type SourceKind } from '../api/client'
+import { aiApi, ApiError, clientsApi, collectApi, upload, type ClientWhole, type Collected, type FontFileTaken, type FoundColor, type FoundFont, type MediaInfo, type SourceKind } from '../api/client'
 import { COLOR_ROLES, type BrandColor, type BrandFont, type BrandLogo, type BrandSet, emptySet } from '../lib/brand'
 import { deltaE, textOn } from '../lib/color'
 import { errorText } from '../lib/errors'
@@ -39,11 +39,22 @@ function nearest(hex: string, colors: BrandColor[]): { color: BrandColor; distan
   return best
 }
 
-function fontOf(found: FoundFont, role: string): BrandFont {
+function fontOf(found: FoundFont, role: string, taken: FontFileTaken[] = [], note = ''): BrandFont {
   const known = CATALOG.find((f) => f.family.toLocaleLowerCase() === found.family.toLocaleLowerCase())
-  if (known) return catalogEntry(known.id, role)
-  // A font of unknown licence is taken by name only, as internal: never handed out as a file.
-  return { family: found.family, role, weights: [400, 700], license: found.license === 'free' ? 'free' : 'internal', source: found.detail, files: [] }
+  if (known && !taken.length) return catalogEntry(known.id, role)
+  // A font of unknown licence stays internal: never handed out as a file, also with files taken.
+  const license = found.license === 'free' ? 'free' : 'internal'
+  const weights = [...new Set(taken.map((f) => Number(/\d+/.exec(f.weight)?.[0] ?? 400)))].sort((a, b) => a - b)
+  return {
+    family: found.family,
+    role,
+    weights: weights.length ? weights : [400, 700],
+    italic: taken.some((f) => f.style.toLowerCase().includes('italic')),
+    license,
+    ...(note ? { license_note: note } : {}),
+    source: found.detail,
+    files: taken.map((f) => f.id),
+  }
 }
 
 /** The server names where a font was found in English; the few fixed phrases are said in the page's language. */
@@ -70,6 +81,9 @@ export function CollectPage() {
   const [colors, setColors] = useState<FoundColor[]>([])
   const [fonts, setFonts] = useState<FoundFont[]>([])
   const [taken, setTaken] = useState<Taken[]>([])
+  // Fonts whose files are to be taken (by family), and the person's word that the licence allows it.
+  const [withFiles, setWithFiles] = useState<Record<string, boolean>>({})
+  const [licensed, setLicensed] = useState(false)
   const [whole, setWhole] = useState<ClientWhole | null>(null)
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
@@ -161,13 +175,13 @@ export function CollectPage() {
       setTaken((list) => [...list.filter((x) => x.url !== url), { url, media }])
     })
 
-  const designSet = (): BrandSet => {
+  const designSet = (fontFiles: Record<string, FontFileTaken[]> = {}, note = ''): BrandSet => {
     const base: BrandSet = current ? structuredClone(current.data) : emptySet()
     const primary = kept.find((c) => c.role === 'primary')?.hex ?? kept[0]?.hex ?? '#000000'
     const accent = kept.find((c) => c.role === 'accent')?.hex ?? primary
     if (kept.length) base.colors = kept.map((c) => ({ name: c.name || c.hex, hex: c.hex, role: c.role, ...(c.pantone ? { pantone: c.pantone } : {}), ...(c.cmyk ? { cmyk: c.cmyk } : {}), ...(c.reason ? { note: c.reason } : {}) }))
     const keptFonts = fonts.filter((f) => f.keep)
-    if (keptFonts.length) base.fonts = keptFonts.map((f) => fontOf(f, t(`collect.uses.${f.use}`)))
+    if (keptFonts.length) base.fonts = keptFonts.map((f) => fontOf(f, t(`collect.uses.${f.use}`), fontFiles[f.family], fontFiles[f.family]?.length ? note : ''))
     const logos: BrandLogo[] = taken.map((x, index) => ({
       id: `collect-${Date.now().toString(36)}-${index}`,
       name: x.media.name,
@@ -183,9 +197,20 @@ export function CollectPage() {
   const takeAsDraft = () =>
     act(async () => {
       const label = t('collect.label', { date: new Date().toLocaleDateString(i18n.language) })
-      if (target) {
-        const version = await clientsApi.newVersion(target, { label, data: designSet(), origin: 'collect', note: t('collect.note', { count: sources.filter((s) => s.value).length }) })
-        navigate(`/c/${target}?v=${version.id}`)
+      // Font files first, into the client's files: only those ticked, and only with the licence confirmed.
+      const wanted = fonts.filter((f) => f.keep && withFiles[f.family] && f.files.length)
+      const fontFiles: Record<string, FontFileTaken[]> = {}
+      let into = target
+      if (wanted.length) {
+        if (!licensed) throw new ApiError(422, 'licence_not_confirmed')
+        into = (await ensure()).id
+        for (const font of wanted) fontFiles[font.family] = (await collectApi.fonts(into, font.family, font.files, true)).files
+      }
+      const note = t('collect.licenceNote', { name: me?.display_name || me?.name || '', date: new Date().toLocaleDateString(i18n.language) })
+      if (into) {
+        const version = await clientsApi.newVersion(into, { label, data: designSet(fontFiles, note), origin: 'collect', note: t('collect.note', { count: sources.filter((s) => s.value).length }) })
+        await brands.refresh()
+        navigate(`/c/${into}?v=${version.id}`)
       } else {
         const made = await clientsApi.create({ name: newName.trim(), label, data: designSet() })
         await brands.refresh()
@@ -194,7 +219,8 @@ export function CollectPage() {
     })
 
   const ready = sources.some((s) => s.value.trim() || s.file)
-  const canTake = kept.length > 0 && (target ? !!whole : newName.trim().length > 0 && mayCreate)
+  const filesWanted = fonts.some((f) => f.keep && withFiles[f.family] && f.files.length)
+  const canTake = kept.length > 0 && (target ? !!whole : newName.trim().length > 0 && mayCreate) && (!filesWanted || licensed)
 
   return (
     <main className="nc-scroll min-w-0 flex-1 overflow-y-auto">
@@ -413,7 +439,8 @@ export function CollectPage() {
 
             {fonts.length > 0 && (
               <section className="rounded-2xl border border-ink-700 bg-ink-900 p-5">
-                <h2 className="mb-3 font-semibold">{t('collect.fonts')}</h2>
+                <h2 className="mb-1 font-semibold">{t('collect.fonts')}</h2>
+                {mode === 'draft' && <p className="mb-3 text-xs text-mist-500">{t('collect.fontsHint')}</p>}
                 <ul className="divide-y divide-ink-800">
                   {fonts.map((font, index) => {
                     const change = (patch: Partial<FoundFont>) => setFonts((list) => list.map((f, i) => (i === index ? { ...f, ...patch } : f)))
@@ -441,6 +468,17 @@ export function CollectPage() {
                           {t(`collect.license.${font.license}`)}
                         </span>
                         <span className="min-w-0 flex-1 truncate text-xs text-mist-500">{foreign ? t('collect.fontForeign') : detailText(font.detail)}</span>
+                        {mode === 'draft' && font.files.length > 0 && (
+                          <label className={'flex shrink-0 items-center gap-1.5 text-xs ' + (font.keep ? 'text-mist-300' : 'text-mist-600')}>
+                            <input
+                              type="checkbox"
+                              disabled={!font.keep}
+                              checked={font.keep && !!withFiles[font.family]}
+                              onChange={(event) => setWithFiles((all) => ({ ...all, [font.family]: event.target.checked }))}
+                            />
+                            {t('collect.takeFiles', { count: font.files.length })}
+                          </label>
+                        )}
                       </li>
                     )
                   })}
@@ -474,6 +512,12 @@ export function CollectPage() {
             {mode === 'draft' && colors.length > 0 && (
               <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-accent-500/40 bg-accent-500/8 p-4">
                 <span className="flex-1 text-sm">{target ? t('collect.takeHint', { count: kept.length }) : t('collect.takeNewHint', { count: kept.length })}</span>
+                {filesWanted && (
+                  <label className="flex w-full items-start gap-2 rounded-xl border border-warn-500/40 bg-warn-500/8 px-3 py-2 text-sm" data-testid="font-licence">
+                    <input type="checkbox" className="mt-1" checked={licensed} onChange={(event) => setLicensed(event.target.checked)} />
+                    <span>{t('collect.licence')}</span>
+                  </label>
+                )}
                 <button type="button" disabled={busy || !canTake} onClick={() => void takeAsDraft()} className="nc-btn nc-btn-accent">
                   {t('collect.take')}
                 </button>

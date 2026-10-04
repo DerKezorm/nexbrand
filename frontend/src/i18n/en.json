@@ -554,7 +554,8 @@
     "ai_too_often": "Too many requests in one minute.",
     "ai_unreachable": "The server cannot reach the service.",
     "client_twice": "Each client in nexsuite can be chosen once only.",
-    "collect_name_first": "Enter the name of the new client first."
+    "collect_name_first": "Enter the name of the new client first.",
+    "licence_not_confirmed": "Confirm first that you hold the licence for this font."
   },
   "auth": {
     "name": "Name",
@@ -1680,10 +1681,16 @@
       "too_many_redirects": "redirects too often.",
       "no_page": "is not a web page.",
       "not_a_repo": "is not the address of a GitHub repository.",
-      "unreadable": "could not be read."
+      "unreadable": "could not be read.",
+      "not_a_font": "is not a font file."
     },
     "details": {
       "pdf": "embedded in the PDF"
-    }
+    },
+    "takeFiles_one": "Take its file too",
+    "takeFiles_other": "Take its {{count}} files too",
+    "fontsHint": "The font's name is taken. Its files only when you tick them and confirm that you hold the licence; then nexbrand fetches them from the website and adds them to the client's files.",
+    "licence": "We hold a licence for the ticked fonts that allows copying their files and keeping them here. Most commercial fonts are licensed for the client's website only; copying them is not allowed then. Web fonts are often cut down, too (only the characters the page needs).",
+    "licenceNote": "Files taken from the client's website; licence confirmed by {{name}} on {{date}}."
   }
 }

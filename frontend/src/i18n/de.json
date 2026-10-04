@@ -554,7 +554,8 @@
     "ai_too_often": "Zu viele Anfragen in einer Minute.",
     "ai_unreachable": "Der Server erreicht den Dienst nicht.",
     "client_twice": "Jeder Kunde in nexsuite lässt sich nur einmal zuordnen.",
-    "collect_name_first": "Erst den Namen des neuen Kunden eintragen."
+    "collect_name_first": "Erst den Namen des neuen Kunden eintragen.",
+    "licence_not_confirmed": "Erst bestätigen, dass ihr die Lizenz für diese Schrift habt."
   },
   "auth": {
     "name": "Name",
@@ -1680,10 +1681,16 @@
       "too_many_redirects": "leitet zu oft weiter.",
       "no_page": "ist keine Webseite.",
       "not_a_repo": "ist keine Adresse eines GitHub-Repos.",
-      "unreadable": "ließ sich nicht lesen."
+      "unreadable": "ließ sich nicht lesen.",
+      "not_a_font": "ist keine Schriftdatei."
     },
     "details": {
       "pdf": "in die PDF eingebettet"
-    }
+    },
+    "takeFiles_one": "Datei mit übernehmen",
+    "takeFiles_other": "{{count}} Dateien mit übernehmen",
+    "fontsHint": "Übernommen wird der Name der Schrift. Ihre Dateien nur, wenn du sie markierst und bestätigst, dass ihr die Lizenz habt; dann holt nexbrand sie von der Webseite und legt sie zu den Dateien des Kunden.",
+    "licence": "Wir haben für die markierten Schriften eine Lizenz, die es erlaubt, ihre Dateien zu kopieren und hier abzulegen. Die meisten Kaufschriften sind nur für die Webseite des Kunden lizenziert; das Kopieren ist dann nicht erlaubt. Webschriften sind außerdem oft gekürzt (nur die Zeichen, die die Seite braucht).",
+    "licenceNote": "Dateien von der Webseite des Kunden übernommen; Lizenz bestätigt von {{name}} am {{date}}."
   }
 }

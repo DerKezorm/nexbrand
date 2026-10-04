@@ -492,3 +492,77 @@ def test_a_paper_tint_is_a_neutral() -> None:
     ordered = {i["hex"]: i for i in collect.order_by_rules(collect.merged(found), "de")}
     assert ordered["#F7F1E6"]["role"] == "neutral"
     assert ordered["#F7F1E6"]["name"] == "Hell"
+
+
+# --- Font files: remembered while collecting, fetched only with the licence confirmed --------------------------------
+
+WOFF2 = b"wOF2" + b"\x00" * 60
+FONT_SITE = b"""<!doctype html><html><head>
+<link rel="stylesheet" href="/css/site.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700">
+</head><body></body></html>"""
+FONT_SHEET = (b"@font-face{font-family:'Brand Sans';src:url(../fonts/brand.woff) format('woff'),"
+              b"url('../fonts/brand.woff2') format('woff2');font-weight:700;font-style:italic}"
+              b"h1{font-family:'Brand Sans',sans-serif}")
+GOOGLE_SHEET = (b"@font-face{font-family:'Inter';font-weight:400;src:url(https://fonts.gstatic.com/s/inter/a.ttf)"
+                b" format('truetype')}")
+
+
+def _font_web(web: Pages) -> None:
+    web["example.com/"] = (200, "text/html", FONT_SITE)
+    web["example.com/css/site.css"] = (200, "text/css", FONT_SHEET)
+    web["fonts.googleapis.com/css2?family=Inter:wght@400;700"] = (200, "text/css", GOOGLE_SHEET)
+    web["example.com/fonts/brand.woff2"] = (200, "font/woff2", WOFF2)
+    web["example.com/fonts/not-a-font"] = (200, "text/html", b"<html>nope</html>")
+
+
+def test_collecting_remembers_where_a_fonts_files_are(client: TestClient, opened: None, web: Pages) -> None:
+    _font_web(web)
+    fonts = {f["family"]: f for f in client.post(
+        "/api/collect", json={"sources": [{"kind": "website", "value": "https://example.com/"}]}).json()["fonts"]}
+    assert fonts["Brand Sans"]["files"] == [
+        {"url": "https://example.com/fonts/brand.woff2", "weight": "700", "style": "italic"}], "woff2 before woff"
+    assert fonts["Inter"]["license"] == "free"
+    assert fonts["Inter"]["files"][0]["url"] == "https://fonts.gstatic.com/s/inter/a.ttf", "Google names its files"
+
+
+def test_font_files_come_only_with_the_licence_confirmed(client: TestClient, opened: None, space: int,
+                                                         web: Pages) -> None:
+    _font_web(web)
+    cid = client_of(client, space)
+    files = [{"url": "https://example.com/fonts/brand.woff2", "weight": "700", "style": "italic"},
+             {"url": "https://example.com/fonts/not-a-font"}]
+    refused = client.post("/api/collect/fonts", json={"client_id": cid, "family": "Brand Sans", "files": files})
+    assert refused.status_code == 422 and refused.json()["detail"]["code"] == "licence_not_confirmed"
+    with SessionLocal() as db:
+        assert db.query(Media).count() == 0, "nothing fetched without the licence"
+    taken = client.post("/api/collect/fonts", json={"client_id": cid, "family": "Brand Sans", "files": files,
+                                                    "licensed": True})
+    assert taken.status_code == 201, taken.text
+    body = taken.json()
+    assert [(f["name"], f["kind"], f["weight"]) for f in body["files"]] == [("Brand-Sans-700-italic.woff2", "woff2", "700")]
+    assert body["notes"] == [{"source": "https://example.com/fonts/not-a-font", "problem": "not_a_font"}]
+    font = {"family": "Brand Sans", "license": "internal", "weights": [700], "files": [body["files"][0]["id"]]}
+    made = client.post(f"/api/clients/{cid}/versions", json={"label": "1", "data": {"fonts": [font]}})
+    assert made.status_code == 201, "the files belong to the client and fit a design set"
+
+
+def test_font_files_need_the_right_to_write_and_collecting_open(client: TestClient, space: int,
+                                                                web: Pages) -> None:
+    _font_web(web)
+    cid = client_of(client, space)
+    body = {"client_id": cid, "family": "Brand Sans", "licensed": True,
+            "files": [{"url": "https://example.com/fonts/brand.woff2"}]}
+    closed = client.post("/api/collect/fonts", json=body)
+    assert closed.status_code == 403 and closed.json()["detail"]["code"] == "collect_off"
+    client.put("/api/settings", json={"collect_allowed": True})
+    make_account("mia")
+    join(client, space, "mia", "read")
+    from .conftest import sign_in
+
+    reader = new_client()
+    with SessionLocal() as db:
+        mia = db.query(Account).filter_by(name="mia").one()
+        db.expunge(mia)
+    sign_in(reader, mia)
+    assert reader.post("/api/collect/fonts", json=body).status_code == 403

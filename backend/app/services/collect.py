@@ -129,12 +129,50 @@ class Found:
         if detail and not entry["detail"]:
             entry["detail"] = detail[:120]
 
+    def font_file(self, family: str, url: str, weight: str, style: str) -> None:
+        """Where a file of the font lies (from ``@font-face``): fetched only on request, with the licence confirmed."""
+        entry = self.fonts.get(family.casefold())
+        if entry is None:
+            return
+        files = entry.setdefault("files", [])
+        known = {(f["weight"], f["style"]) for f in files}
+        if (weight, style) not in known and len(files) < MAX_FONT_FILES:
+            files.append({"url": url[:500], "weight": weight, "style": style})
 
-def read_css(found: Found, css: str, where: str) -> None:
+
+#: Files of one font to remember (weights and styles), and the formats in the order taken (the smallest first).
+MAX_FONT_FILES = 12
+_FORMATS = ("woff2", "woff", "ttf", "otf", "truetype", "opentype")
+_SRC_URL = re.compile(r"url\(\s*['\"]?([^'\")]+)['\"]?\s*\)(?:\s*format\(\s*['\"]?([\w-]+)['\"]?\s*\))?", re.IGNORECASE)
+
+
+def _best_src(src: str, base: str) -> str | None:
+    """The file to take of a ``src`` list: woff2 before woff before ttf/otf; never data: or a local() font."""
+    best: tuple[int, str] | None = None
+    for url, fmt in _SRC_URL.findall(src):
+        url = url.strip()
+        if url.lower().startswith("data:"):
+            continue
+        kind = (fmt or url.split("?")[0].rsplit(".", 1)[-1]).lower()
+        rank = _FORMATS.index(kind) if kind in _FORMATS else len(_FORMATS)
+        absolute = urljoin(base, url) if base else url
+        if absolute.startswith(("http://", "https://")) and (best is None or rank < best[0]):
+            best = (rank, absolute)
+    return best[1] if best else None
+
+
+def read_css(found: Found, css: str, where: str, base: str = "") -> None:
     for block in _FONT_FACE.finditer(css):
         family = re.search(r"font-family\s*:\s*([^;]+)", block.group(1), re.IGNORECASE)
         if family and (name := _first_family(family.group(1))):
             found.font(name, 0.5, where, detail="@font-face")
+            src = re.search(r"(?<![-\w])src\s*:\s*([^;]+)", block.group(1), re.IGNORECASE)
+            url = _best_src(src.group(1), base) if src else None
+            if url:
+                weight = re.search(r"font-weight\s*:\s*([^;]+)", block.group(1), re.IGNORECASE)
+                style = re.search(r"font-style\s*:\s*([^;]+)", block.group(1), re.IGNORECASE)
+                found.font_file(name, url, (weight.group(1).strip() if weight else "400")[:20],
+                                (style.group(1).strip() if style else "normal")[:20])
     for match in _DECL.finditer(css):
         prop, value = match.group(1), match.group(2)
         if prop.lower() in ("font-family", "font") and (name := _first_family(value.split("/")[-1] if prop == "font"
@@ -219,9 +257,10 @@ def from_website(found: Found, url: str) -> None:
         for hexvalue in colors_in(parser.theme):
             found.color(hexvalue, 4.0, where, detail="meta theme-color")
     for css in parser.styles:
-        read_css(found, css, where)
+        read_css(found, css, where, page.url)
     for style in parser.inline[:500]:
         read_css(found, "x{" + style + "}", where)
+    google = list(parser.google)
     for href in parser.google:
         for family in _google_families(href):
             found.font(family, 2.0, where, license="free", detail="Google Fonts")
@@ -234,9 +273,17 @@ def from_website(found: Found, url: str) -> None:
             continue
         css = sheet.body.decode("utf-8", errors="replace")
         for imported in re.findall(r"fonts\.googleapis\.com/css2?\?[^'\")\s]+", css):
+            google.append("https://" + imported)
             for family in _google_families("https://" + imported):
                 found.font(family, 2.0, where, license="free", detail="Google Fonts")
-        read_css(found, css, where)
+        read_css(found, css, where, sheet.url)
+    # Where Google keeps the files of the free fonts named: its stylesheet names them (one per weight and style).
+    for href in dict.fromkeys(google[:4]):
+        try:
+            sheet = outbound.get(urljoin(page.url, href), limit=MAX_SHEET, accept="text/css")
+        except outbound.FetchError:
+            continue
+        read_css(found, sheet.body.decode("utf-8", errors="replace"), where, sheet.url)
     seen = set()
     for href, kind in parser.logos:
         absolute = urljoin(page.url, href)
@@ -504,5 +551,5 @@ def fonts_of(found: Found, answer: Any = None) -> list[dict[str, Any]]:
         use, keep = uses.get(row["family"].casefold(), ("headings" if index == 0 else "body" if index == 1 else "other",
                                                         index < 2))
         out.append({"family": row["family"], "where": sorted(row["where"]), "license": row["license"],
-                    "detail": row["detail"], "use": use, "keep": keep})
+                    "detail": row["detail"], "use": use, "keep": keep, "files": list(row.get("files") or [])})
     return out
