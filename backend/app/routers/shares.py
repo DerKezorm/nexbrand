@@ -28,7 +28,7 @@ from ..config import get_settings
 from ..db import SessionLocal
 from ..deps import Account, DbSession, client_ip
 from ..errors import detail, error
-from ..models import MANAGE, PUBLISHED, READ, BrandVersion, Client, Media, Share, Space, utcnow
+from ..models import MANAGE, PUBLISHED, READ, BrandVersion, Client, Media, Project, Share, Space, utcnow
 from ..security import Brake, hash_password, verify_password
 from ..services import brands, brandset, rights, settings_service
 from .media import deliver
@@ -50,6 +50,8 @@ class ShareIn(BaseModel):
     label: str = Field(default="", max_length=120)
     #: A published version to keep showing; None: always the current one.
     version_id: str | None = Field(default=None, max_length=24)
+    #: A page of one project; None: of the client's own design set.
+    project_id: str | None = Field(default=None, max_length=24)
     #: Days until the page closes; None: never.
     days: int | None = Field(default=30, ge=1, le=3650)
     password: str = Field(default="", max_length=200)
@@ -78,6 +80,7 @@ def _view(db: DbSession, request: Request, share: Share) -> dict[str, Any]:
     version = db.get(BrandVersion, share.version_id) if share.version_id else None
     return {
         "id": share.id,
+        "project_id": share.project_id,
         "label": share.label,
         "link": link(db, request, f"/s/{share.token}"),
         "version_id": share.version_id,
@@ -118,6 +121,10 @@ def make_share(client_id: ClientId, payload: ShareIn, request: Request, account:
     client = _client(db, account, client_id, MANAGE)
     if len(db.scalars(select(Share.id).where(Share.client_id == client.id)).all()) >= MAX_SHARES:
         raise error("too_many_shares", "This client has as many public pages as it may.", 409)
+    try:
+        project = brands.project_for(db, client, payload.project_id) if payload.project_id else None
+    except brands.BrandError as exc:
+        raise error(exc.code, exc.text, exc.status) from exc
     if payload.version_id:
         try:
             version = brands.version_for(db, client, payload.version_id)
@@ -125,10 +132,13 @@ def make_share(client_id: ClientId, payload: ShareIn, request: Request, account:
             raise error(exc.code, exc.text, exc.status) from exc
         if version.status != PUBLISHED:
             raise error("not_published", "Only a published version goes on a page.", 409)
-    elif brands.current(db, client) is None:
+        if version.project_id != (project.id if project else None):
+            raise error("not_found", "Not found.", 404)
+    elif (brands.project_current(db, project) if project else brands.current(db, client)) is None:
         raise error("not_published", "This client has no published version yet.", 409)
     share = Share(token=secrets.token_urlsafe(24), client_id=client.id, space_id=client.space_id,
-                  version_id=payload.version_id or None, label=" ".join(payload.label.split())[:120],
+                  version_id=payload.version_id or None, project_id=project.id if project else None,
+                  label=" ".join(payload.label.split())[:120],
                   created_by=account.id,
                   expires_at=utcnow() + timedelta(days=payload.days) if payload.days else None,
                   password_hash=hash_password(payload.password) if payload.password else "")
@@ -174,7 +184,11 @@ def _open(db: Any, token: str) -> tuple[Share, Client, BrandVersion]:
     space = db.get(Space, client.space_id) if client is not None else None
     version = None
     if client is not None and share is not None:
-        version = db.get(BrandVersion, share.version_id) if share.version_id else brands.current(db, client)
+        project = db.get(Project, share.project_id) if share.project_id else None
+        if share.version_id:
+            version = db.get(BrandVersion, share.version_id)
+        else:
+            version = brands.project_current(db, project) if project else brands.current(db, client)
     if (
         share is None or client is None or client.deleted_at is not None
         # The space in the bin (here, or deleted in nexsuite): its clients are gone for everybody (A8).
@@ -199,11 +213,13 @@ def _unlocked(request: Request, share: Share) -> bool:
 def _page(db: Any, share: Share, client: Client, version: BrandVersion) -> dict[str, Any]:
     share.views += 1
     db.commit()
-    data = brandset.for_public(version.data)
+    data = brandset.for_public(brands.effective(db, version))
     files = brandset.media_of(data)
+    project = db.get(Project, share.project_id) if share.project_id else None
     rows = db.scalars(select(Media).where(Media.id.in_(files))) if files else []
     return {
         "client": client.name,
+        "project": project.name if project else None,
         "sector": client.sector,
         "label": share.label,
         "version": {"label": version.label, "valid_from": version.valid_from},
@@ -250,7 +266,7 @@ def public_media(token: Token, media_id: MediaId, request: Request, download: bo
         share, client, version = _open(db, token)
         if not _unlocked(request, share):
             raise error("not_found", "Not found.", 404)
-        named = brandset.media_of(brandset.for_public(version.data))
+        named = brandset.media_of(brandset.for_public(brands.effective(db, version)))
         row = db.get(Media, media_id)
         if row is None or media_id not in named or row.space_id != client.space_id:
             raise error("not_found", "Not found.", 404)

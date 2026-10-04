@@ -9,13 +9,15 @@ import { useBrands } from '../../state/brands'
 import { Dialog } from '../Dialog'
 
 /** The reviews of a client, as the agency sees them: status, the link, every comment, an answer. */
-export function ReviewsPanel({ client, versions, canWrite, canManage, onChange }: { client: string; versions: VersionInfo[]; canWrite: boolean; canManage: boolean; onChange: () => void }) {
+/** `only`: the reviews of these versions (a client's own, or one project's). */
+export function ReviewsPanel({ client, versions, only, canWrite, canManage, onChange }: { client: string; versions: VersionInfo[]; only?: string[]; canWrite: boolean; canManage: boolean; onChange: () => void }) {
   const { t, i18n } = useTranslation()
   const brands = useBrands()
   const [reviews, setReviews] = useState<ReviewInfo[]>([])
   // What was new when the panel opened stays marked while it is open; the server already counts it as seen.
   const [newSince, setNewSince] = useState<Record<number, string>>({})
-  const load = useCallback(() => void reviewsApi.list(client).then(setReviews).catch(() => setReviews([])), [client])
+  const key = only?.join(',')
+  const load = useCallback(() => void reviewsApi.list(client).then((all) => setReviews(key === undefined ? all : all.filter((r) => key.split(',').includes(r.version_id)))).catch(() => setReviews([])), [client, key])
   useEffect(load, [load])
   // Each review is marked seen once per news: the refresh after it changes `brands` and would mark it again, round
   // and round.
@@ -114,11 +116,12 @@ function ReviewCard({ client, review, newSince, version, canWrite, canManage, lo
 }
 
 /** Putting a draft before the client: its name once chosen, who sends it, a few words, and other drafts to compare. */
-export function NewReview({ whole, version, onClose, onMade }: { whole: ClientWhole; version: VersionInfo; onClose: () => void; onMade: () => void }) {
+/** `versions`: a project's (as stored: what is its own; the server shows them on the client version they stand on). */
+export function NewReview({ whole, version, versions = whole.versions, onClose, onMade }: { whole: ClientWhole; version: VersionInfo; versions?: VersionInfo[]; onClose: () => void; onMade: () => void }) {
   const { t } = useTranslation()
   const { me } = useAuth()
-  const others = whole.versions.filter((v) => v.status === 'draft' && v.id !== version.id)
-  const published = whole.versions.filter((v) => v.status === 'published')
+  const others = versions.filter((v) => v.status === 'draft' && v.id !== version.id)
+  const published = versions.filter((v) => v.status === 'published')
   const [label, setLabel] = useState(published.length ? version.label : '1.0')
   const [sender, setSender] = useState(me?.display_name || me?.name || '')
   const [message, setMessage] = useState('')

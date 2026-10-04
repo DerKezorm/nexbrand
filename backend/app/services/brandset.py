@@ -210,7 +210,7 @@ def clean(data: Any, db: Session | None = None, space_id: int | None = None) -> 
     """The design set as it may be stored, or ``SetError``. Without a database, no file may be named."""
     if not isinstance(data, dict):
         raise SetError("data")
-    unknown = set(data) - set(MOST) - {"dark"}
+    unknown = set(data) - set(MOST) - {"dark", "inherit"}
     if unknown:
         raise SetError(min(unknown), "Not a part of a design set.")
     files = Files(db, space_id)
@@ -295,6 +295,22 @@ def clean(data: Any, db: Session | None = None, space_id: int | None = None) -> 
             "name": _text(item.get("name"), f"{at}.name", 120, required=True),
             "media": files.one(item.get("media"), f"{at}.media", None),
         })
+
+    inherit = data.get("inherit")
+    if inherit is not None:
+        from .inherit import MODES, PARTS
+
+        if not isinstance(inherit, dict):
+            raise SetError("inherit")
+        for part, mode in inherit.items():
+            if part not in PARTS:
+                raise SetError(f"inherit.{part}", "Not a part of a design set.")
+            if mode not in MODES:
+                raise SetError(f"inherit.{part}", "inherit, extend or own.")
+        # Only what is not inherited is written down: a part not named is inherited.
+        kept = {part: mode for part, mode in inherit.items() if mode != "inherit"}
+        if kept:
+            out["inherit"] = kept
 
     dark = data.get("dark")
     if dark is not None:

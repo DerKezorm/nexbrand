@@ -192,23 +192,6 @@ def test_a_draft_a_project_builds_on_stays(client: TestClient, operator: Account
     assert answer.status_code == 409 and answer.json()["detail"]["code"] == "in_use"
 
 
-def test_a_project_keeps_its_version_and_its_own_colours(client: TestClient, operator: Account, space: int) -> None:
-    made = make_client(client, space)
-    cid, first = made["id"], made["versions"][0]["id"]
-    client.post(f"/api/clients/{cid}/versions/{first}/publish", json={"valid_from": "2022-01-01"})
-    project = client.post(f"/api/clients/{cid}/projects", json={
-        "name": "Summer", "version_id": first,
-        "own": [{"name": "Sommergelb", "hex": "#F2C230", "role": "accent"},
-                {"name": "honig", "hex": "#DDAA00", "role": "accent"}]}).json()
-    newer = client.post(f"/api/clients/{cid}/versions", json={"label": "2026", "source": first}).json()
-    client.post(f"/api/clients/{cid}/versions/{newer['id']}/publish", json={})
-    code = client.get(f"/api/clients/{cid}/export?format=css&project={project['id']}").text
-    assert "--color-honig: #DDAA00;" in code and "--color-sommergelb: #F2C230;" in code
-    assert client.get(f"/api/clients/{cid}").json()["projects"][0]["version_id"] == first
-    lifted = client.patch(f"/api/clients/{cid}/projects/{project['id']}", json={"version_id": newer["id"]})
-    assert lifted.json()["version_id"] == newer["id"]
-
-
 # --- The export -----------------------------------------------------------------------------------------------------
 
 

@@ -97,17 +97,6 @@ export function emptySet(): BrandSet {
 /** A colour as a project shows it: inherited from its version, replacing one there, or its own. */
 export type ShownColor = BrandColor & { from?: 'inherited' | 'replaced' | 'own' }
 
-export function projectColors(set: BrandSet, own: BrandColor[]): ShownColor[] {
-  const mine = new Map(own.map((color) => [color.name.toLocaleLowerCase(), color]))
-  const out: ShownColor[] = set.colors.map((color) => {
-    const replaced = mine.get(color.name.toLocaleLowerCase())
-    if (replaced) mine.delete(color.name.toLocaleLowerCase())
-    return replaced ? { ...replaced, from: 'replaced' } : { ...color, from: 'inherited' }
-  })
-  for (const color of mine.values()) out.push({ ...color, from: 'own' })
-  return out
-}
-
 /** The main colours a page or preview needs, chosen by role and lightness. */
 export function pickColors(colors: BrandColor[], luminance: (hex: string) => number) {
   const neutrals = colors.filter((c) => c.role === 'neutral').sort((a, b) => luminance(b.hex) - luminance(a.hex))

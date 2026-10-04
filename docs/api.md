@@ -76,7 +76,7 @@ A client's design set. Without a parameter, the version that holds today.
 |---|---|
 | `version` | A version by label or id, published or draft. |
 | `at` | A day, `YYYY-MM-DD`: the version that held then (`?at=2023-10-04` for "three years ago"). |
-| `project` | A project: its pinned version, with the project's own colours laid over it. |
+| `project` | A project (an app, a product, a campaign of the client) with a design set of its own: its current version, or its newest draft; with `version` or `at`, one of the project's versions. The answer is the project's set as shown: the parts it takes from the client version it stands on, with its own. |
 
 ```json
 {
@@ -137,6 +137,14 @@ properties. The answer gets a `css` part:
 
 `forbidden` means a rule of the set forbids the pair (`rule` is its place); `low_contrast` means below 4.5:1. Only a
 pair inside one CSS rule is seen: a ground inherited from a parent or set by another class is not.
+
+### Projects
+
+A project has versions of its own, like the client. Each stands on a version of the client's and takes each part
+(`colors`, `fonts`, `logos`, `scale`, `rules`, `samples`, `dark`) from it, takes it and adds its own (same name
+replaces), or has it its own. A draft written back for a project (over the app) keeps only what is its own, with
+`"inherit": {"colors": "extend", "logos": "own"}`; a part not named comes from the client. What `get_brand` and the
+code export give is always the whole set as the project shows it.
 
 ### Dark mode
 

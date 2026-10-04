@@ -90,10 +90,12 @@ def init_db() -> None:
         for table_index in table.indexes:
             table_index.create(engine, checkfirst=True)
     # Data from before clients stood on their own: every client gets its own group of rights.
-    from .services import regroup
+    from .services import brands, regroup
 
     with SessionLocal() as db:
         regroup.run(db)
+        # Projects from before they had versions of their own get a first one.
+        brands.adopt_projects(db)
 
 
 def _sql_literal(value: Any) -> str:

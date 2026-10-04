@@ -10,7 +10,6 @@ import { ClientsPage } from './pages/ClientsPage'
 import { CollectPage } from './pages/CollectPage'
 import { ContrastPage } from './pages/ContrastPage'
 import { NewClientPage } from './pages/NewClientPage'
-import { ProjectPage } from './pages/ProjectPage'
 import { PublicPage, ReviewPage } from './pages/PublicPages'
 import { SettingsPage } from './pages/SettingsPage'
 import { useAuth } from './state/auth'
@@ -68,7 +67,7 @@ export default function App() {
       >
         <Route index element={<ClientsPage />} />
         <Route path="c/:id" element={<ClientPage />} />
-        <Route path="c/:id/p/:pid" element={<ProjectPage />} />
+        <Route path="c/:id/p/:pid" element={<ClientPage />} />
         <Route path="new" element={<NewClientPage />} />
         <Route path="collect" element={<CollectPage />} />
         <Route path="contrast" element={<ContrastPage />} />

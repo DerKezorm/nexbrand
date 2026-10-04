@@ -228,7 +228,15 @@ def _open(db: Any, token: str) -> tuple[Review, Client]:
 
 
 def _page(db: Any, review: Review, client: Client) -> dict[str, Any]:
-    variants = [{**v, "data": brandset.for_public(v["data"])} for v in review.variants]
+    # A project's draft keeps only what is its own: the page shows it on the client version it stands on.
+    version = db.get(BrandVersion, review.version_id)
+    base = db.get(BrandVersion, version.base_id) if version is not None and version.base_id else None
+    from ..services import inherit
+
+    def shown(data: dict[str, Any]) -> dict[str, Any]:
+        return inherit.resolve(base.data, data) if base is not None else data
+
+    variants = [{**v, "data": brandset.for_public(shown(v["data"]))} for v in review.variants]
     files: set[str] = set()
     for variant in variants:
         files |= brandset.media_of(variant["data"])
@@ -319,8 +327,13 @@ def review_media(token: Token, media_id: MediaId, request: Request, download: bo
     with SessionLocal() as db:
         review, client = _open(db, token)
         named: set[str] = set()
+        version = db.get(BrandVersion, review.version_id)
+        base = db.get(BrandVersion, version.base_id) if version is not None and version.base_id else None
+        from ..services import inherit
+
         for variant in review.variants:
-            named |= brandset.media_of(brandset.for_public(variant["data"]))
+            data = inherit.resolve(base.data, variant["data"]) if base is not None else variant["data"]
+            named |= brandset.media_of(brandset.for_public(data))
         row = db.get(Media, media_id)
         if row is None or media_id not in named or row.space_id != client.space_id:
             raise error("not_found", "Not found.", 404)

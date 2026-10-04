@@ -10,6 +10,7 @@ import { contrast, formatRatio, isHex, normalHex, scaleOf } from '../../lib/colo
 import { errorText } from '../../lib/errors'
 import { CATALOG, catalogEntry, findFont, fontStack } from '../../lib/fonts'
 import { harmonies, neutralsFor, RATIOS, sameRule, startRules, suggestDark, typeScale, wordmarks, type Names } from '../../lib/generate'
+import { MODES, resolve, type InheritPart, type Mode, type Modes } from '../../lib/inherit'
 import { TabRow, type Tab } from '../../pages/settings/ui'
 import { HintList, useHintText } from './Checks'
 import { CheckedMark, typeOf, useRuleWords, type RuleType } from './rules'
@@ -719,7 +720,7 @@ function followDark(dark: DarkMode | null | undefined, colorNames: Map<string, s
 }
 
 /** The set's dark mode: a suggestion from the palette, then each part chosen from its colours. */
-function DarkEditor({ value, onChange }: { value: BrandSet; onChange: (patch: Partial<BrandSet>) => void }) {
+function DarkEditor({ value, onChange, readOnly = false }: { value: BrandSet; onChange: (patch: Partial<BrandSet>) => void; readOnly?: boolean }) {
   const { t } = useTranslation()
   const colors = value.colors.filter((c) => isHex(c.hex))
   const names = colors.map((c) => c.name)
@@ -733,7 +734,7 @@ function DarkEditor({ value, onChange }: { value: BrandSet; onChange: (patch: Pa
     <section className="space-y-3 rounded-2xl border border-ink-700 bg-ink-900 p-4" data-testid="dark-editor">
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="mr-auto font-semibold">{t('dark.title')}</h3>
-        {dark ? (
+        {readOnly ? null : dark ? (
           <button type="button" className="nc-btn nc-btn-ghost" onClick={() => onChange({ dark: null })}>
             <Trash2 className="h-4 w-4" /> {t('dark.remove')}
           </button>
@@ -753,7 +754,7 @@ function DarkEditor({ value, onChange }: { value: BrandSet; onChange: (patch: Pa
                 <span className="font-medium">{t(`dark.part.${part}`)}</span>
                 <span className="mt-1 flex items-center gap-2">
                   <span className="h-7 w-7 shrink-0 rounded-md border border-edge" style={{ background: color?.hex ?? 'transparent' }} aria-hidden />
-                  <select value={dark[part]} onChange={(e) => onChange({ dark: { ...dark, [part]: e.target.value } })} className={field + ' min-w-0 flex-1'}>
+                  <select value={dark[part]} disabled={readOnly} onChange={(e) => onChange({ dark: { ...dark, [part]: e.target.value } })} className={field + ' min-w-0 flex-1'}>
                     {[...new Set([dark[part], ...names])].map((n) => (
                       <option key={n}>{n}</option>
                     ))}
@@ -814,50 +815,163 @@ function SamplesEditor({ samples, onChange, ctx }: { samples: BrandSet['samples'
 
 // --- The editor ------------------------------------------------------------------------------------------------------
 
-export function SetEditor({ value, onChange, name, ctx }: { value: BrandSet; onChange: (s: BrandSet) => void; name: string; ctx: Ctx }) {
+/** For a project: the client version it stands on, and where each part comes from. */
+export type InheritCtx = { base: BrandSet; modes: Modes; onModes: (modes: Modes) => void; from: string }
+
+const TAB_PART: Record<string, InheritPart> = { colors: 'colors', fonts: 'fonts', logos: 'logos', scale: 'scale', rules: 'rules', samples: 'samples' }
+
+/** Where a part of a project comes from: like the client, the client's plus its own, or its own. */
+function PartSource({ part, mode, from, onChange }: { part: InheritPart; mode: Mode; from: string; onChange: (m: Mode) => void }) {
+  const { t } = useTranslation()
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-ink-700 bg-ink-900 px-3 py-2 text-sm" data-testid="part-source">
+      <span className="mr-auto text-mist-300">{t(`inherit.says.${mode}`, { from, part: t(`inherit.part.${part}`) })}</span>
+      <div className="flex rounded-full border border-ink-700 p-0.5 text-xs" role="group" aria-label={t('inherit.whereFrom', { part: t(`inherit.part.${part}`) })}>
+        {MODES.filter((m) => part !== 'dark' || m !== 'extend').map((m) => (
+          <button key={m} type="button" aria-pressed={mode === m} onClick={() => onChange(m)} className={'rounded-full px-2.5 py-1 ' + (mode === m ? 'bg-accent-500/20 text-mist-100' : 'text-mist-400 hover:text-mist-100')}>
+            {t(`inherit.mode.${m}`, { from })}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** A part as the client has it, to look at only. */
+function InheritedPart({ part, base, from, ctx }: { part: InheritPart; base: BrandSet; from: string; ctx: Ctx }) {
+  const { t } = useTranslation()
+  const words = useRuleWords()
+  const items = (base[part as Exclude<InheritPart, 'dark'>] ?? []) as unknown[]
+  return (
+    <section className="space-y-2 rounded-xl border border-dashed border-ink-600 p-3" data-testid="inherited-part">
+      <h4 className="text-xs font-semibold tracking-wide text-mist-500 uppercase">{t('inherit.fromClient', { from })}</h4>
+      {!items.length && <p className="text-sm text-mist-500">{t('inherit.nothing')}</p>}
+      <div className="flex flex-wrap gap-2">
+        {part === 'colors' &&
+          base.colors.map((c) => (
+            <span key={c.name} className="flex items-center gap-2 rounded-lg border border-ink-700 bg-ink-900 px-2 py-1 text-xs">
+              <span className="h-5 w-5 rounded border border-edge" style={{ background: c.hex }} aria-hidden />
+              <span className="font-semibold text-mist-100">{c.name}</span>
+              <span className="font-mono text-mist-500">{c.hex}</span>
+            </span>
+          ))}
+        {part === 'fonts' &&
+          base.fonts.map((f) => (
+            <span key={f.family} className="rounded-lg border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm" style={{ fontFamily: fontStack(f, ctx.fileUrl) }}>
+              {f.family} <span className="text-xs text-mist-500">{f.role}</span>
+            </span>
+          ))}
+        {part === 'logos' &&
+          base.logos.map((l) => (
+            <span key={l.id} className="grid h-16 w-28 place-items-center rounded-lg border border-ink-700 p-2" style={{ background: l.ground === 'transparent' ? undefined : l.ground }}>
+              <LogoView logo={l} fonts={base.fonts} fileUrl={ctx.fileUrl} className="max-h-10 max-w-full" />
+            </span>
+          ))}
+        {part === 'scale' &&
+          base.scale.map((step) => (
+            <span key={step.name} className="rounded-lg border border-ink-700 bg-ink-900 px-2 py-1 text-xs">
+              {step.name} · {step.size} px · {step.font}
+            </span>
+          ))}
+        {part === 'rules' &&
+          base.rules.map((r, i) => (
+            <span key={i} className="rounded-lg border border-ink-700 bg-ink-900 px-2 py-1 text-xs">
+              {r.kind === 'do' ? '✓' : '✗'} {words.sentence(r, base.logos)}
+            </span>
+          ))}
+        {part === 'samples' &&
+          base.samples.map((sample) => (
+            <span key={sample.media} className="rounded-lg border border-ink-700 bg-ink-900 px-2 py-1 text-xs">
+              {sample.name}
+            </span>
+          ))}
+      </div>
+    </section>
+  )
+}
+
+export function SetEditor({ value, onChange, name, ctx, inherit }: { value: BrandSet; onChange: (s: BrandSet) => void; name: string; ctx: Ctx; inherit?: InheritCtx }) {
   const { t } = useTranslation()
   const [tab, setTab] = useState('colors')
   const set = (patch: Partial<BrandSet>) => onChange({ ...value, ...patch })
-  const hints = useMemo(() => check(value), [value])
+  // What the page shows and the checks see: for a project, the client's parts with its own.
+  const shown = useMemo(() => (inherit ? resolve(inherit.base, { ...value, inherit: inherit.modes }) : value), [value, inherit])
+  const hints = useMemo(() => check(shown), [shown])
   const serious = hints.filter((h) => h.level !== 'info')
   const tabs: Tab<string>[] = [
-    { value: 'colors', label: t('set.tabs.colors', { count: value.colors.length }), icon: Palette },
-    { value: 'fonts', label: t('set.tabs.fonts', { count: value.fonts.length }), icon: Type },
-    { value: 'logos', label: t('set.tabs.logos', { count: value.logos.length }), icon: Shapes },
+    { value: 'colors', label: t('set.tabs.colors', { count: shown.colors.length }), icon: Palette },
+    { value: 'fonts', label: t('set.tabs.fonts', { count: shown.fonts.length }), icon: Type },
+    { value: 'logos', label: t('set.tabs.logos', { count: shown.logos.length }), icon: Shapes },
     { value: 'scale', label: t('editor.tabScale'), icon: Type },
     { value: 'rules', label: t('set.tabs.rules'), icon: Ban },
     { value: 'samples', label: t('set.tabs.samples'), icon: FileText },
   ]
-  const valid = value.colors.filter((c) => isHex(c.hex))
-  const scheme = schemeOf(value.dark, valid)
+  const valid = shown.colors.filter((c) => isHex(c.hex))
+  const scheme = schemeOf(shown.dark, valid)
   const [showDark, setShowDark] = useState(false)
-  const head = value.fonts[0]
-  const body = value.fonts[1] ?? value.fonts[0]
+  const head = shown.fonts[0]
+  const body = shown.fonts[1] ?? shown.fonts[0]
+  const part = TAB_PART[tab]
+  const mode: Mode = inherit ? inherit.modes[part] : 'own'
+  const setMode = (p: InheritPart, m: Mode) => {
+    if (!inherit) return
+    // Turning to its own, a project starts from what the client has; nothing is lost by looking.
+    if (m === 'own' && inherit.modes[p] !== 'own') {
+      if (p === 'dark') set({ dark: value.dark ?? inherit.base.dark ?? null })
+      else if (!((value[p] as unknown[]) ?? []).length) set({ [p]: structuredClone(inherit.base[p]) } as Partial<BrandSet>)
+    }
+    inherit.onModes({ ...inherit.modes, [p]: m })
+  }
+  // Rules of the client come first in what is shown: a hint's place counts them.
+  const ruleOffset = inherit && mode === 'extend' && part === 'rules' ? inherit.base.rules.length : 0
+  const ownHints = ruleOffset ? hints.filter((h) => h.rule === undefined || h.rule >= ruleOffset).map((h) => (h.rule === undefined ? h : { ...h, rule: h.rule - ruleOffset })) : hints
+  const editable = !inherit || mode !== 'inherit'
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
       <div className="min-w-0 space-y-4">
         <TabRow tabs={tabs} active={tab} onChange={setTab} label={t('set.tabsLabel')} />
-        {tab === 'colors' && (
-          <>
-            <ColorsEditor
-              colors={value.colors}
-              onChange={(colors) => {
-                const names = renamed(value.colors.map((c) => c.name), colors.map((c) => c.name))
-                set({ colors, rules: followNames(value.rules, names, new Map()), dark: followDark(value.dark, names) })
-              }}
-            />
-            <DarkEditor value={value} onChange={set} />
-          </>
+        {inherit && <PartSource part={part} mode={mode} from={inherit.from} onChange={(m) => setMode(part, m)} />}
+        {inherit && mode !== 'own' && <InheritedPart part={part} base={inherit.base} from={inherit.from} ctx={ctx} />}
+        {inherit && mode === 'extend' && <h4 className="text-xs font-semibold tracking-wide text-mist-500 uppercase">{t('inherit.ownHere')}</h4>}
+        {editable && tab === 'colors' && (
+          <ColorsEditor
+            colors={value.colors}
+            onChange={(colors) => {
+              const names = renamed(value.colors.map((c) => c.name), colors.map((c) => c.name))
+              set({ colors, rules: followNames(value.rules, names, new Map()), dark: followDark(value.dark, names) })
+            }}
+          />
         )}
-        {tab === 'fonts' && <FontsEditor fonts={value.fonts} onChange={(fonts) => set({ fonts, rules: followNames(value.rules, new Map(), renamed(value.fonts.map((f) => f.family), fonts.map((f) => f.family))) })} ctx={ctx} />}
-        {tab === 'logos' && <LogosEditor logos={value.logos} colors={valid} fonts={value.fonts} name={name} onChange={(logos) => set({ logos })} ctx={ctx} />}
-        {tab === 'scale' && <ScaleEditor scale={value.scale} fonts={value.fonts} onChange={(scale) => set({ scale })} />}
-        {tab === 'rules' && <RulesEditor value={value} hints={hints} onChange={(rules) => set({ rules })} />}
-        {tab === 'samples' && <SamplesEditor samples={value.samples} onChange={(samples) => set({ samples })} ctx={ctx} />}
+        {tab === 'colors' &&
+          (inherit ? (
+            <>
+              <PartSource part="dark" mode={inherit.modes.dark} from={inherit.from} onChange={(m) => setMode('dark', m)} />
+              {inherit.modes.dark === 'inherit' ? (
+                <DarkEditor value={{ ...shown, dark: inherit.base.dark }} onChange={() => undefined} readOnly />
+              ) : (
+                <DarkEditor
+                  value={{ ...shown, dark: value.dark }}
+                  onChange={(patch) => {
+                    // Colours a suggestion adds belong to the project: on top of the client's.
+                    const added = (patch.colors ?? []).filter((c) => !shown.colors.some((x) => x.name === c.name))
+                    if (added.length) inherit.onModes({ ...inherit.modes, dark: 'own', colors: inherit.modes.colors === 'inherit' ? 'extend' : inherit.modes.colors })
+                    set({ ...('dark' in patch ? { dark: patch.dark } : {}), ...(added.length ? { colors: [...value.colors, ...added] } : {}) })
+                  }}
+                />
+              )}
+            </>
+          ) : (
+            <DarkEditor value={value} onChange={set} />
+          ))}
+        {editable && tab === 'fonts' && <FontsEditor fonts={value.fonts} onChange={(fonts) => set({ fonts, rules: followNames(value.rules, new Map(), renamed(value.fonts.map((f) => f.family), fonts.map((f) => f.family))) })} ctx={ctx} />}
+        {editable && tab === 'logos' && <LogosEditor logos={value.logos} colors={valid} fonts={shown.fonts} name={name} onChange={(logos) => set({ logos })} ctx={ctx} />}
+        {editable && tab === 'scale' && <ScaleEditor scale={value.scale} fonts={shown.fonts} onChange={(scale) => set({ scale })} />}
+        {editable && tab === 'rules' && <RulesEditor value={{ ...shown, rules: value.rules }} hints={ownHints} onChange={(rules) => set({ rules })} />}
+        {editable && tab === 'samples' && <SamplesEditor samples={value.samples} onChange={(samples) => set({ samples })} ctx={ctx} />}
       </div>
       <aside className="space-y-3 xl:sticky xl:top-4 xl:self-start" aria-label={t('editor.live')}>
         {scheme && <SchemeSwitch dark={showDark} onChange={setShowDark} />}
-        {valid.length > 0 && <WebPreview colors={valid} head={fontStack(head, ctx.fileUrl)} body={fontStack(body, ctx.fileUrl)} name={name} logo={value.logos.find((l) => !l.compact)} logos={value.logos} fonts={value.fonts} fileUrl={ctx.fileUrl} scheme={showDark ? scheme : null} compact />}
+        {valid.length > 0 && <WebPreview colors={valid} head={fontStack(head, ctx.fileUrl)} body={fontStack(body, ctx.fileUrl)} name={name} logo={shown.logos.find((l) => !l.compact)} logos={shown.logos} fonts={shown.fonts} fileUrl={ctx.fileUrl} scheme={showDark ? scheme : null} compact />}
         <section className="rounded-2xl border border-ink-700 bg-ink-900 p-3">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-sm font-semibold">{t('editor.live')}</h3>

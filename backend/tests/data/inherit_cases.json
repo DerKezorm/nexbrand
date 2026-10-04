@@ -1,0 +1,535 @@
+{
+ "base": {
+  "colors": [
+   {
+    "name": "Ofenrot",
+    "hex": "#B8322A",
+    "role": "primary",
+    "pantone": "PMS 7621 C",
+    "cmyk": "",
+    "note": ""
+   },
+   {
+    "name": "Honig",
+    "hex": "#E9A23B",
+    "role": "accent",
+    "pantone": "",
+    "cmyk": "",
+    "note": ""
+   },
+   {
+    "name": "Mehl",
+    "hex": "#F2E3C6",
+    "role": "neutral",
+    "pantone": "",
+    "cmyk": "",
+    "note": ""
+   },
+   {
+    "name": "Kruste",
+    "hex": "#3B2A20",
+    "role": "neutral",
+    "pantone": "",
+    "cmyk": "",
+    "note": ""
+   },
+   {
+    "name": "Weiß",
+    "hex": "#FFFFFF",
+    "role": "neutral",
+    "pantone": "",
+    "cmyk": "",
+    "note": ""
+   }
+  ],
+  "fonts": [
+   {
+    "family": "Fraunces",
+    "role": "Headings",
+    "weights": [
+     400,
+     700
+    ],
+    "italic": false,
+    "license": "free",
+    "license_note": "",
+    "source": "",
+    "catalog": "fraunces",
+    "files": [],
+    "fallback": "serif"
+   }
+  ],
+  "logos": [],
+  "scale": [
+   {
+    "name": "Body",
+    "use": "body",
+    "size": 17.0,
+    "weight": 400,
+    "font": "Fraunces",
+    "line_height": 1.6
+   }
+  ],
+  "rules": [
+   {
+    "type": "text",
+    "kind": "do",
+    "text": "Kurz.",
+    "topic": ""
+   }
+  ],
+  "samples": [],
+  "dark": {
+   "ground": "Kruste",
+   "surface": "Kruste",
+   "text": "Mehl",
+   "muted": "Mehl",
+   "primary": "Honig",
+   "on_primary": "Kruste"
+  }
+ },
+ "cases": [
+  {
+   "own": {},
+   "resolved": {
+    "colors": [
+     {
+      "name": "Ofenrot",
+      "hex": "#B8322A",
+      "role": "primary",
+      "pantone": "PMS 7621 C",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Honig",
+      "hex": "#E9A23B",
+      "role": "accent",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Mehl",
+      "hex": "#F2E3C6",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Kruste",
+      "hex": "#3B2A20",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Weiß",
+      "hex": "#FFFFFF",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     }
+    ],
+    "fonts": [
+     {
+      "family": "Fraunces",
+      "role": "Headings",
+      "weights": [
+       400,
+       700
+      ],
+      "italic": false,
+      "license": "free",
+      "license_note": "",
+      "source": "",
+      "catalog": "fraunces",
+      "files": [],
+      "fallback": "serif"
+     }
+    ],
+    "logos": [],
+    "scale": [
+     {
+      "name": "Body",
+      "use": "body",
+      "size": 17.0,
+      "weight": 400,
+      "font": "Fraunces",
+      "line_height": 1.6
+     }
+    ],
+    "rules": [
+     {
+      "type": "text",
+      "kind": "do",
+      "text": "Kurz.",
+      "topic": ""
+     }
+    ],
+    "samples": [],
+    "dark": {
+     "ground": "Kruste",
+     "surface": "Kruste",
+     "text": "Mehl",
+     "muted": "Mehl",
+     "primary": "Honig",
+     "on_primary": "Kruste"
+    }
+   },
+   "origin": {
+    "colors": [
+     "client",
+     "client",
+     "client",
+     "client",
+     "client"
+    ],
+    "fonts": [
+     "client"
+    ],
+    "logos": [],
+    "scale": [
+     "client"
+    ],
+    "rules": [
+     "client"
+    ],
+    "samples": []
+   }
+  },
+  {
+   "own": {
+    "inherit": {
+     "colors": "extend"
+    },
+    "colors": [
+     {
+      "name": "honig",
+      "hex": "#DDAA00",
+      "role": "accent"
+     },
+     {
+      "name": "Sommergelb",
+      "hex": "#F2C230",
+      "role": "accent"
+     }
+    ]
+   },
+   "resolved": {
+    "colors": [
+     {
+      "name": "Ofenrot",
+      "hex": "#B8322A",
+      "role": "primary",
+      "pantone": "PMS 7621 C",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "honig",
+      "hex": "#DDAA00",
+      "role": "accent"
+     },
+     {
+      "name": "Mehl",
+      "hex": "#F2E3C6",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Kruste",
+      "hex": "#3B2A20",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Weiß",
+      "hex": "#FFFFFF",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Sommergelb",
+      "hex": "#F2C230",
+      "role": "accent"
+     }
+    ],
+    "fonts": [
+     {
+      "family": "Fraunces",
+      "role": "Headings",
+      "weights": [
+       400,
+       700
+      ],
+      "italic": false,
+      "license": "free",
+      "license_note": "",
+      "source": "",
+      "catalog": "fraunces",
+      "files": [],
+      "fallback": "serif"
+     }
+    ],
+    "logos": [],
+    "scale": [
+     {
+      "name": "Body",
+      "use": "body",
+      "size": 17.0,
+      "weight": 400,
+      "font": "Fraunces",
+      "line_height": 1.6
+     }
+    ],
+    "rules": [
+     {
+      "type": "text",
+      "kind": "do",
+      "text": "Kurz.",
+      "topic": ""
+     }
+    ],
+    "samples": [],
+    "dark": {
+     "ground": "Kruste",
+     "surface": "Kruste",
+     "text": "Mehl",
+     "muted": "Mehl",
+     "primary": "Honig",
+     "on_primary": "Kruste"
+    }
+   },
+   "origin": {
+    "colors": [
+     "client",
+     "project",
+     "client",
+     "client",
+     "client",
+     "project"
+    ],
+    "fonts": [
+     "client"
+    ],
+    "logos": [],
+    "scale": [
+     "client"
+    ],
+    "rules": [
+     "client"
+    ],
+    "samples": []
+   }
+  },
+  {
+   "own": {
+    "inherit": {
+     "colors": "own",
+     "fonts": "own",
+     "rules": "extend",
+     "dark": "own"
+    },
+    "colors": [
+     {
+      "name": "Nacht",
+      "hex": "#101010",
+      "role": "neutral"
+     }
+    ],
+    "fonts": [],
+    "rules": [
+     {
+      "kind": "dont",
+      "text": "Nie rot."
+     }
+    ]
+   },
+   "resolved": {
+    "colors": [
+     {
+      "name": "Nacht",
+      "hex": "#101010",
+      "role": "neutral"
+     }
+    ],
+    "fonts": [],
+    "logos": [],
+    "scale": [
+     {
+      "name": "Body",
+      "use": "body",
+      "size": 17.0,
+      "weight": 400,
+      "font": "Fraunces",
+      "line_height": 1.6
+     }
+    ],
+    "rules": [
+     {
+      "type": "text",
+      "kind": "do",
+      "text": "Kurz.",
+      "topic": ""
+     },
+     {
+      "kind": "dont",
+      "text": "Nie rot."
+     }
+    ],
+    "samples": []
+   },
+   "origin": {
+    "colors": [
+     "project"
+    ],
+    "fonts": [],
+    "logos": [],
+    "scale": [
+     "client"
+    ],
+    "rules": [
+     "client",
+     "project"
+    ],
+    "samples": []
+   }
+  },
+  {
+   "own": {
+    "inherit": {
+     "scale": "extend"
+    },
+    "scale": [
+     {
+      "name": "Body",
+      "use": "body",
+      "size": 18,
+      "weight": 400,
+      "font": "Fraunces",
+      "line_height": 1.5
+     }
+    ]
+   },
+   "resolved": {
+    "colors": [
+     {
+      "name": "Ofenrot",
+      "hex": "#B8322A",
+      "role": "primary",
+      "pantone": "PMS 7621 C",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Honig",
+      "hex": "#E9A23B",
+      "role": "accent",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Mehl",
+      "hex": "#F2E3C6",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Kruste",
+      "hex": "#3B2A20",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Weiß",
+      "hex": "#FFFFFF",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     }
+    ],
+    "fonts": [
+     {
+      "family": "Fraunces",
+      "role": "Headings",
+      "weights": [
+       400,
+       700
+      ],
+      "italic": false,
+      "license": "free",
+      "license_note": "",
+      "source": "",
+      "catalog": "fraunces",
+      "files": [],
+      "fallback": "serif"
+     }
+    ],
+    "logos": [],
+    "scale": [
+     {
+      "name": "Body",
+      "use": "body",
+      "size": 18,
+      "weight": 400,
+      "font": "Fraunces",
+      "line_height": 1.5
+     }
+    ],
+    "rules": [
+     {
+      "type": "text",
+      "kind": "do",
+      "text": "Kurz.",
+      "topic": ""
+     }
+    ],
+    "samples": [],
+    "dark": {
+     "ground": "Kruste",
+     "surface": "Kruste",
+     "text": "Mehl",
+     "muted": "Mehl",
+     "primary": "Honig",
+     "on_primary": "Kruste"
+    }
+   },
+   "origin": {
+    "colors": [
+     "client",
+     "client",
+     "client",
+     "client",
+     "client"
+    ],
+    "fonts": [
+     "client"
+    ],
+    "logos": [],
+    "scale": [
+     "project"
+    ],
+    "rules": [
+     "client"
+    ],
+    "samples": []
+   }
+  }
+ ]
+}

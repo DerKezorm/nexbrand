@@ -1,11 +1,12 @@
-/** One client: its versions on a time line, the one chosen shown or (a draft) edited, projects, history, public
- * pages and reviews. */
-import { ArrowRight, CalendarClock, Download, FilePlus2, FolderKanban, GitCompare, Globe, History, MessagesSquare, Pencil, Plus, Send, Sparkles, Star, Trash2, Upload, Users, UsersRound, Wand2 } from 'lucide-react'
+/** One client, or one of its projects: its versions on a time line, the one chosen shown or (a draft) edited,
+ * projects, history, public pages and reviews. A project's parts come from the client version it stands on, its
+ * own, or both (`lib/inherit.ts`); the page shows what that makes, and the editor where each part comes from. */
+import { ArrowRight, ArrowUpCircle, CalendarClock, Copy, Download, FilePlus2, FolderKanban, GitCompare, Globe, History, MessagesSquare, Pencil, Plus, Send, Sparkles, Star, Trash2, Upload, Users, UsersRound, Wand2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
-import { ApiError, clientsApi, mediaUrl, type ClientLink, type ClientWhole, type MediaInfo, type VersionInfo } from '../api/client'
+import { ApiError, clientsApi, mediaUrl, type ClientLink, type ClientWhole, type MediaInfo, type ProjectWhole, type VersionInfo } from '../api/client'
 import { DiffView } from '../components/brand/DiffView'
 import { ExportDialog } from '../components/brand/ExportDialog'
 import { ClientMark } from '../components/brand/LogoView'
@@ -18,48 +19,55 @@ import { MembersDialog } from '../components/MembersDialog'
 import { TeamRightsDialog } from '../components/Teams'
 import { textOn } from '../lib/color'
 import { CLIENT_COLORS } from '../lib/palette'
-import type { BrandSet } from '../lib/brand'
+import { emptySet, type BrandSet } from '../lib/brand'
+import { INHERIT_PARTS, modesOf, type Modes } from '../lib/inherit'
+import { UiElements } from '../components/brand/UiElements'
 import { Button, Confirm, Feedback, Input, Select, useAction } from './settings/ui'
 import { useBrands } from '../state/brands'
 
 const ORIGIN_TONE = { hand: 'border-ink-700 text-mist-500', collect: 'border-gelb-500/50 text-gelb-text', mcp: 'border-magenta-500/50 text-magenta-text', review: 'border-ok-500/40 text-ok-500' }
 
 export function ClientPage() {
-  const { id = '' } = useParams()
+  const { id = '', pid } = useParams()
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const brands = useBrands()
   const [params, setParams] = useSearchParams()
   const [whole, setWhole] = useState<ClientWhole | null>(null)
+  const [project, setProject] = useState<ProjectWhole | null>(null)
+  const [modes, setModes] = useState<Modes | null>(null)
   const [missing, setMissing] = useState(false)
   const [files, setFiles] = useState<FileMap>({})
   const [draft, setDraft] = useState<BrandSet | null>(null)
   const [dirty, setDirty] = useState(false)
-  const [dialog, setDialog] = useState<'edit' | 'version' | 'publish' | 'export' | 'review' | 'trash' | 'deleteDraft' | null>(null)
+  const [dialog, setDialog] = useState<'edit' | 'version' | 'publish' | 'export' | 'review' | 'trash' | 'deleteDraft' | 'lift' | null>(null)
   const save = useAction()
 
   const load = useCallback(async () => {
     try {
-      const [client, known] = await Promise.all([clientsApi.read(id), clientsApi.files(id)])
+      const [client, known, made] = await Promise.all([clientsApi.read(id), clientsApi.files(id), pid ? clientsApi.project(id, pid) : Promise.resolve(null)])
       setWhole(client)
+      setProject(made)
       setFiles((before) => ({ ...before, ...known }))
       return client
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) setMissing(true)
       return null
     }
-  }, [id])
+  }, [id, pid])
 
   useEffect(() => {
     setWhole(null)
+    setProject(null)
     setMissing(false)
     setDraft(null)
     setDirty(false)
     void load()
     void clientsApi.visit(id).catch(() => undefined)
-  }, [id, load])
+  }, [id, pid, load])
 
-  const versions = whole?.versions ?? []
+  // A project's versions are shown as they look (resolved); edited as what is their own.
+  const versions: VersionInfo[] = useMemo(() => (pid ? (project?.versions ?? []).map((v) => ({ ...v, data: v.resolved })) : (whole?.versions ?? [])), [pid, project, whole])
   const published = versions.filter((v) => v.status === 'published')
   const current = published[published.length - 1]
   const chosenId = params.get('v')
@@ -68,9 +76,18 @@ export function ClientPage() {
   const canWrite = whole?.role === 'write' || whole?.role === 'manage'
   const canManage = whole?.role === 'manage'
 
-  // A draft opened for editing starts from what the server holds.
+  const own = pid ? project?.versions.find((v) => v.id === shown?.id) : undefined
+  const base = own?.base_id ? whole?.versions.find((v) => v.id === own.base_id) : undefined
+
+  // A draft opened for editing starts from what the server holds (a project's: what is its own).
   useEffect(() => {
-    if (editing && shown && !dirty) setDraft(shown.data)
+    if (editing && shown && !dirty) {
+      if (own) {
+        const { inherit, ...parts } = own.data
+        setDraft({ ...emptySet(), ...parts, dark: parts.dark ?? null })
+        setModes(modesOf({ inherit }))
+      } else setDraft(shown.data)
+    }
     if (!editing) setDraft(null)
   }, [editing, shown?.id, shown?.updated_at]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -90,7 +107,8 @@ export function ClientPage() {
   const saveDraft = async () => {
     if (!whole || !shown || !draft) return
     const ok = await save.run(async () => {
-      await clientsApi.saveDraft(whole.id, shown.id, { data: draft })
+      const kept = modes ? Object.fromEntries(INHERIT_PARTS.filter((part) => modes[part] !== 'inherit').map((part) => [part, modes[part]])) : null
+      await clientsApi.saveDraft(whole.id, shown.id, { data: kept ? { ...draft, inherit: kept } : draft })
       setDirty(false)
       await load()
     }, t('client.saved'))
@@ -119,26 +137,40 @@ export function ClientPage() {
         </Link>
       </main>
     )
-  if (!whole) return <main className="flex-1" aria-busy="true" />
-  if (!shown) return <NoDesignYet whole={whole} reload={load} onMade={(v) => choose(v.id, { edit: '1' })} />
+  if (!whole || (pid && !project)) return <main className="flex-1" aria-busy="true" />
+  if (!shown && !project) return <NoDesignYet whole={whole} reload={load} onMade={(v) => choose(v.id, { edit: '1' })} />
+  if (!shown) return <main className="flex-1" aria-busy="true" />
 
   const space = brands.space(whole.space_id)
   const openReview = whole.reviews.find((r) => r.version_id === shown.id && r.status === 'open')
   const next = published.find((v) => v.valid_from > shown.valid_from)
-  const face = whole.face
+  const face = project ? project.face : whole.face
+  const clientPublished = whole.versions.filter((v) => v.status === 'published')
+  const clientCurrent = clientPublished[clientPublished.length - 1]
+  const mine = new Set(versions.map((v) => v.id))
 
   return (
     <main className="nc-scroll min-w-0 flex-1 overflow-y-auto">
       <div className="mx-auto max-w-6xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
         <div className="flex flex-wrap items-center gap-4">
-          <ClientMark name={whole.name} logo={face.mark ?? face.logo} colors={face.colors} fileUrl={(m) => mediaUrl(m, true)} className="h-16 w-16" />
+          <ClientMark name={project?.name ?? whole.name} logo={face.mark ?? face.logo} colors={face.colors} fileUrl={(m) => mediaUrl(m, true)} className="h-16 w-16" />
           <div className="min-w-0 flex-1">
             <div className="text-xs text-mist-500">
               <Link to="/" className="hover:text-mist-200">
                 {t('clients.title')}
               </Link>
-              {whole.sector && <> · {whole.sector}</>}
-              {whole.links.find((l) => l.kind === 'website') && (
+              {project && (
+                <>
+                  {' · '}
+                  <Link to={`/c/${whole.id}?tab=projects`} className="hover:text-mist-200">
+                    {whole.name}
+                  </Link>
+                  {' · '}
+                  {t('client.tabProjects', { count: whole.projects.length })}
+                </>
+              )}
+              {!project && whole.sector && <> · {whole.sector}</>}
+              {!project && whole.links.find((l) => l.kind === 'website') && (
                 <>
                   {' · '}
                   <a href={whole.links.find((l) => l.kind === 'website')!.url} target="_blank" rel="noreferrer noopener" className="hover:text-mist-200 hover:underline">
@@ -148,7 +180,8 @@ export function ClientPage() {
               )}
             </div>
             <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-              {whole.name}
+              {project?.name ?? whole.name}
+              {!project && (
               <button
                 type="button"
                 aria-pressed={whole.favorite}
@@ -158,15 +191,17 @@ export function ClientPage() {
               >
                 <Star className="h-5 w-5" fill={whole.favorite ? 'currentColor' : 'none'} />
               </button>
+              )}
             </h1>
+            {project?.note && <p className="mt-0.5 text-sm text-mist-400">{project.note}</p>}
           </div>
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">
             {canWrite && (
               <button type="button" className="nc-btn nc-btn-ghost" onClick={() => setDialog('edit')}>
-                <Pencil className="h-4 w-4" /> {t('client.edit')}
+                <Pencil className="h-4 w-4" /> {project ? t('projects.rename') : t('client.edit')}
               </button>
             )}
-            {space && <AccessButtons space={space} />}
+            {space && !project && <AccessButtons space={space} />}
             <button type="button" className="nc-btn nc-btn-accent" onClick={() => setDialog('export')}>
               <Download className="h-4 w-4" /> {t('client.export')}
             </button>
@@ -214,11 +249,36 @@ export function ClientPage() {
                       ))}
                     </div>
                     <div className="mt-1 text-[11px] text-mist-500">{isDraft ? t('client.since', { date: new Date(v.created_at).toLocaleDateString(i18n.language) }) : t('client.from', { date: new Date(v.valid_from).toLocaleDateString(i18n.language) })}</div>
+                    {project && <div className="text-[11px] text-mist-500">{t('projects.standsOn', { client: whole.name, label: project.versions.find((x) => x.id === v.id)?.base_label ?? '?' })}</div>}
                   </button>
                 </li>
               )
             })}
           </ol>
+          {project && own && (
+            <div className={'mt-3 flex flex-wrap items-center gap-3 rounded-xl px-3 py-2 text-sm ' + (clientCurrent && own.base_id !== clientCurrent.id && base?.status === 'published' ? 'border border-gelb-500/40 bg-gelb-500/8' : 'bg-ink-850')} data-testid="project-base">
+              <span className="flex-1 text-mist-300">
+                {t('projects.base', { client: whole.name, label: own.base_label ?? '?' })}{' '}
+                {clientCurrent && own.base_id !== clientCurrent.id && base?.status === 'published' && t('projects.newer', { label: clientCurrent.label })}
+                {base?.status === 'draft' && t('projects.onDraftText', { label: base.label })}
+              </span>
+              <span className="flex flex-wrap gap-1 text-[11px]">
+                {INHERIT_PARTS.map((part) => {
+                  const m = modesOf(own.data)[part]
+                  return (
+                    <span key={part} className={'rounded-full border px-2 py-0.5 ' + (m === 'inherit' ? 'border-ink-700 text-mist-500' : m === 'extend' ? 'border-accent-500/50 text-accent-400' : 'border-magenta-500/50 text-magenta-text')} title={t(`inherit.mode.${m}`, { from: whole.name })}>
+                      {t(`inherit.part.${part}`)}: {t(`inherit.short.${m}`)}
+                    </span>
+                  )
+                })}
+              </span>
+              {canWrite && clientCurrent && own.base_id !== clientCurrent.id && base?.status === 'published' && (
+                <button type="button" className="nc-btn nc-btn-ghost" onClick={() => setDialog('lift')}>
+                  <ArrowUpCircle className="h-4 w-4" /> {t('projects.liftTo', { label: clientCurrent.label })}
+                </button>
+              )}
+            </div>
+          )}
         </section>
 
         {shown.status === 'draft' ? (
@@ -228,7 +288,7 @@ export function ClientPage() {
             <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-mist-200">
               <span className={'rounded-full border px-2 py-0.5 text-[11px] ' + ORIGIN_TONE[shown.origin]}>{t(`origin.${shown.origin}`)}</span>
               <span className="min-w-0 flex-1">
-                {t('client.draftBanner', { author: shown.author })} <DerivedFrom version={shown} versions={versions} /> {shown.note} {current ? t('client.draftHolds', { label: current.label }) : t('client.draftOnly')}
+                {t('client.draftBanner', { author: shown.author })} <DerivedFrom version={shown} versions={versions} /> {shown.note} {current ? t('client.draftHolds', { label: current.label }) : project ? t('projects.draftOnly', { project: project.name }) : t('client.draftOnly')}
               </span>
             </p>
             <div className="flex flex-wrap items-center gap-2">
@@ -299,8 +359,9 @@ export function ClientPage() {
                 setDraft(value)
                 setDirty(true)
               }}
-              name={whole.name}
+              name={project?.name ?? whole.name}
               ctx={{ space: whole.space_id, files, addFile, fileUrl }}
+              inherit={project && modes ? { base: base?.data ?? emptySet(), modes, from: whole.name, onModes: (m) => (setModes(m), setDirty(true)) } : undefined}
             />
             <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-ink-700 bg-ink-900/95 px-4 py-3 shadow-lg backdrop-blur">
               <span className="mr-auto text-sm text-mist-400">{dirty ? t('client.unsaved') : t('client.allSaved')}</span>
@@ -317,33 +378,42 @@ export function ClientPage() {
           <SetView
             key={shown.id + (params.get('tab') ?? '')}
             set={shown.data}
+            colors={own ? shown.data.colors.map((c, i) => ({ ...c, from: own.parts.colors?.[i] !== 'project' ? 'inherited' : base?.data.colors.some((x) => x.name.toLowerCase() === c.name.toLowerCase()) ? 'replaced' : 'own' })) : undefined}
             fileUrl={fileUrl}
             files={files}
             initialTab={params.get('tab') ?? 'colors'}
             extra={[
-              { value: 'projects', label: t('client.tabProjects', { count: whole.projects.length }), icon: FolderKanban, content: <Projects whole={whole} canWrite={canWrite} reload={load} /> },
+              { value: 'ui', label: t('ui.tab'), icon: Copy, content: <UiElements set={shown.data} name={project?.name ?? whole.name} fileUrl={fileUrl} /> },
+              ...(project ? [] : [{ value: 'projects', label: t('client.tabProjects', { count: whole.projects.length }), icon: FolderKanban, content: <Projects whole={whole} canWrite={canWrite} reload={load} /> }]),
               { value: 'history', label: t('client.tabHistory'), icon: History, content: <HistoryPanel versions={versions} start={shown} canWrite={canWrite} onDelete={() => setDialog('deleteDraft')} /> },
-              { value: 'pages', label: t('client.tabPages'), icon: Globe, content: <SharesPanel client={whole.id} versions={versions} canManage={canManage} /> },
-              { value: 'reviews', label: whole.news ? t('client.tabReviewsNews', { count: whole.news }) : t('client.tabReviews'), icon: MessagesSquare, content: <ReviewsPanel client={whole.id} versions={versions} canWrite={canWrite} canManage={canManage} onChange={load} /> },
+              { value: 'pages', label: t('client.tabPages'), icon: Globe, content: <SharesPanel client={whole.id} versions={versions} canManage={canManage} project={project?.id} /> },
+              { value: 'reviews', label: whole.news ? t('client.tabReviewsNews', { count: whole.news }) : t('client.tabReviews'), icon: MessagesSquare, content: <ReviewsPanel client={whole.id} versions={versions} only={[...mine]} canWrite={canWrite} canManage={canManage} onChange={load} /> },
             ]}
           />
         )}
 
-        {canWrite && !whole.managed && (
+        {canWrite && (project || !whole.managed) && (
           <div className="flex justify-end pt-4">
             <button type="button" className="nc-btn nc-btn-ghost text-mist-500" onClick={() => setDialog('trash')}>
-              <Trash2 className="h-4 w-4" /> {t('client.trash')}
+              <Trash2 className="h-4 w-4" /> {project ? t('projects.delete') : t('client.trash')}
             </button>
           </div>
         )}
       </div>
 
-      {dialog === 'edit' && <EditClient whole={whole} onClose={() => setDialog(null)} onSaved={() => (setDialog(null), void load().then((c) => c && brands.refresh()))} />}
-      {dialog === 'version' && <NewVersion whole={whole} start={shown} onClose={() => setDialog(null)} onMade={(v) => (setDialog(null), void load().then(() => choose(v.id, { edit: '1' })))} />}
+      {dialog === 'edit' && !project && <EditClient whole={whole} onClose={() => setDialog(null)} onSaved={() => (setDialog(null), void load().then((c) => c && brands.refresh()))} />}
+      {dialog === 'edit' && project && <RenameProject whole={whole} project={project} onClose={() => setDialog(null)} onSaved={() => (setDialog(null), void load())} />}
+      {dialog === 'version' && <NewVersion whole={whole} versions={versions} project={project?.id} start={shown} onClose={() => setDialog(null)} onMade={(v) => (setDialog(null), void load().then(() => choose(v.id, { edit: '1' })))} />}
+      {dialog === 'lift' && project && clientCurrent && own && (
+        <LiftProject whole={whole} project={project} from={own} to={clientCurrent} onClose={() => setDialog(null)} onMade={(v) => (setDialog(null), void load().then(() => choose(v.id)))} />
+      )}
       {dialog === 'publish' && <Publish whole={whole} version={shown} onClose={() => setDialog(null)} onDone={() => (setDialog(null), void load().then(() => (brands.refresh(), choose(shown.id))))} />}
-      {dialog === 'export' && <ExportDialog client={whole.id} version={shown.id} title={`${whole.name} ${shown.label}`} onClose={() => setDialog(null)} />}
-      {dialog === 'review' && <NewReview whole={whole} version={shown} onClose={() => setDialog(null)} onMade={() => (setDialog(null), void load().then(() => choose(shown.id, { tab: 'reviews' })))} />}
-      {dialog === 'trash' && (
+      {dialog === 'export' && <ExportDialog client={whole.id} version={shown.id} title={`${project ? `${whole.name}, ${project.name}` : whole.name} ${shown.label}`} onClose={() => setDialog(null)} />}
+      {dialog === 'review' && <NewReview whole={whole} version={own ?? shown} versions={project ? project.versions : undefined} onClose={() => setDialog(null)} onMade={() => (setDialog(null), void load().then(() => choose(shown.id, { tab: 'reviews' })))} />}
+      {dialog === 'trash' && project && (
+        <Confirm title={t('projects.delete')} text={t('projects.deleteText', { name: project.name })} confirm={t('projects.delete')} danger onCancel={() => setDialog(null)} onConfirm={async () => (await clientsApi.deleteProject(whole.id, project.id), navigate(`/c/${whole.id}?tab=projects`))} />
+      )}
+      {dialog === 'trash' && !project && (
         <Confirm title={t('client.trash')} text={t('client.trashText', { name: whole.name })} confirm={t('client.trash')} danger onCancel={() => setDialog(null)} onConfirm={async () => (await clientsApi.trash(whole.id), await brands.refresh(), navigate('/'))} />
       )}
       {dialog === 'deleteDraft' && (
@@ -547,7 +617,7 @@ function EditClient({ whole, onClose, onSaved }: { whole: ClientWhole; onClose: 
   )
 }
 
-function NewVersion({ whole, start, onClose, onMade }: { whole: ClientWhole; start: VersionInfo; onClose: () => void; onMade: (v: VersionInfo) => void }) {
+function NewVersion({ whole, versions, project, start, onClose, onMade }: { whole: ClientWhole; versions: VersionInfo[]; project?: string; start: VersionInfo; onClose: () => void; onMade: (v: VersionInfo) => void }) {
   const { t } = useTranslation()
   const [label, setLabel] = useState('')
   const [source, setSource] = useState(start.id)
@@ -557,11 +627,11 @@ function NewVersion({ whole, start, onClose, onMade }: { whole: ClientWhole; sta
       <div className="space-y-3">
         <p className="text-sm text-mist-400">{t('client.newVersionText')}</p>
         <Input label={t('client.versionName')} value={label} onChange={setLabel} placeholder={t('client.versionNameHint')} />
-        <Select label={t('client.startFrom')} value={source} onChange={setSource} options={[...whole.versions.map((v) => ({ value: v.id, label: v.label })), { value: '', label: t('client.empty') }]} />
+        <Select label={t('client.startFrom')} value={source} onChange={setSource} options={[...versions.map((v) => ({ value: v.id, label: v.label })), { value: '', label: project ? t('projects.allFromClient', { client: whole.name }) : t('client.empty') }]} />
         <Feedback problem={problem} />
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>{t('common.cancel')}</Button>
-          <Button accent busy={busy} disabled={!label.trim()} onClick={() => void run(async () => onMade(await clientsApi.newVersion(whole.id, { label, source: source || undefined })))}>
+          <Button accent busy={busy} disabled={!label.trim()} onClick={() => void run(async () => onMade(await clientsApi.newVersion(whole.id, { label, source: source || undefined, ...(project ? { project_id: project, ...(source ? {} : { data: {} }) } : {}) })))}>
             {t('client.makeDraft')}
           </Button>
         </div>
@@ -595,13 +665,12 @@ function Publish({ whole, version, onClose, onDone }: { whole: ClientWhole; vers
 
 function Projects({ whole, canWrite, reload }: { whole: ClientWhole; canWrite: boolean; reload: () => Promise<unknown> }) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [making, setMaking] = useState(false)
-  const published = whole.versions.filter((v) => v.status === 'published')
-  const current = published[published.length - 1]
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="max-w-2xl text-sm text-mist-500">{t('projects.text')}</p>
+        <p className="max-w-2xl text-sm text-mist-500">{t('projects.text', { client: whole.name })}</p>
         {canWrite && (
           <button type="button" className="nc-btn nc-btn-accent" onClick={() => setMaking(true)}>
             <Plus className="h-4 w-4" /> {t('projects.new')}
@@ -609,36 +678,50 @@ function Projects({ whole, canWrite, reload }: { whole: ClientWhole; canWrite: b
         )}
       </div>
       {!whole.projects.length && <p className="text-sm text-mist-500">{t('projects.none')}</p>}
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" data-testid="project-cards">
         {whole.projects.map((p) => {
-          const base = whole.versions.find((v) => v.id === p.version_id)
-          const behind = base?.status === 'published' && current && base.valid_from < current.valid_from
+          const own = INHERIT_PARTS.filter((part) => p.inherit[part] !== 'inherit')
           return (
-            <Link key={p.id} to={`/c/${whole.id}/p/${p.id}`} className="rounded-2xl border border-ink-700 bg-ink-900 p-4 hover:border-ink-600">
-              <div className="flex items-center gap-2">
-                <FolderKanban className="h-4 w-4 text-accent-400" />
-                <span className="mr-auto font-semibold">{p.name}</span>
-                {base?.status === 'draft' ? (
-                  <span className="rounded-full border border-magenta-500/50 px-2 py-0.5 text-[11px] text-magenta-text">{t('projects.onDraft')}</span>
-                ) : behind ? (
-                  <span className="rounded-full border border-gelb-500/50 px-2 py-0.5 text-[11px] text-gelb-text">{t('projects.on', { label: base?.label })}</span>
+            <Link key={p.id} to={`/c/${whole.id}/p/${p.id}`} className="group overflow-hidden rounded-2xl border border-ink-700 bg-ink-900 hover:border-ink-600">
+              <div className="relative grid h-32 place-items-center overflow-hidden bg-ink-850">
+                {p.face.sample ? (
+                  <img src={mediaUrl(p.face.sample, true)} alt="" className="h-full w-full object-cover object-top transition-transform group-hover:scale-[1.02]" />
                 ) : (
-                  <span className="rounded-full border border-ok-500/40 px-2 py-0.5 text-[11px] text-ok-500">{t('projects.upToDate')}</span>
+                  <ClientMark name={p.name} logo={p.face.mark ?? p.face.logo} colors={p.face.colors} fileUrl={(m) => mediaUrl(m, true)} className="h-14 w-14" />
                 )}
+                <span className="absolute inset-x-0 bottom-0 flex h-1.5">
+                  {p.face.colors.slice(0, 8).map((c, i) => (
+                    <span key={i} className="flex-1" style={{ background: c }} />
+                  ))}
+                </span>
               </div>
-              <p className="mt-1 text-sm text-mist-500">
-                {t('projects.builds', { label: base?.label ?? '?' })} {p.own.length ? t('projects.own', { count: p.own.length }) : t('projects.noOwn')}
-              </p>
+              <div className="space-y-2 p-4">
+                <div className="flex items-center gap-2.5">
+                  {p.face.sample && <ClientMark name={p.name} logo={p.face.mark ?? p.face.logo} colors={p.face.colors} fileUrl={(m) => mediaUrl(m, true)} className="h-9 w-9" />}
+                  <div className="mr-auto min-w-0">
+                    <div className="truncate font-semibold">{p.name}</div>
+                    {p.note && <div className="truncate text-xs text-mist-500">{p.note}</div>}
+                  </div>
+                  {p.behind ? (
+                    <span className="shrink-0 rounded-full border border-gelb-500/50 px-2 py-0.5 text-[11px] text-gelb-text">{t('projects.on', { label: p.base_label })}</span>
+                  ) : p.current ? (
+                    <span className="shrink-0 rounded-full border border-accent-500/40 px-2 py-0.5 text-[11px] text-accent-400">{p.current}</span>
+                  ) : (
+                    <span className="shrink-0 rounded-full border border-magenta-500/50 px-2 py-0.5 text-[11px] text-magenta-text">{t('client.draft')}</span>
+                  )}
+                </div>
+                <p className="text-xs text-mist-500">{own.length ? t('projects.ownParts', { parts: own.map((part) => t(`inherit.part.${part}`)).join(', ') }) : t('projects.allInherited', { client: whole.name })}</p>
+              </div>
             </Link>
           )
         })}
       </div>
-      {making && <NewProject whole={whole} onClose={() => setMaking(false)} onMade={() => (setMaking(false), void reload())} />}
+      {making && <NewProject whole={whole} onClose={() => setMaking(false)} onMade={(made) => (setMaking(false), void reload(), navigate(`/c/${whole.id}/p/${made.id}?v=${made.versions[0]?.id ?? ''}&edit=1`))} />}
     </div>
   )
 }
 
-function NewProject({ whole, onClose, onMade }: { whole: ClientWhole; onClose: () => void; onMade: () => void }) {
+function NewProject({ whole, onClose, onMade }: { whole: ClientWhole; onClose: () => void; onMade: (made: ProjectWhole) => void }) {
   const { t } = useTranslation()
   const published = whole.versions.filter((v) => v.status === 'published')
   const [name, setName] = useState('')
@@ -647,15 +730,58 @@ function NewProject({ whole, onClose, onMade }: { whole: ClientWhole; onClose: (
   return (
     <Dialog title={t('projects.new')} onClose={onClose} medium>
       <div className="space-y-3">
+        <p className="text-sm text-mist-400">{t('projects.newText', { client: whole.name })}</p>
         <Input label={t('projects.name')} value={name} onChange={setName} placeholder={t('projects.nameHint')} />
         <Select label={t('projects.version')} value={version} onChange={setVersion} options={whole.versions.map((v) => ({ value: v.id, label: v.status === 'draft' ? `${v.label} (${t('client.draft')})` : v.label }))} />
         <Feedback problem={problem} />
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>{t('common.cancel')}</Button>
-          <Button accent busy={busy} disabled={!name.trim()} onClick={() => void run(async () => (await clientsApi.newProject(whole.id, { name, version_id: version }), onMade()))}>
+          <Button accent busy={busy} disabled={!name.trim()} onClick={() => void run(async () => onMade(await clientsApi.newProject(whole.id, { name, version_id: version })))}>
             {t('projects.make')}
           </Button>
         </div>
+      </div>
+    </Dialog>
+  )
+}
+
+function RenameProject({ whole, project, onClose, onSaved }: { whole: ClientWhole; project: ProjectWhole; onClose: () => void; onSaved: () => void }) {
+  const { t } = useTranslation()
+  const [name, setName] = useState(project.name)
+  const [note, setNote] = useState(project.note)
+  const { busy, problem, run } = useAction()
+  return (
+    <Dialog title={t('projects.rename')} onClose={onClose} medium>
+      <div className="space-y-3">
+        <Input label={t('projects.name')} value={name} onChange={setName} />
+        <Input label={t('projects.note')} value={note} onChange={setNote} />
+        <Feedback problem={problem} />
+        <div className="flex justify-end gap-2">
+          <Button onClick={onClose}>{t('common.cancel')}</Button>
+          <Button accent busy={busy} disabled={!name.trim()} onClick={() => void run(async () => (await clientsApi.changeProject(whole.id, project.id, { name, note }), onSaved()))}>
+            {t('common.save')}
+          </Button>
+        </div>
+      </div>
+    </Dialog>
+  )
+}
+
+/** Lifting a project to the client's newer version: what changes in the parts it takes from the client, then a draft. */
+function LiftProject({ whole, project, from, to, onClose, onMade }: { whole: ClientWhole; project: ProjectWhole; from: ProjectWhole['versions'][number]; to: VersionInfo; onClose: () => void; onMade: (v: VersionInfo) => void }) {
+  const { t } = useTranslation()
+  const older = whole.versions.find((v) => v.id === from.base_id)
+  const { busy, problem, run } = useAction()
+  return (
+    <Dialog title={t('projects.liftTitle', { from: older?.label ?? '?', to: to.label })} onClose={onClose} wide>
+      <p className="mb-3 text-sm text-mist-400">{t('projects.liftText', { client: whole.name, project: project.name })}</p>
+      {older && <DiffView a={older} b={to} />}
+      <Feedback problem={problem} />
+      <div className="mt-4 flex justify-end gap-2">
+        <Button onClick={onClose}>{t('projects.stay', { label: older?.label ?? '' })}</Button>
+        <Button accent busy={busy} onClick={() => void run(async () => onMade(await clientsApi.newVersion(whole.id, { label: t('projects.liftLabel', { label: to.label }), source: from.id, project_id: project.id, base_id: to.id })))}>
+          <ArrowUpCircle className="h-4 w-4" /> {t('projects.lift', { label: to.label })}
+        </Button>
       </div>
     </Dialog>
   )

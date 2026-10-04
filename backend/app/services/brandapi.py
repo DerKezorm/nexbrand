@@ -73,7 +73,18 @@ def _chosen(
     try:
         if project:
             found = _project(db, client, project)
-            return brands.version_for(db, client, found.version_id), found
+            rows = brands.project_versions(db, found)
+            if version:
+                key = version.casefold().strip()
+                chosen = next((v for v in rows if v.id == version or v.label.casefold() == key), None)
+            elif at:
+                held = [v for v in rows if v.status == "published" and v.valid_from <= brands.day(at)]
+                chosen = held[-1] if held else None
+            else:
+                chosen = brands.project_shown(db, found)
+            if chosen is None:
+                raise ApiError("no_version", "No such version of this project.", 404)
+            return chosen, found
         if version:
             return _version(db, client, version), None
         row = brands.valid_on(db, client, at) if at else brands.current(db, client)
@@ -140,17 +151,17 @@ def brand(
 ) -> dict[str, Any]:
     client = find_client(db, caller, client_key)
     row, chosen_project = _chosen(db, client, version=version, at=at, project=project)
-    data = brandset.for_public(row.data)
-    if chosen_project is not None:
-        data["colors"] = brands.project_colors(row, chosen_project)
+    shown = brands.effective(db, row)
+    data = brandset.for_public(shown)
+    current = brands.project_current(db, chosen_project) if chosen_project else brands.current(db, client)
     return {
         "client": {"id": client.id, "name": client.name, "sector": client.sector},
         "project": {"id": chosen_project.id, "name": chosen_project.name} if chosen_project else None,
         "version": version_summary(row),
-        "current": row.status == "published" and brands.current(db, client) is row,
+        "current": row.status == "published" and current is not None and current.id == row.id,
         "design": data,
-        "files": files_of(db, row.data, base),
-        "checks": checks.check(row.data, data["colors"] if chosen_project else None),
+        "files": files_of(db, shown, base),
+        "checks": checks.check(shown),
     }
 
 
@@ -167,9 +178,8 @@ def as_code(
         raise ApiError("invalid_input", "Formats: css, tailwind, scss, json.")
     client = find_client(db, caller, client_key)
     row, chosen_project = _chosen(db, client, version=version, at=at, project=project)
-    color_list = brands.project_colors(row, chosen_project) if chosen_project else None
     title = f"{client.name}, {chosen_project.name}" if chosen_project else client.name
-    return tokens.render(row.data, fmt, color_list=color_list, title=f"{title} {row.label}")
+    return tokens.render(brands.effective(db, row), fmt, title=f"{title} {row.label}")
 
 
 def compare(db: Session, caller: Caller, client_key: str, older: str, newer: str) -> dict[str, Any]:
@@ -205,9 +215,10 @@ def audit(
     if not found and not css:
         raise ApiError("invalid_input", "Give colours, a style sheet or both.")
     client = find_client(db, caller, client_key)
-    row, chosen_project = _chosen(db, client, project=project)
-    palette = brands.project_colors(row, chosen_project) if chosen_project else row.data.get("colors", [])
-    sheet = checks.css_audit(css, palette, row.data.get("rules", [])) if css else None
+    row, _ = _chosen(db, client, project=project)
+    shown = brands.effective(db, row)
+    palette = shown.get("colors", [])
+    sheet = checks.css_audit(css, palette, shown.get("rules", [])) if css else None
     if sheet is not None:
         found = [*found, *(value for value in sheet.pop("values") if value not in found)]
     out = []

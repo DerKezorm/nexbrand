@@ -296,6 +296,13 @@ class BrandVersion(Base):
     author: Mapped[str] = mapped_column(String(120), default="")
     note: Mapped[str] = mapped_column(String(500), default="")
     data: Mapped[Any] = mapped_column(JSON)
+    #: A version of a project (``services/inherit.py``); None: of the client's own design set. Not a foreign key:
+    #: projects point at versions already (``Project.version_id``), and a circle of keys cannot be created in order.
+    #: ``brands.delete_project`` takes the versions along; the client's cascade does when the client goes.
+    project_id: Mapped[str | None] = mapped_column(String(24), nullable=True, index=True)
+    #: For a project's version: the client's version it stands on. Not a foreign key: deleting a draft somebody
+    #: stands on is refused in ``services/brands.py``.
+    base_id: Mapped[str | None] = mapped_column(String(24), nullable=True, index=True)
     #: The version this one was made from, and its name then (kept when that one is deleted). None: started from a
     #: design set given, or empty, or made before 05.10.2026.
     source_id: Mapped[str | None] = mapped_column(String(24), nullable=True)
@@ -307,9 +314,11 @@ class BrandVersion(Base):
 
 
 class Project(Base):
-    """A client's project. It builds on one version of the design set and keeps it until somebody lifts it to a newer
-    one on purpose, so a reprint looks like the first print. Its own colours replace one of the version by name or
-    come on top."""
+    """A client's project (an app, a product, a campaign) with a design set of its own: versions like the client's,
+    each standing on a version of the client's and taking each part from it, adding to it, or having it its own
+    (``services/inherit.py``). It stays on that version until somebody lifts it, so a reprint looks like the first
+    print. ``version_id`` follows the client version its newest version stands on; ``own`` is from before
+    05.10.2026 (moved into a first version at start, ``services/regroup.py``)."""
 
     __tablename__ = "projects"
 
@@ -378,8 +387,10 @@ class Share(Base):
     token: Mapped[str] = mapped_column(String(64), unique=True)
     client_id: Mapped[str] = mapped_column(ForeignKey("clients.id", ondelete="CASCADE"), index=True)
     space_id: Mapped[int] = mapped_column(ForeignKey("spaces.id", ondelete="CASCADE"), index=True)
-    #: A fixed published version; empty: always the current one.
+    #: A fixed published version; empty: always the current one (of the project, with ``project_id``).
     version_id: Mapped[str | None] = mapped_column(ForeignKey("brand_versions.id", ondelete="CASCADE"), nullable=True)
+    #: A page of one project; empty: of the client's own design set.
+    project_id: Mapped[str | None] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
     label: Mapped[str] = mapped_column(String(120), default="")
     views: Mapped[int] = mapped_column(Integer, default=0)
     created_by: Mapped[int | None] = mapped_column(ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True)

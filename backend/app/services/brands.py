@@ -33,7 +33,7 @@ from ..models import (
     Visit,
     utcnow,
 )
-from . import brandset
+from . import brandset, inherit
 
 logger = logging.getLogger("nexbrand.brands")
 
@@ -243,13 +243,45 @@ def visit(db: Session, account: Account, client: Client) -> None:
 # --- Versions ---------------------------------------------------------------------------------------------------
 
 
-def versions(db: Session, client: Client) -> list[BrandVersion]:
-    """Published ones by their day, then the drafts by when they were made."""
-    rows = list(db.scalars(select(BrandVersion).where(BrandVersion.client_id == client.id)))
+def _in_order(rows: list[BrandVersion]) -> list[BrandVersion]:
     published = sorted((v for v in rows if v.status == PUBLISHED),
                        key=lambda v: (v.valid_from, v.published_at or v.created_at))
     drafts = sorted((v for v in rows if v.status == DRAFT), key=lambda v: v.created_at)
     return published + drafts
+
+
+def versions(db: Session, client: Client) -> list[BrandVersion]:
+    """The client's own versions (not its projects'): published ones by their day, then the drafts."""
+    return _in_order(list(db.scalars(select(BrandVersion).where(BrandVersion.client_id == client.id,
+                                                                BrandVersion.project_id.is_(None)))))
+
+
+def all_versions(db: Session, client: Client) -> list[BrandVersion]:
+    """The client's and all its projects' versions (for its files)."""
+    return list(db.scalars(select(BrandVersion).where(BrandVersion.client_id == client.id)))
+
+
+def project_versions(db: Session, project: Project) -> list[BrandVersion]:
+    return _in_order(list(db.scalars(select(BrandVersion).where(BrandVersion.project_id == project.id))))
+
+
+def project_current(db: Session, project: Project) -> BrandVersion | None:
+    published = [v for v in project_versions(db, project) if v.status == PUBLISHED]
+    return published[-1] if published else None
+
+
+def project_shown(db: Session, project: Project) -> BrandVersion | None:
+    """The version a project is shown and handed out with: the current one, or else its newest draft."""
+    rows = project_versions(db, project)
+    return project_current(db, project) or (rows[-1] if rows else None)
+
+
+def effective(db: Session, row: BrandVersion) -> dict[str, Any]:
+    """The design set a version shows: the client's own as it is, a project's on the client version it stands on."""
+    if row.project_id is None:
+        return row.data
+    base = db.get(BrandVersion, row.base_id) if row.base_id else None
+    return inherit.resolve(base.data if base is not None else brandset.empty(), row.data)
 
 
 def current(db: Session, client: Client) -> BrandVersion | None:
@@ -271,11 +303,13 @@ def version_for(db: Session, client: Client, version_id: str) -> BrandVersion:
     return row
 
 
-def _free_label(db: Session, client: Client, label: str) -> str:
+def _free_label(db: Session, client: Client, label: str, project: Project | None = None) -> str:
     """``label``, or with a number behind it when the client already has a version of that name: two collected
     drafts of one day, or a draft named like the published version, could not be told apart (in the list, and in
     the question before a draft is deleted)."""
-    names = db.scalars(select(BrandVersion.label).where(BrandVersion.client_id == client.id))
+    names = db.scalars(select(BrandVersion.label).where(
+        BrandVersion.client_id == client.id,
+        BrandVersion.project_id == project.id if project is not None else BrandVersion.project_id.is_(None)))
     taken = {name.casefold() for name in names}
     if label.casefold() not in taken:
         return label
@@ -289,7 +323,8 @@ def _free_label(db: Session, client: Client, label: str) -> str:
 
 def create_version(
     db: Session, account: Account, client: Client, *, label: str, source: BrandVersion | None = None,
-    data: Any = None, note: str = "", origin: str = "hand", author: str = "",
+    data: Any = None, note: str = "", origin: str = "hand", author: str = "", project: Project | None = None,
+    base: BrandVersion | None = None,
 ) -> BrandVersion:
     """A new draft: a copy of ``source``, the design set given, or an empty one. With both, the set given is the
     content and ``source`` is kept as where it came from (a redesign over MCP, a collected logo on the current
@@ -300,12 +335,26 @@ def create_version(
     if count >= MAX_VERSIONS or drafts >= MAX_DRAFTS:
         raise BrandError("too_many_versions", "This client has as many versions as it may hold.", 409)
     content = data if data is not None else (source.data if source is not None else brandset.empty())
-    label = _free_label(db, client, _text(label, 60, "invalid_label", required=True))
+    if project is not None:
+        # A project's version stands on a version of the client's own: the one given, the one its source stood on,
+        # the one its newest version stands on, or the client's current one.
+        if source is not None and source.project_id != project.id:
+            raise BrandError("not_found", "Not found.", 404)
+        newest = project_versions(db, project)
+        base = base or (db.get(BrandVersion, source.base_id) if source is not None and source.base_id else None) \
+            or (db.get(BrandVersion, newest[-1].base_id) if newest and newest[-1].base_id else None) \
+            or current(db, client)
+        if base is None or base.client_id != client.id or base.project_id is not None:
+            raise BrandError("no_base", "A project stands on a version of its client; this client has none.", 409)
+        project.version_id = base.id
+    label = _free_label(db, client, _text(label, 60, "invalid_label", required=True), project)
     row = BrandVersion(id=new_id(), client_id=client.id, label=label,
                        status=DRAFT, origin=origin if origin in ORIGINS else "hand", note=_note(note, 500),
                        author=author or account.display_name or account.name, data=checked(db, client, content),
                        source_id=source.id if source is not None else None,
-                       source_label=source.label if source is not None else None)
+                       source_label=source.label if source is not None else None,
+                       project_id=project.id if project is not None else None,
+                       base_id=base.id if project is not None and base is not None else None)
     db.add(row)
     touch(client, account)
     db.commit()
@@ -372,7 +421,8 @@ def review_news(db: Session, client_id: str, review_id: int | None = None) -> in
 def delete_draft(db: Session, account: Account, client: Client, row: BrandVersion) -> None:
     if row.status != DRAFT:
         raise BrandError("published", "A published version stays, for the history.", 409)
-    if db.scalar(select(func.count()).select_from(Project).where(Project.version_id == row.id)):
+    if db.scalar(select(func.count()).select_from(BrandVersion).where(BrandVersion.base_id == row.id)) or \
+            db.scalar(select(func.count()).select_from(Project).where(Project.version_id == row.id)):
         raise BrandError("in_use", "A project builds on this draft. Move the project first.", 409)
     db.delete(row)
     touch(client, account)
@@ -385,17 +435,23 @@ def delete_draft(db: Session, account: Account, client: Client, row: BrandVersio
 
 def create_project(
     db: Session, account: Account, client: Client, *, name: str, version_id: str, note: str = "",
-    own: Any = None,
+    own: Any = None, data: Any = None,
 ) -> Project:
+    """A project on a version of the client's, with a first draft that takes everything from it (or the set given,
+    in the shape of ``services/inherit.py``); ``own``: colours of its own on top, as projects had them before."""
     count = db.scalar(select(func.count()).select_from(Project).where(Project.client_id == client.id)) or 0
     if count >= MAX_PROJECTS:
         raise BrandError("too_many_projects", "This client has as many projects as it may hold.", 409)
     version = version_for(db, client, version_id)
+    if version.project_id is not None:
+        raise BrandError("not_found", "Not found.", 404)
     row = Project(id=new_id(), client_id=client.id, name=_text(name, 120, "invalid_name", required=True),
-                  version_id=version.id, note=_note(note, 500), own=_own(own))
+                  version_id=version.id, note=_note(note, 500), own=[])
     db.add(row)
-    touch(client, account)
-    db.commit()
+    db.flush()
+    colors = _own(own)
+    first = data if data is not None else ({"inherit": {"colors": "extend"}, "colors": colors} if colors else {})
+    create_version(db, account, client, label="1.0", data=first, project=row, base=version)
     logger.info("Project made client=%s project=%s by=%s", client.id, row.id, account.name)
     return row
 
@@ -416,16 +472,14 @@ def project_for(db: Session, client: Client, project_id: str) -> Project:
 
 def change_project(
     db: Session, account: Account, client: Client, row: Project, *, name: str | None = None,
-    note: str | None = None, version_id: str | None = None, own: Any = None,
+    note: str | None = None,
 ) -> Project:
+    """Its name and note. What it looks like changes in its versions; standing on a newer client version is a new
+    draft (``create_version`` with ``base``)."""
     if name is not None:
         row.name = _text(name, 120, "invalid_name", required=True)
     if note is not None:
         row.note = _note(note, 500)
-    if version_id is not None:
-        row.version_id = version_for(db, client, version_id).id
-    if own is not None:
-        row.own = _own(own)
     row.updated_at = utcnow()
     touch(client, account)
     db.commit()
@@ -433,18 +487,33 @@ def change_project(
 
 
 def delete_project(db: Session, account: Account, client: Client, row: Project) -> None:
-    """Gone at once: a project holds only its name, a pointer and a few colours, nothing to restore."""
+    """Gone at once, with its versions (the client's stay)."""
+    for version in project_versions(db, row):
+        db.delete(version)
     db.delete(row)
     touch(client, account)
     db.commit()
 
 
-def project_colors(version: BrandVersion, project: Project) -> list[dict[str, Any]]:
-    """The version's colours with the project's own: replacing by name, or added. ``from`` says which is which."""
-    own = {color["name"].casefold(): color for color in project.own or []}
-    out = []
-    for color in version.data.get("colors", []):
-        replaced = own.pop(color["name"].casefold(), None)
-        out.append({**(replaced or color), "from": "replaced" if replaced else "inherited"})
-    out.extend({**color, "from": "own"} for color in own.values())
-    return out
+def adopt_projects(db: Session) -> int:
+    """Projects from before 05.10.2026 (a pointer to a client version, a few colours of their own) become a first
+    published version that takes everything from that client version and adds those colours. Run at start."""
+    moved = 0
+    for project in db.scalars(select(Project)).all():
+        if db.scalar(select(func.count()).select_from(BrandVersion).where(BrandVersion.project_id == project.id)):
+            continue
+        base = db.get(BrandVersion, project.version_id)
+        if base is None:
+            continue
+        colors = project.own or []
+        data = {"inherit": {"colors": "extend"}, "colors": colors} if colors else {}
+        db.add(BrandVersion(id=new_id(), client_id=project.client_id, project_id=project.id, base_id=base.id,
+                            label="1.0", status=PUBLISHED, origin="hand", note="", author="",
+                            data=brandset.clean(data), valid_from=project.created_at.date().isoformat(),
+                            created_at=project.created_at, updated_at=project.updated_at,
+                            published_at=project.created_at, published_by="nexbrand"))
+        moved += 1
+    if moved:
+        db.commit()
+        logger.info("Projects given versions of their own count=%s", moved)
+    return moved

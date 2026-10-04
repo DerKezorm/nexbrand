@@ -1031,35 +1031,34 @@
     "tabReviewsNews": "Abstimmung · {{count}} neu"
   },
   "projects": {
-    "text": "Ein Projekt baut auf einer Fassung auf und bleibt dort, bis jemand es hebt. Eigene Farben gelten nur im Projekt.",
+    "text": "Ein Projekt ist eine App, ein Produkt oder eine Kampagne von {{client}} mit eigener CI. Jeder Teil kommt von {{client}}, von {{client}} plus Eigenem, oder ist ganz eigen.",
     "new": "Neues Projekt",
     "none": "Noch keine Projekte.",
-    "onDraft": "auf Entwurf",
     "on": "auf {{label}}",
-    "upToDate": "aktuell",
-    "builds": "Baut auf {{label}} auf.",
-    "own_one": "{{count}} eigene Farbe.",
-    "own_other": "{{count}} eigene Farben.",
-    "noOwn": "Keine Abweichung.",
     "name": "Name des Projekts",
     "nameHint": "etwa Webseite Relaunch",
     "version": "Baut auf",
     "make": "Anlegen",
     "missing": "Dieses Projekt gibt es nicht mehr.",
-    "pageText": "Baut auf der Fassung {{label}} auf. Eigene Farben gelten nur hier; alles andere kommt aus der Fassung.",
     "rename": "Umbenennen",
     "note": "Notiz",
-    "ownColors": "Eigene Farben",
-    "behind": "Dieses Projekt steht auf {{label}}, aktuell ist {{current}}. Das ist Absicht, bis jemand es hebt: ein Nachdruck sieht aus wie damals.",
-    "whatChanges": "Was ändert sich?",
-    "onDraftText": "Baut auf dem Entwurf {{label}}: Änderungen daran sieht das Projekt sofort.",
+    "onDraftText": "Das ist ein Entwurf von {{label}}: Änderungen daran sieht das Projekt sofort.",
     "liftTitle": "Von {{from}} auf {{to}}",
-    "ownStay": "Eigene Farben bleiben: {{names}}.",
     "stay": "Auf {{label}} lassen",
-    "lift": "Auf {{label}} heben",
-    "ownText": "Eine Farbe mit dem Namen einer Farbe der Fassung ersetzt sie ({{names}}); andere kommen dazu.",
+    "lift": "Entwurf auf {{label}}",
     "delete": "Projekt löschen",
-    "deleteText": "{{name}} löschen? Die Fassungen des Kunden bleiben."
+    "deleteText": "{{name}} löschen? Die Fassungen des Kunden bleiben.",
+    "newText": "Das Projekt steht auf einer Fassung von {{client}} und übernimmt zunächst alles. Im Entwurf legst du fest, was eigen ist.",
+    "standsOn": "auf {{client}} {{label}}",
+    "base": "Steht auf {{client}} {{label}}.",
+    "newer": "{{label}} ist neuer; geerbte Teile sehen aus wie in der alten Fassung, bis jemand das Projekt hebt.",
+    "liftTo": "Auf {{label}} heben",
+    "liftText": "So ändert sich, was {{project}} von {{client}} übernimmt. Was das Projekt selbst festlegt, bleibt. Heben macht einen neuen Entwurf.",
+    "liftLabel": "Auf {{label}}",
+    "allFromClient": "alles wie {{client}}",
+    "ownParts": "Eigen: {{parts}}",
+    "allInherited": "Alles wie {{client}}",
+    "draftOnly": "Noch gibt es keine veröffentlichte Fassung von {{project}}; Export und API zeigen solange diesen Entwurf."
   },
   "set": {
     "tabsLabel": "Teile der CI",
@@ -1883,5 +1882,53 @@
     "showDark": "Beispielseite dunkel",
     "showLight": "Beispielseite hell",
     "addedNote": "Für den Dunkelmodus ergänzt."
+  },
+  "inherit": {
+    "part": {
+      "colors": "Farben",
+      "fonts": "Schriften",
+      "logos": "Logos",
+      "scale": "Größen",
+      "rules": "Regeln",
+      "samples": "Beispiele",
+      "dark": "Dunkelmodus"
+    },
+    "mode": {
+      "inherit": "wie {{from}}",
+      "extend": "wie {{from}}, plus eigene",
+      "own": "eigen"
+    },
+    "short": {
+      "inherit": "geerbt",
+      "extend": "plus eigene",
+      "own": "eigen"
+    },
+    "says": {
+      "inherit": "{{part}} kommen von {{from}} und ändern sich dort.",
+      "extend": "{{part}} von {{from}}, dazu was nur dieses Projekt hat. Gleicher Name ersetzt.",
+      "own": "{{part}} gehören nur diesem Projekt."
+    },
+    "whereFrom": "Woher kommen die {{part}}?",
+    "fromClient": "Von {{from}}",
+    "ownHere": "Nur in diesem Projekt",
+    "nothing": "Dort ist nichts festgelegt."
+  },
+  "ui": {
+    "tab": "UI-Elemente",
+    "text": "Aus den Farben, Schriften und dem Dunkelmodus dieser CI gezeichnet. Ändert sich mit ihr; nichts hochzuladen.",
+    "noColors": "Für UI-Elemente braucht es Farben.",
+    "buttons": "Knöpfe",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "link": "Mehr erfahren",
+    "fields": "Eingaben",
+    "search": "Suchen …",
+    "switch": "Benachrichtigungen an",
+    "card": "Karte",
+    "new": "Neu",
+    "cardText": "So sieht eine Karte mit dieser CI aus: Fläche, Text, leiser Text, Kennzeichen.",
+    "badges": "Kennzeichen",
+    "draft": "Entwurf",
+    "code": "Die Werte stehen unter „Als Code“: CSS, Tailwind, SCSS und JSON, mit dem Dunkelmodus."
   }
 }

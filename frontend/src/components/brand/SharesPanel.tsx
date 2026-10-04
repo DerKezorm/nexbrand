@@ -8,12 +8,13 @@ import { useAuth } from '../../state/auth'
 import { Dialog } from '../Dialog'
 
 /** The public pages of a client: for a printer, a photographer, the client. Managers make them. */
-export function SharesPanel({ client, versions, canManage }: { client: string; versions: VersionInfo[]; canManage: boolean }) {
+/** `project`: the pages of one project; none: of the client's own design set. */
+export function SharesPanel({ client, versions, canManage, project }: { client: string; versions: VersionInfo[]; canManage: boolean; project?: string }) {
   const { t, i18n } = useTranslation()
   const { me } = useAuth()
   const [shares, setShares] = useState<ShareInfo[]>([])
   const [making, setMaking] = useState(false)
-  const load = useCallback(() => void sharesApi.list(client).then(setShares).catch(() => setShares([])), [client])
+  const load = useCallback(() => void sharesApi.list(client).then((all) => setShares(all.filter((s) => (s.project_id ?? undefined) === project))).catch(() => setShares([])), [client, project])
   useEffect(load, [load])
   const published = versions.filter((v) => v.status === 'published')
   const allowed = me?.shares_allowed !== false
@@ -50,12 +51,12 @@ export function SharesPanel({ client, versions, canManage }: { client: string; v
           <CopyLink value={s.link} label={t('shares.link')} />
         </article>
       ))}
-      {making && <NewShare client={client} versions={published} onClose={() => setMaking(false)} onMade={() => (setMaking(false), load())} />}
+      {making && <NewShare client={client} project={project} versions={published} onClose={() => setMaking(false)} onMade={() => (setMaking(false), load())} />}
     </div>
   )
 }
 
-function NewShare({ client, versions, onClose, onMade }: { client: string; versions: VersionInfo[]; onClose: () => void; onMade: () => void }) {
+function NewShare({ client, project, versions, onClose, onMade }: { client: string; project?: string; versions: VersionInfo[]; onClose: () => void; onMade: () => void }) {
   const { t } = useTranslation()
   const [label, setLabel] = useState('')
   const [fixed, setFixed] = useState('')
@@ -91,7 +92,7 @@ function NewShare({ client, versions, onClose, onMade }: { client: string; versi
         <Feedback problem={problem} />
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>{t('common.cancel')}</Button>
-          <Button accent busy={busy} onClick={() => void run(async () => (await sharesApi.create(client, { label, version_id: fixed || null, days: days ? Number(days) : null, password }), onMade()))}>
+          <Button accent busy={busy} onClick={() => void run(async () => (await sharesApi.create(client, { label, version_id: fixed || null, project_id: project ?? null, days: days ? Number(days) : null, password }), onMade()))}>
             {t('shares.make')}
           </Button>
         </div>

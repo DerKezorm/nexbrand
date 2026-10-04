@@ -1031,35 +1031,34 @@
     "tabReviewsNews": "Review · {{count}} new"
   },
   "projects": {
-    "text": "A project builds on a version and stays there until somebody lifts it. Its own colours hold in the project only.",
+    "text": "A project is an app, a product or a campaign of {{client}} with a CI of its own. Each part comes from {{client}}, from {{client}} plus its own, or is its own.",
     "new": "New project",
     "none": "No projects yet.",
-    "onDraft": "on a draft",
     "on": "on {{label}}",
-    "upToDate": "current",
-    "builds": "Builds on {{label}}.",
-    "own_one": "{{count}} colour of its own.",
-    "own_other": "{{count}} colours of its own.",
-    "noOwn": "No change.",
     "name": "Project name",
     "nameHint": "e.g. Website relaunch",
     "version": "Builds on",
     "make": "Create",
     "missing": "This project does not exist any more.",
-    "pageText": "Builds on version {{label}}. Its own colours hold here only; everything else comes from the version.",
     "rename": "Rename",
     "note": "Note",
-    "ownColors": "Own colours",
-    "behind": "This project is on {{label}}, the current version is {{current}}. That is on purpose until somebody lifts it: a reprint looks like the first print.",
-    "whatChanges": "What changes?",
-    "onDraftText": "Builds on the draft {{label}}: the project sees changes to it at once.",
+    "onDraftText": "That is a draft of {{label}}: the project sees changes to it at once.",
     "liftTitle": "From {{from}} to {{to}}",
-    "ownStay": "Own colours stay: {{names}}.",
-    "stay": "Keep {{label}}",
-    "lift": "Lift to {{label}}",
-    "ownText": "A colour with the name of one of the version replaces it ({{names}}); others come on top.",
+    "stay": "Leave on {{label}}",
+    "lift": "Draft on {{label}}",
     "delete": "Delete project",
-    "deleteText": "Delete {{name}}? The client's versions stay."
+    "deleteText": "Delete {{name}}? The client's versions stay.",
+    "newText": "The project stands on a version of {{client}} and takes everything from it at first. In the draft you set what is its own.",
+    "standsOn": "on {{client}} {{label}}",
+    "base": "Stands on {{client}} {{label}}.",
+    "newer": "{{label}} is newer; inherited parts look as in the older version until somebody lifts the project.",
+    "liftTo": "Lift to {{label}}",
+    "liftText": "This is how what {{project}} takes from {{client}} changes. What the project sets itself stays. Lifting makes a new draft.",
+    "liftLabel": "On {{label}}",
+    "allFromClient": "everything as {{client}}",
+    "ownParts": "Own: {{parts}}",
+    "allInherited": "Everything as {{client}}",
+    "draftOnly": "{{project}} has no published version yet; export and API show this draft until then."
   },
   "set": {
     "tabsLabel": "Parts of the CI",
@@ -1883,5 +1882,53 @@
     "showDark": "Sample page dark",
     "showLight": "Sample page light",
     "addedNote": "Added for dark mode."
+  },
+  "inherit": {
+    "part": {
+      "colors": "Colours",
+      "fonts": "Fonts",
+      "logos": "Logos",
+      "scale": "Sizes",
+      "rules": "Rules",
+      "samples": "Examples",
+      "dark": "Dark mode"
+    },
+    "mode": {
+      "inherit": "as {{from}}",
+      "extend": "as {{from}}, plus its own",
+      "own": "its own"
+    },
+    "short": {
+      "inherit": "inherited",
+      "extend": "plus own",
+      "own": "own"
+    },
+    "says": {
+      "inherit": "{{part}} come from {{from}} and change there.",
+      "extend": "{{part}} of {{from}}, and what only this project has. The same name replaces.",
+      "own": "{{part}} belong to this project only."
+    },
+    "whereFrom": "Where do the {{part}} come from?",
+    "fromClient": "From {{from}}",
+    "ownHere": "Only in this project",
+    "nothing": "Nothing set there."
+  },
+  "ui": {
+    "tab": "UI elements",
+    "text": "Drawn from the colours, fonts and dark mode of this CI. They change with it; nothing to upload.",
+    "noColors": "UI elements need colours.",
+    "buttons": "Buttons",
+    "save": "Save",
+    "cancel": "Cancel",
+    "link": "Learn more",
+    "fields": "Fields",
+    "search": "Search …",
+    "switch": "Notifications on",
+    "card": "Card",
+    "new": "New",
+    "cardText": "This is a card in this CI: surface, text, quiet text, badge.",
+    "badges": "Badges",
+    "draft": "Draft",
+    "code": "The values are under “As code”: CSS, Tailwind, SCSS and JSON, with the dark mode."
   }
 }

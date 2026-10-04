@@ -5,6 +5,7 @@
  */
 
 import type { BrandColor, BrandLogo, BrandSet } from '../lib/brand'
+import type { Modes, OwnSet } from '../lib/inherit'
 
 export class ApiError extends Error {
   constructor(
@@ -204,12 +205,36 @@ export type VersionInfo = {
   published_at: string | null
   published_by: string
   data: BrandSet
+  /** A version of a project; null: of the client's own design set. */
+  project_id?: string | null
+  /** For a project's version: the client version it stands on. */
+  base_id?: string | null
 }
 
-export type ProjectInfo = { id: string; name: string; version_id: string; note: string; own: BrandColor[]; created_at: string; updated_at: string }
+/** A project in the client's list: what it stands on, how far it is, what it looks like. */
+export type ProjectInfo = {
+  id: string
+  name: string
+  note: string
+  version_id: string
+  current: string | null
+  drafts: number
+  base_id: string | null
+  base_label: string | null
+  /** On an older published client version than the current one. */
+  behind: boolean
+  inherit: Modes
+  face: ClientFace
+  created_at: string
+  updated_at: string
+}
+
+/** A project version: `data` is what is its own (with `inherit`), `resolved` what it shows. */
+export type ProjectVersion = VersionInfo & { data: OwnSet & BrandSet; resolved: BrandSet; base_label: string | null; parts: Record<string, ('client' | 'project')[]> }
+export type ProjectWhole = ProjectInfo & { versions: ProjectVersion[] }
 
 /** What the overview shows of a client: colours, the small logo and fonts of its current version. */
-export type ClientFace = { colors: string[]; logo: BrandLogo | null; mark?: BrandLogo | null; fonts?: string[] }
+export type ClientFace = { colors: string[]; logo: BrandLogo | null; mark?: BrandLogo | null; fonts?: string[]; sample?: string | null }
 
 export type ClientLink = { kind: 'website' | 'repo'; url: string; label: string }
 
@@ -252,6 +277,7 @@ export type ClientWhole = Omit<ClientInfo, 'projects'> & {
 
 export type ShareInfo = {
   id: number
+  project_id: string | null
   label: string
   link: string
   version_id: string | null
@@ -449,9 +475,9 @@ export const clientsApi = {
   trash: (id: string) => api<void>(`/api/clients/${id}`, { method: 'DELETE' }),
   restore: (id: string) => api<ClientInfo>(`/api/clients/${id}/restore`, { method: 'POST' }),
   purge: (id: string) => api<void>(`/api/clients/${id}/purge`, { method: 'DELETE' }),
-  newVersion: (id: string, body: { label: string; source?: string; data?: BrandSet; note?: string; origin?: 'hand' | 'collect' }) =>
+  newVersion: (id: string, body: { label: string; source?: string; data?: BrandSet | OwnSet; note?: string; origin?: 'hand' | 'collect'; project_id?: string; base_id?: string }) =>
     api<VersionInfo>(`/api/clients/${id}/versions`, { method: 'POST', body }),
-  saveDraft: (id: string, version: string, change: { label?: string; note?: string; data?: BrandSet }) =>
+  saveDraft: (id: string, version: string, change: { label?: string; note?: string; data?: BrandSet | OwnSet }) =>
     api<VersionInfo>(`/api/clients/${id}/versions/${version}`, { method: 'PUT', body: change }),
   publish: (id: string, version: string, body: { valid_from?: string; label?: string }) =>
     api<VersionInfo>(`/api/clients/${id}/versions/${version}/publish`, { method: 'POST', body }),
@@ -462,16 +488,17 @@ export const clientsApi = {
     }).then((r) => (r.ok ? r.text() : Promise.reject(new ApiError(r.status, 'internal_error')))),
   exportUrl: (id: string, query: { format: ExportFormat; version?: string; project?: string }) =>
     `/api/clients/${encodeURIComponent(id)}/export?` + new URLSearchParams([...Object.entries(query).filter(([, v]) => v), ['download', 'true']] as [string, string][]).toString(),
-  newProject: (id: string, body: { name: string; version_id: string; note?: string; own?: BrandColor[] }) =>
-    api<ProjectInfo>(`/api/clients/${id}/projects`, { method: 'POST', body }),
-  changeProject: (id: string, project: string, change: { name?: string; note?: string; version_id?: string; own?: BrandColor[] }) =>
-    api<ProjectInfo>(`/api/clients/${id}/projects/${project}`, { method: 'PATCH', body: change }),
+  newProject: (id: string, body: { name: string; version_id: string; note?: string; own?: BrandColor[]; data?: OwnSet }) =>
+    api<ProjectWhole>(`/api/clients/${id}/projects`, { method: 'POST', body }),
+  project: (id: string, project: string) => api<ProjectWhole>(`/api/clients/${id}/projects/${project}`),
+  changeProject: (id: string, project: string, change: { name?: string; note?: string }) =>
+    api<ProjectWhole>(`/api/clients/${id}/projects/${project}`, { method: 'PATCH', body: change }),
   deleteProject: (id: string, project: string) => api<void>(`/api/clients/${id}/projects/${project}`, { method: 'DELETE' }),
 }
 
 export const sharesApi = {
   list: (client: string) => api<ShareInfo[]>(`/api/clients/${client}/shares`),
-  create: (client: string, body: { label: string; version_id?: string | null; days?: number | null; password?: string }) =>
+  create: (client: string, body: { label: string; version_id?: string | null; project_id?: string | null; days?: number | null; password?: string }) =>
     api<ShareInfo>(`/api/clients/${client}/shares`, { method: 'POST', body }),
   change: (id: number, change: { label?: string; days?: number; forever?: boolean; password?: string; no_password?: boolean }) =>
     api<ShareInfo>(`/api/shares/${id}`, { method: 'PATCH', body: change }),
