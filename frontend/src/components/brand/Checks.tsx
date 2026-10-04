@@ -26,6 +26,11 @@ export function useHintText() {
       logo: hint.logo ?? '',
       size: hint.size ?? '',
       font: hint.font ?? '',
+      rule: hint.rule !== undefined ? hint.rule + 1 : '',
+      missing: hint.missing ?? '',
+      step: hint.step ?? '',
+      min: hint.min ?? '',
+      need: hint.need !== undefined ? formatRatio(hint.need, i18n.language) : '',
     }
     const text = t(`checks.${hint.code}.text`, values) + (hint.better ? ' ' + t('checks.better', values) : '')
     return { title: t(`checks.${hint.code}.title`, values), text }

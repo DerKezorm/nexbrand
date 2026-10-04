@@ -1185,6 +1185,46 @@
       "largeAA": "Large text AA, 3:1",
       "largeAAA": "Large text AAA, 4.5:1",
       "graphics": "Graphics and symbols, 3:1"
+    },
+    "rule_missing": {
+      "title": "Rule {{rule}}: “{{missing}}” is gone",
+      "text": "The rule points at a colour, logo or font the set no longer has. Renamed or deleted? Adjust the rule."
+    },
+    "rule_pair_low": {
+      "title": "Allowed, but too faint: {{a}} on {{b}} {{ratio}}",
+      "text": "The rule allows the pair; that takes {{need}}."
+    },
+    "rule_conflict": {
+      "title": "{{a}} on {{b}} is allowed and forbidden",
+      "text": "Two rules contradict each other. One has to go."
+    },
+    "rule_pair_logo": {
+      "title": "Logo “{{logo}}” breaks a rule",
+      "text": "It shows {{a}} on {{b}}, and that pair is forbidden."
+    },
+    "rule_logo_ground_do": {
+      "title": "Logo “{{logo}}” stands on {{a}}",
+      "text": "A rule allows it on other grounds only."
+    },
+    "rule_logo_ground_dont": {
+      "title": "Logo “{{logo}}” stands on {{a}}",
+      "text": "A rule forbids exactly this ground."
+    },
+    "rule_logo_contrast": {
+      "title": "Logo “{{logo}}” on {{a}}: only {{ratio}}",
+      "text": "A rule allows this ground, but parts of the logo do not reach 3:1 on it."
+    },
+    "rule_font_wrong": {
+      "title": "{{step}} not in {{font}}",
+      "text": "A rule asks for {{font}} at this size."
+    },
+    "rule_font_forbidden": {
+      "title": "{{step}} in {{font}}",
+      "text": "A rule forbids {{font}} at this size."
+    },
+    "rule_font_small": {
+      "title": "{{step}}: {{size}} px",
+      "text": "A rule asks for at least {{min}} px in {{font}}."
     }
   },
   "vision": {
@@ -1390,8 +1430,6 @@
     "ruleKind": "Kind of rule",
     "ruleText": "Rule",
     "noRules": "No rules yet.",
-    "addDo": "Do",
-    "addDont": "Don't",
     "suggestRules": "Suggestions from the checks",
     "noSamples": "No example files yet.",
     "uploadSamples": "Upload examples",
@@ -1421,8 +1459,6 @@
     "monogram": "Monogram",
     "logo": "Logo",
     "standIn": "stand-in",
-    "whiteOk": "{{name}} carries white text ({{ratio}}), good for buttons.",
-    "whiteBad": "No white text on {{name}} ({{ratio}}). Use dark text.",
     "clear": "Keep at least the height of the capital letter free around the logo.",
     "distort": "Do not stretch, turn or recolour the logo."
   },
@@ -1710,5 +1746,72 @@
     "remember": "Keep with the client",
     "rememberHint": "Keep this address with {{name}}, ready for the next collecting.",
     "takeKeepColors": "No colour ticked: the current version's colours stay. Fonts and logos go into a new draft as marked."
+  },
+  "rules": {
+    "intro": "Colour pairs, logo grounds and fonts are checked: here while editing, and for programs over the API and MCP. Free rules are text for people and checked by nobody.",
+    "type": {
+      "text": "Free rule",
+      "pair": "Colour pair",
+      "logo": "Logo",
+      "font": "Font"
+    },
+    "add": {
+      "pair": "Colour pair",
+      "logo": "Logo on ground",
+      "font": "Font",
+      "text": "Free rule"
+    },
+    "kind": {
+      "pair": {
+        "do": "Allowed",
+        "dont": "Forbidden"
+      },
+      "logo": {
+        "do": "Only on",
+        "dont": "Never on"
+      },
+      "font": {
+        "do": "Use",
+        "dont": "Do not use"
+      },
+      "text": {
+        "do": "Do",
+        "dont": "Don't"
+      }
+    },
+    "text": "Text",
+    "on": "on",
+    "for": "for",
+    "size": {
+      "text": "for body text",
+      "large": "large type only"
+    },
+    "use": {
+      "all": "all sizes",
+      "headings": "headings"
+    },
+    "atLeast": "at least",
+    "note": "Note",
+    "topicLabel": "Topic",
+    "topic": {
+      "none": "No topic",
+      "logo": "Logo",
+      "color": "Colour",
+      "font": "Font",
+      "image": "Imagery",
+      "tone": "Tone of voice"
+    },
+    "checked": "Checked",
+    "unchecked": "Not checked",
+    "grounds": "Grounds",
+    "needColors": "A colour pair needs two colours.",
+    "sentence": {
+      "pair": "Text {{fg}} on {{bg}}",
+      "pairLarge": "Text {{fg}} on {{bg}}, large type only",
+      "logoDo": "“{{logo}}” only on {{grounds}}",
+      "logoDont": "“{{logo}}” on {{grounds}}",
+      "font": "{{font}} for {{use}}",
+      "fontMin": "{{font}} for {{use}}, at least {{min}} px"
+    }
   }
 }

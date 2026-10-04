@@ -127,7 +127,9 @@ def code(
 
 
 class AuditIn(BaseModel):
-    colors: list[str] = Field(max_length=500)
+    colors: list[str] = Field(default_factory=list, max_length=500)
+    #: A style sheet: its colours join ``colors``; text colour and ground in one rule meet the forbidden pairs.
+    css: str | None = Field(default=None, max_length=500_000)
     project: str | None = Field(default=None, max_length=120)
 
 
@@ -135,7 +137,7 @@ class AuditIn(BaseModel):
 def audit(client: Key, payload: AuditIn, found: Reader) -> dict[str, Any]:
     with SessionLocal() as db:
         try:
-            return brandapi.audit(db, found, client, payload.colors, project=payload.project)
+            return brandapi.audit(db, found, client, payload.colors, project=payload.project, css=payload.css)
         except brandapi.ApiError as exc:
             raise _fail(exc) from exc
 

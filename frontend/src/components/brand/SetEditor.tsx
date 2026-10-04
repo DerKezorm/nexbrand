@@ -1,17 +1,18 @@
 /** Editing a draft: colours, fonts, logos, sizes, rules and examples, with the checks and a sample page beside it. */
-import { ArrowDown, ArrowUp, Ban, FileText, Palette, Plus, Shapes, Trash2, Type, Upload, Wand2 } from 'lucide-react'
+import { AlertTriangle, ArrowDown, ArrowUp, Ban, FileText, Palette, Plus, Shapes, Trash2, Type, Upload, Wand2 } from 'lucide-react'
 import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ApiError, mediaApi, type FileInfo, type MediaInfo } from '../../api/client'
-import { COLOR_ROLES, SCALE_USES, type BrandColor, type BrandFont, type BrandLogo, type BrandSet, type ColorRole, type FontLicense, type Rule, type ScaleStep } from '../../lib/brand'
-import { check } from '../../lib/checks'
+import { COLOR_ROLES, RULE_TOPICS, RULE_USES, SCALE_USES, type BrandColor, type BrandFont, type BrandLogo, type BrandSet, type ColorRole, type FontLicense, type Rule, type RuleKind, type RuleTopic, type RuleUse, type ScaleStep } from '../../lib/brand'
+import { check, type Hint } from '../../lib/checks'
 import { contrast, formatRatio, isHex, normalHex, scaleOf } from '../../lib/color'
 import { errorText } from '../../lib/errors'
 import { CATALOG, catalogEntry, findFont, fontStack } from '../../lib/fonts'
-import { harmonies, neutralsFor, RATIOS, startRules, typeScale, wordmarks, type Names } from '../../lib/generate'
+import { harmonies, neutralsFor, RATIOS, sameRule, startRules, typeScale, wordmarks, type Names } from '../../lib/generate'
 import { TabRow, type Tab } from '../../pages/settings/ui'
-import { HintList } from './Checks'
+import { HintList, useHintText } from './Checks'
+import { CheckedMark, typeOf, useRuleWords, type RuleType } from './rules'
 import { LogoView } from './LogoView'
 import { WebPreview } from './WebPreview'
 
@@ -527,38 +528,196 @@ function ScaleEditor({ scale, fonts, onChange }: { scale: ScaleStep[]; fonts: Br
 
 // --- Rules and examples ----------------------------------------------------------------------------------------------
 
-function RulesEditor({ rules, colors, onChange }: { rules: Rule[]; colors: BrandColor[]; onChange: (r: Rule[]) => void }) {
-  const { t, i18n } = useTranslation()
-  const edit = (i: number, patch: Partial<Rule>) => onChange(rules.map((r, j) => (j === i ? { ...r, ...patch } : r)))
+function RulesEditor({ value, hints, onChange }: { value: BrandSet; hints: Hint[]; onChange: (r: Rule[]) => void }) {
+  const { t } = useTranslation()
+  const words = useRuleWords()
+  const hintWords = useHintText()
+  const rules = value.rules
+  const colors = value.colors.filter((c) => isHex(c.hex))
+  const names = colors.map((c) => c.name)
+  const families = value.fonts.map((f) => f.family)
+  const replace = (i: number, rule: Rule) => onChange(rules.map((r, j) => (j === i ? rule : r)))
+  const options = (current: string, list: string[]) => [...new Set([current, ...list])].filter((x) => x !== '' || current === '')
   const suggest = () => {
-    const made = startRules(colors.filter((c) => isHex(c.hex)), { whiteOk: (name, ratio) => t('gen.whiteOk', { name, ratio }), whiteBad: (name, ratio) => t('gen.whiteBad', { name, ratio }), clear: t('gen.clear'), distort: t('gen.distort') }, i18n.language)
-    onChange([...rules, ...made.filter((m) => !rules.some((r) => r.text === m.text))])
+    const made = startRules(colors, { clear: t('gen.clear'), distort: t('gen.distort') })
+    onChange([...rules, ...made.filter((m) => !rules.some((r) => sameRule(r, m)))])
+  }
+  const firstLogo = value.logos[0]
+  const groundOf = (logo: BrandLogo) => colors.find((c) => c.hex.toUpperCase() === (logo.ground ?? '').toUpperCase())?.name ?? names[0]
+  const fresh: Record<RuleType, Rule | null> = {
+    pair: names.length >= 2 ? { type: 'pair', kind: 'do', fg: names[names.length - 1], bg: names[0], size: 'text' } : null,
+    logo: firstLogo && names.length ? { type: 'logo', kind: 'do', logo: firstLogo.id, grounds: [groundOf(firstLogo)] } : null,
+    font: families.length ? { type: 'font', kind: 'do', font: families[families.length > 1 ? 1 : 0], use: 'body', min_size: 0 } : null,
+    text: { type: 'text', kind: 'do', topic: '', text: '' },
   }
   return (
     <div className="space-y-3">
-      {rules.map((r, i) => (
-        <Row key={i} label={r.text.slice(0, 20)} onRemove={() => onChange(rules.filter((_, j) => j !== i))} onUp={i ? () => onChange(move(rules, i, i - 1)) : undefined} onDown={i < rules.length - 1 ? () => onChange(move(rules, i, i + 1)) : undefined}>
-          <select value={r.kind} onChange={(e) => edit(i, { kind: e.target.value as Rule['kind'] })} aria-label={t('editor.ruleKind')} className={field}>
-            <option value="do">{t('set.rule.do')}</option>
-            <option value="dont">{t('set.rule.dont')}</option>
-          </select>
-          <textarea value={r.text} onChange={(e) => edit(i, { text: e.target.value })} rows={2} aria-label={t('editor.ruleText')} className="min-w-0 flex-1 rounded-lg border border-ink-700 bg-ink-900 px-2 py-1.5 text-sm" />
-        </Row>
-      ))}
+      <p className="text-sm text-mist-400">{t('rules.intro')}</p>
+      {rules.map((r, i) => {
+        const mine = hints.filter((h) => h.rule === i)
+        const label = words.sentence(r, value.logos).slice(0, 40)
+        return (
+          <Row key={i} label={label} onRemove={() => onChange(rules.filter((_, j) => j !== i))} onUp={i ? () => onChange(move(rules, i, i - 1)) : undefined} onDown={i < rules.length - 1 ? () => onChange(move(rules, i, i + 1)) : undefined}>
+            <span className="text-xs font-semibold tracking-wide text-mist-500 uppercase">{t(`rules.type.${typeOf(r)}`)}</span>
+            <select value={r.kind} onChange={(e) => replace(i, { ...r, kind: e.target.value as RuleKind })} aria-label={t('editor.ruleKind')} className={field}>
+              <option value="do">{t(`rules.kind.${typeOf(r)}.do`)}</option>
+              <option value="dont">{t(`rules.kind.${typeOf(r)}.dont`)}</option>
+            </select>
+            {r.type === 'pair' && (
+              <>
+                <span className="text-sm text-mist-400">{t('rules.text')}</span>
+                <select value={r.fg} onChange={(e) => replace(i, { ...r, fg: e.target.value })} aria-label={t('rules.text')} className={field}>
+                  {options(r.fg, names).map((n) => (
+                    <option key={n}>{n}</option>
+                  ))}
+                </select>
+                <span className="text-sm text-mist-400">{t('rules.on')}</span>
+                <select value={r.bg} onChange={(e) => replace(i, { ...r, bg: e.target.value })} aria-label={t('editor.ground')} className={field}>
+                  {options(r.bg, names).map((n) => (
+                    <option key={n}>{n}</option>
+                  ))}
+                </select>
+                {r.kind === 'do' && (
+                  <select value={r.size ?? 'text'} onChange={(e) => replace(i, { ...r, size: e.target.value as 'text' | 'large' })} aria-label={t('editor.size')} className={field}>
+                    <option value="text">{t('rules.size.text')}</option>
+                    <option value="large">{t('rules.size.large')}</option>
+                  </select>
+                )}
+                <PairRatio rule={r} colors={colors} />
+              </>
+            )}
+            {r.type === 'logo' && (
+              <>
+                <select value={r.logo} onChange={(e) => replace(i, { ...r, logo: e.target.value })} aria-label={t('rules.type.logo')} className={field}>
+                  {!value.logos.some((l) => l.id === r.logo) && <option value={r.logo}>{r.logo}</option>}
+                  {value.logos.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex w-full flex-wrap gap-1.5" role="group" aria-label={t('rules.grounds')}>
+                  {options('', [...r.grounds, ...names]).filter(Boolean).map((n) => {
+                    const on = r.grounds.includes(n)
+                    const c = colors.find((x) => x.name === n)
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => {
+                          const grounds = on ? r.grounds.filter((g) => g !== n) : [...r.grounds, n]
+                          if (grounds.length) replace(i, { ...r, grounds })
+                        }}
+                        className={'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ' + (on ? 'border-accent-400 bg-accent-400/12 text-mist-100' : 'border-ink-700 text-mist-400 hover:text-mist-100')}
+                      >
+                        <span className="h-3.5 w-3.5 rounded-full border border-edge" style={{ background: c?.hex ?? 'transparent' }} aria-hidden />
+                        {n}
+                      </button>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+            {r.type === 'font' && (
+              <>
+                <select value={r.font} onChange={(e) => replace(i, { ...r, font: e.target.value })} aria-label={t('editor.font')} className={field}>
+                  {options(r.font, families).map((f) => (
+                    <option key={f}>{f}</option>
+                  ))}
+                </select>
+                <span className="text-sm text-mist-400">{t('rules.for')}</span>
+                <select value={r.use ?? ''} onChange={(e) => replace(i, { ...r, use: e.target.value as RuleUse })} aria-label={t('editor.use')} className={field}>
+                  {RULE_USES.map((u) => (
+                    <option key={u} value={u}>
+                      {words.labelOfUse(u)}
+                    </option>
+                  ))}
+                </select>
+                {r.kind === 'do' && (
+                  <>
+                    <span className="text-sm text-mist-400">{t('rules.atLeast')}</span>
+                    <input type="number" min={0} max={400} value={r.min_size || ''} placeholder="0" onChange={(e) => replace(i, { ...r, min_size: Number(e.target.value) || 0 })} aria-label={t('rules.atLeast')} className={field + ' w-20'} />
+                    <span className="text-xs text-mist-500">px</span>
+                  </>
+                )}
+              </>
+            )}
+            {typeOf(r) === 'text' ? (
+              <>
+                <select value={(r.type === 'text' || !r.type ? r.topic : '') || ''} onChange={(e) => replace(i, { ...(r as Extract<Rule, { kind: RuleKind; text: string }>), type: 'text', topic: e.target.value as RuleTopic })} aria-label={t('rules.topicLabel')} className={field}>
+                  {RULE_TOPICS.map((topic) => (
+                    <option key={topic} value={topic}>
+                      {t(`rules.topic.${topic || 'none'}`)}
+                    </option>
+                  ))}
+                </select>
+                <CheckedMark rule={r} />
+                <textarea value={r.text} onChange={(e) => replace(i, { ...r, text: e.target.value })} rows={2} aria-label={t('editor.ruleText')} className="w-full min-w-0 rounded-lg border border-ink-700 bg-ink-900 px-2 py-1.5 text-sm" />
+              </>
+            ) : (
+              <input value={r.text ?? ''} onChange={(e) => replace(i, { ...r, text: e.target.value })} placeholder={t('rules.note')} aria-label={t('rules.note')} maxLength={400} className={field + ' w-full'} />
+            )}
+            {mine.length > 0 && (
+              <ul className="w-full space-y-1">
+                {mine.map((h, j) => (
+                  <li key={j} className={'flex items-center gap-1.5 text-xs ' + (h.level === 'bad' ? 'text-bad-500' : 'text-warn-500')}>
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden /> {hintWords(h).title}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Row>
+        )
+      })}
       {!rules.length && <p className="text-sm text-mist-500">{t('editor.noRules')}</p>}
       <div className="flex flex-wrap gap-2">
-        <button type="button" className="nc-btn nc-btn-ghost" onClick={() => onChange([...rules, { kind: 'do', text: '' }])}>
-          <Plus className="h-4 w-4" /> {t('editor.addDo')}
-        </button>
-        <button type="button" className="nc-btn nc-btn-ghost" onClick={() => onChange([...rules, { kind: 'dont', text: '' }])}>
-          <Plus className="h-4 w-4" /> {t('editor.addDont')}
-        </button>
+        {(['pair', 'logo', 'font', 'text'] as const).map((type) => {
+          const made = fresh[type]
+          return (
+            <button key={type} type="button" className="nc-btn nc-btn-ghost" disabled={!made} onClick={() => made && onChange([...rules, made])}>
+              <Plus className="h-4 w-4" /> {t(`rules.add.${type}`)}
+            </button>
+          )
+        })}
         <button type="button" className="nc-btn nc-btn-ghost" onClick={suggest}>
           <Wand2 className="h-4 w-4" /> {t('editor.suggestRules')}
         </button>
       </div>
     </div>
   )
+}
+
+function PairRatio({ rule, colors }: { rule: Extract<Rule, { type: 'pair' }>; colors: BrandColor[] }) {
+  const { i18n } = useTranslation()
+  const fg = colors.find((c) => c.name === rule.fg)
+  const bg = colors.find((c) => c.name === rule.bg)
+  if (!fg || !bg) return null
+  return (
+    <span className="flex items-center gap-1.5 text-xs text-mist-400">
+      <span className="rounded-md border border-edge px-2 py-0.5 text-sm font-semibold" style={{ color: fg.hex, background: bg.hex }} aria-hidden>
+        Aa
+      </span>
+      {formatRatio(contrast(fg.hex, bg.hex), i18n.language)}
+    </span>
+  )
+}
+
+/** A colour or font renamed in the editor: the rules pointing at it follow. */
+function renamed(before: string[], after: string[]): Map<string, string> {
+  if (before.length !== after.length) return new Map()
+  return new Map(before.map((b, i) => [b, after[i]] as const).filter(([b, a]) => b !== a))
+}
+
+function followNames(rules: Rule[], colorNames: Map<string, string>, fontNames: Map<string, string>): Rule[] {
+  if (!colorNames.size && !fontNames.size) return rules
+  const color = (name: string) => colorNames.get(name) ?? name
+  return rules.map((r) => {
+    if (r.type === 'pair') return { ...r, fg: color(r.fg), bg: color(r.bg) }
+    if (r.type === 'logo') return { ...r, grounds: r.grounds.map(color) }
+    if (r.type === 'font') return { ...r, font: fontNames.get(r.font) ?? r.font }
+    return r
+  })
 }
 
 function SamplesEditor({ samples, onChange, ctx }: { samples: BrandSet['samples']; onChange: (s: BrandSet['samples']) => void; ctx: Ctx }) {
@@ -616,11 +775,11 @@ export function SetEditor({ value, onChange, name, ctx }: { value: BrandSet; onC
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
       <div className="min-w-0 space-y-4">
         <TabRow tabs={tabs} active={tab} onChange={setTab} label={t('set.tabsLabel')} />
-        {tab === 'colors' && <ColorsEditor colors={value.colors} onChange={(colors) => set({ colors })} />}
-        {tab === 'fonts' && <FontsEditor fonts={value.fonts} onChange={(fonts) => set({ fonts })} ctx={ctx} />}
+        {tab === 'colors' && <ColorsEditor colors={value.colors} onChange={(colors) => set({ colors, rules: followNames(value.rules, renamed(value.colors.map((c) => c.name), colors.map((c) => c.name)), new Map()) })} />}
+        {tab === 'fonts' && <FontsEditor fonts={value.fonts} onChange={(fonts) => set({ fonts, rules: followNames(value.rules, new Map(), renamed(value.fonts.map((f) => f.family), fonts.map((f) => f.family))) })} ctx={ctx} />}
         {tab === 'logos' && <LogosEditor logos={value.logos} colors={valid} fonts={value.fonts} name={name} onChange={(logos) => set({ logos })} ctx={ctx} />}
         {tab === 'scale' && <ScaleEditor scale={value.scale} fonts={value.fonts} onChange={(scale) => set({ scale })} />}
-        {tab === 'rules' && <RulesEditor rules={value.rules} colors={value.colors} onChange={(rules) => set({ rules })} />}
+        {tab === 'rules' && <RulesEditor value={value} hints={hints} onChange={(rules) => set({ rules })} />}
         {tab === 'samples' && <SamplesEditor samples={value.samples} onChange={(samples) => set({ samples })} ctx={ctx} />}
       </div>
       <aside className="space-y-3 xl:sticky xl:top-4 xl:self-start" aria-label={t('editor.live')}>

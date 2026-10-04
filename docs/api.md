@@ -94,7 +94,8 @@ A client's design set. Without a parameter, the version that holds today.
 
 `origin` says where a version came from: `hand`, `collect` (collected from websites, repositories or PDFs), `mcp`
 (written back by a token) or `review` (chosen by the client). `checks` are the same hints the app computes: contrast
-by WCAG 2.2, logos at 3:1, colour vision deficiencies, nearly identical colours, small body text, font licences.
+by WCAG 2.2, logos at 3:1, colour vision deficiencies, nearly identical colours, small body text, font licences,
+and what the set's own rules say against it (codes starting with `rule_`, with `rule`, the rule's place in `rules`).
 Each has a `level` (`warn` or `bad`), a `code`, the names and hex values it is about, and a `ratio` where one
 applies. Nothing to say means an empty list.
 
@@ -123,6 +124,33 @@ Colour values found in code or on a page, against the design set (or a project's
 
 Each value comes back with a `verdict`: `same` (ΔE 2000 below 1), `near` (below 8, mostly a slip: `nearest` and
 `nearest_hex` say what was meant), `foreign`, or `unreadable`. Up to 500 values per request.
+
+With `css`, a style sheet (up to 500,000 characters), its colours join the list, and every CSS rule that sets both
+`color` and `background` (or `background-color`) is checked. `var()` is resolved through the sheet's own custom
+properties. The answer gets a `css` part:
+
+```json
+{"checked": 12,
+ "pairs": [{"selector": ".badge", "fg": "#FFFFFF", "bg": "#E9A23B", "fg_name": "White", "bg_name": "Honey",
+            "ratio": 2.17, "verdict": "forbidden", "rule": 3}]}
+```
+
+`forbidden` means a rule of the set forbids the pair (`rule` is its place); `low_contrast` means below 4.5:1. Only a
+pair inside one CSS rule is seen: a ground inherited from a parent or set by another class is not.
+
+### Rules
+
+`rules` in a design set are `do` or `dont`, and of a `type`. Only `text` rules are free words; the others point at
+parts of the set by name and are checked:
+
+| `type` | Fields | Checked |
+|---|---|---|
+| `pair` | `fg`, `bg` (colour names), `size`: `text` or `large` | allowed pair below 4.5:1 (or 3:1), a logo showing a forbidden pair, a pair both allowed and forbidden, the audit's `css` |
+| `logo` | `logo` (logo id), `grounds` (colour names) | the logo's own ground, its word mark against each allowed ground at 3:1 |
+| `font` | `font` (family), `use`: empty, `headings` or a step's use, `min_size` (px) | the type scale's steps of that use |
+| `text` | `text`, `topic`: `logo`, `color`, `font`, `image`, `tone` | never |
+
+Every rule may carry `text` as a note. A name the set no longer has is reported as `rule_missing`.
 
 ### `POST /api/v1/clients/{client}/drafts`
 
@@ -168,5 +196,5 @@ configuration of an editor:
 | `list_versions` | read | Every version, with the day it holds from. |
 | `compare_versions` | read | What changed between two versions: colours (with their distance), fonts. |
 | `check_contrast` | read | Contrast of a text colour on a ground, with grades and the nearest passing colour. |
-| `audit` | read | Colour values from code against the design set. |
+| `audit` | read | Colour values from code against the design set; with `css`, colour pairs against the rules. |
 | `propose_version` | draft | A redesign written back as a draft. A read token does not see this tool. |

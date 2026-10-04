@@ -4,7 +4,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { FileInfo } from '../../api/client'
-import type { BrandFont, BrandLogo, BrandSet, Rule, Sample, ScaleStep, ShownColor } from '../../lib/brand'
+import type { BrandFont, BrandLogo, BrandSet, Sample, ScaleStep, ShownColor } from '../../lib/brand'
 import { check } from '../../lib/checks'
 import { cmyk, contrast, formatRatio, hsl, rgb, slug, textOn } from '../../lib/color'
 import { copyText } from '../../lib/copy'
@@ -12,6 +12,7 @@ import { findFont, fontStack } from '../../lib/fonts'
 import { TabRow, type Tab } from '../../pages/settings/ui'
 import { HintList, Matrix, VisionPanel } from './Checks'
 import { LogoView } from './LogoView'
+import { CheckedMark, RuleSwatch, typeOf, useRuleWords } from './rules'
 
 export type ExtraTab = { value: string; label: string; icon: LucideIcon; content: ReactNode }
 
@@ -61,7 +62,7 @@ export function SetView({
       {tab === 'fonts' && <Fonts fonts={set.fonts} scale={set.scale} fileUrl={fileUrl} files={files} publicMode={publicMode} />}
       {tab === 'logos' && <Logos logos={set.logos} fonts={set.fonts} fileUrl={fileUrl} files={files} />}
       {tab === 'samples' && <Samples samples={set.samples} fileUrl={fileUrl} files={files} />}
-      {tab === 'rules' && <Rules rules={set.rules} />}
+      {tab === 'rules' && <Rules set={set} colors={shown} />}
       {tab === 'checks' && (
         <div className="space-y-4">
           <HintList hints={hints} />
@@ -294,8 +295,10 @@ function Samples({ samples, fileUrl, files }: { samples: Sample[]; fileUrl: (id:
   )
 }
 
-function Rules({ rules }: { rules: Rule[] }) {
+function Rules({ set, colors }: { set: BrandSet; colors: ShownColor[] }) {
   const { t } = useTranslation()
+  const words = useRuleWords()
+  const rules = set.rules
   if (!rules.length) return <p className="text-sm text-mist-500">{t('set.noRules')}</p>
   return (
     <div className="grid gap-3 md:grid-cols-2">
@@ -309,8 +312,13 @@ function Rules({ rules }: { rules: Rule[] }) {
             {rules
               .filter((r) => r.kind === kind)
               .map((r, i) => (
-                <li key={i} className="rounded-lg bg-ink-850 px-3 py-2 whitespace-pre-line">
-                  {r.text}
+                <li key={i} className="rounded-lg bg-ink-850 px-3 py-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <RuleSwatch rule={r} colors={colors} />
+                    <span className="min-w-0 flex-1 whitespace-pre-line">{words.sentence(r, set.logos)}</span>
+                    <CheckedMark rule={r} />
+                  </div>
+                  {typeOf(r) !== 'text' && r.text && <p className="mt-1 text-xs text-mist-400">{r.text}</p>}
                 </li>
               ))}
           </ul>

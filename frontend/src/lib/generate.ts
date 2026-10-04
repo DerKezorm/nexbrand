@@ -164,17 +164,33 @@ export function fromAi(list: AiDirection[], names: Names): Direction[] {
   })
 }
 
-/** Rules a fresh design set can start with; those about contrast come from the numbers. */
-export function startRules(colors: BrandColor[], words: { whiteOk: (name: string, ratio: string) => string; whiteBad: (name: string, ratio: string) => string; clear: string; distort: string }, locale: string): Rule[] {
+/**
+ * Rules a fresh design set can start with. Those about contrast are colour pairs from the numbers, and so checked:
+ * white (or the lightest neutral) on each colour that is not neutral, allowed for text from 4.5:1, for large type
+ * from 3:1, forbidden below. The two about the logo are words.
+ */
+export function startRules(colors: BrandColor[], words: { clear: string; distort: string }): Rule[] {
   const rules: Rule[] = []
-  for (const c of colors.filter((x) => x.role !== 'neutral')) {
-    const r = contrast('#FFFFFF', c.hex)
-    const ratio = r.toLocaleString(locale, { maximumFractionDigits: 1 }) + ':1'
-    rules.push(r >= 4.5 ? { kind: 'do', text: words.whiteOk(c.name, ratio) } : { kind: 'dont', text: words.whiteBad(c.name, ratio) })
-  }
-  rules.push({ kind: 'do', text: words.clear })
-  rules.push({ kind: 'dont', text: words.distort })
+  const light =
+    colors.find((c) => c.hex.toUpperCase() === '#FFFFFF') ??
+    colors.filter((c) => c.role === 'neutral' && contrast(c.hex, '#000000') > 15).sort((a, b) => contrast(b.hex, '#000000') - contrast(a.hex, '#000000'))[0]
+  if (light)
+    for (const c of colors.filter((x) => x.role !== 'neutral' && x !== light)) {
+      const r = contrast(light.hex, c.hex)
+      rules.push(r >= 3 ? { type: 'pair', kind: 'do', fg: light.name, bg: c.name, size: r >= 4.5 ? 'text' : 'large' } : { type: 'pair', kind: 'dont', fg: light.name, bg: c.name })
+    }
+  rules.push({ type: 'text', kind: 'do', topic: 'logo', text: words.clear })
+  rules.push({ type: 'text', kind: 'dont', topic: 'logo', text: words.distort })
   return rules
+}
+
+/** Two rules say the same (the same kind about the same things; a note does not count). */
+export function sameRule(a: Rule, b: Rule): boolean {
+  if ((a.type ?? 'text') !== (b.type ?? 'text') || a.kind !== b.kind) return false
+  if (a.type === 'pair' && b.type === 'pair') return a.fg === b.fg && a.bg === b.bg
+  if (a.type === 'logo' && b.type === 'logo') return a.logo === b.logo
+  if (a.type === 'font' && b.type === 'font') return a.font === b.font && (a.use ?? '') === (b.use ?? '')
+  return a.text === b.text
 }
 
 /** Word marks that stand in for a logo until there is one. */

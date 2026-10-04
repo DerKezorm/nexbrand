@@ -45,7 +45,21 @@ export type ScaleUse = '' | 'h1' | 'h2' | 'h3' | 'h4' | 'lead' | 'body' | 'small
 export const SCALE_USES: ScaleUse[] = ['', 'h1', 'h2', 'h3', 'h4', 'lead', 'body', 'small', 'caption', 'label']
 
 export type ScaleStep = { name: string; use?: ScaleUse; size: number; weight: number; font: string; line_height: number }
-export type Rule = { kind: 'do' | 'dont'; text: string }
+export type RuleKind = 'do' | 'dont'
+export type RuleTopic = '' | 'logo' | 'color' | 'font' | 'image' | 'tone'
+export const RULE_TOPICS: RuleTopic[] = ['', 'logo', 'color', 'font', 'image', 'tone']
+export type RuleUse = '' | 'headings' | Exclude<ScaleUse, ''>
+export const RULE_USES: RuleUse[] = ['', 'headings', ...(SCALE_USES.filter((u) => u) as Exclude<ScaleUse, ''>[])]
+
+/**
+ * A rule of the set. All but `text` point at parts of the set by name and are checked (`lib/checks.ts`); `text` is
+ * words nobody checks. A rule stored without a type is a `text` rule.
+ */
+export type Rule =
+  | { type?: 'text'; kind: RuleKind; text: string; topic?: RuleTopic }
+  | { type: 'pair'; kind: RuleKind; text?: string; fg: string; bg: string; size?: 'text' | 'large' }
+  | { type: 'logo'; kind: RuleKind; text?: string; logo: string; grounds: string[] }
+  | { type: 'font'; kind: RuleKind; text?: string; font: string; use?: RuleUse; min_size?: number }
 export type Sample = { name: string; media: string }
 
 export type BrandSet = {

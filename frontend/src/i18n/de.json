@@ -1185,6 +1185,46 @@
       "largeAA": "Große Schrift AA, 3:1",
       "largeAAA": "Große Schrift AAA, 4,5:1",
       "graphics": "Grafik und Symbole, 3:1"
+    },
+    "rule_missing": {
+      "title": "Regel {{rule}}: „{{missing}}“ gibt es nicht mehr",
+      "text": "Die Regel zeigt auf eine Farbe, ein Logo oder eine Schrift, die im Satz fehlt. Umbenannt oder gelöscht? Die Regel anpassen."
+    },
+    "rule_pair_low": {
+      "title": "Erlaubt, aber zu blass: {{a}} auf {{b}} {{ratio}}",
+      "text": "Die Regel erlaubt das Paar, dafür braucht es {{need}}."
+    },
+    "rule_conflict": {
+      "title": "{{a}} auf {{b}} ist erlaubt und verboten",
+      "text": "Zwei Regeln widersprechen sich. Eine davon muss weg."
+    },
+    "rule_pair_logo": {
+      "title": "Logo „{{logo}}“ bricht eine Regel",
+      "text": "Es zeigt {{a}} auf {{b}}, und dieses Paar ist verboten."
+    },
+    "rule_logo_ground_do": {
+      "title": "Logo „{{logo}}“ steht auf {{a}}",
+      "text": "Eine Regel erlaubt es nur auf anderen Gründen."
+    },
+    "rule_logo_ground_dont": {
+      "title": "Logo „{{logo}}“ steht auf {{a}}",
+      "text": "Genau diesen Grund verbietet eine Regel."
+    },
+    "rule_logo_contrast": {
+      "title": "Logo „{{logo}}“ auf {{a}}: nur {{ratio}}",
+      "text": "Eine Regel erlaubt diesen Grund, aber Teile des Logos erreichen dort keine 3:1."
+    },
+    "rule_font_wrong": {
+      "title": "{{step}} nicht in {{font}}",
+      "text": "Eine Regel verlangt {{font}} für diese Größe."
+    },
+    "rule_font_forbidden": {
+      "title": "{{step}} in {{font}}",
+      "text": "Eine Regel verbietet {{font}} für diese Größe."
+    },
+    "rule_font_small": {
+      "title": "{{step}}: {{size}} px",
+      "text": "Eine Regel verlangt für {{font}} mindestens {{min}} px."
     }
   },
   "vision": {
@@ -1390,8 +1430,6 @@
     "ruleKind": "Art der Regel",
     "ruleText": "Regel",
     "noRules": "Noch keine Regeln.",
-    "addDo": "So",
-    "addDont": "Nicht so",
     "suggestRules": "Vorschläge aus der Prüfung",
     "noSamples": "Noch keine Beispieldateien.",
     "uploadSamples": "Beispiele hochladen",
@@ -1421,8 +1459,6 @@
     "monogram": "Monogramm",
     "logo": "Logo",
     "standIn": "Platzhalter",
-    "whiteOk": "{{name}} trägt weiße Schrift ({{ratio}}), gut für Knöpfe.",
-    "whiteBad": "Kein weißer Text auf {{name}} ({{ratio}}). Dunkle Schrift nehmen.",
     "clear": "Um das Logo herum mindestens die Höhe des Großbuchstabens frei lassen.",
     "distort": "Das Logo nicht verzerren, drehen oder einfärben."
   },
@@ -1710,5 +1746,72 @@
     "remember": "Beim Kunden merken",
     "rememberHint": "Diese Adresse bei {{name}} hinterlegen, damit sie beim nächsten Sammeln bereitsteht.",
     "takeKeepColors": "Keine Farbe angehakt: Die Farben der aktuellen Fassung bleiben. Schriften und Logos kommen wie markiert in einen neuen Entwurf."
+  },
+  "rules": {
+    "intro": "Farbpaare, Logo-Gründe und Schriften werden geprüft: hier beim Bearbeiten und für Programme über API und MCP. Freie Regeln sind Text für Menschen und werden von niemandem geprüft.",
+    "type": {
+      "text": "Freie Regel",
+      "pair": "Farbpaar",
+      "logo": "Logo",
+      "font": "Schrift"
+    },
+    "add": {
+      "pair": "Farbpaar",
+      "logo": "Logo auf Grund",
+      "font": "Schrift",
+      "text": "Freie Regel"
+    },
+    "kind": {
+      "pair": {
+        "do": "Erlaubt",
+        "dont": "Verboten"
+      },
+      "logo": {
+        "do": "Nur auf",
+        "dont": "Nie auf"
+      },
+      "font": {
+        "do": "Nehmen",
+        "dont": "Nicht nehmen"
+      },
+      "text": {
+        "do": "So",
+        "dont": "Nicht so"
+      }
+    },
+    "text": "Schrift",
+    "on": "auf",
+    "for": "für",
+    "size": {
+      "text": "für Fließtext",
+      "large": "nur große Schrift"
+    },
+    "use": {
+      "all": "alle Größen",
+      "headings": "Überschriften"
+    },
+    "atLeast": "mindestens",
+    "note": "Anmerkung",
+    "topicLabel": "Thema",
+    "topic": {
+      "none": "Ohne Thema",
+      "logo": "Logo",
+      "color": "Farbe",
+      "font": "Schrift",
+      "image": "Bildsprache",
+      "tone": "Tonfall"
+    },
+    "checked": "Wird geprüft",
+    "unchecked": "Wird nicht geprüft",
+    "grounds": "Gründe",
+    "needColors": "Für ein Farbpaar braucht es zwei Farben.",
+    "sentence": {
+      "pair": "Schrift {{fg}} auf {{bg}}",
+      "pairLarge": "Schrift {{fg}} auf {{bg}}, nur große Schrift",
+      "logoDo": "„{{logo}}“ nur auf {{grounds}}",
+      "logoDont": "„{{logo}}“ auf {{grounds}}",
+      "font": "{{font}} für {{use}}",
+      "fontMin": "{{font}} für {{use}}, mindestens {{min}} px"
+    }
   }
 }

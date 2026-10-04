@@ -83,11 +83,14 @@ TOOLS: list[dict[str, Any]] = [
          "required": ["foreground", "background"], "additionalProperties": False}},
     {"name": "audit", "level": "read",
      "description": "Colour values found in code or on a page, against the client's design set: the same, nearly the "
-                    "same (probably a slip, with the right value), or not part of it.",
+                    "same (probably a slip, with the right value), or not part of it. With css (a style sheet), "
+                    "its colours are added, and each CSS rule that sets both color and background is held against "
+                    "the set's forbidden colour pairs and against 4.5:1. Only pairs inside one CSS rule are seen.",
      "inputSchema": {"type": "object", "properties": {
          "client": _CLIENT, "project": _PROJECT,
-         "colors": {"type": "array", "items": {"type": "string"}, "maxItems": 500}},
-         "required": ["client", "colors"], "additionalProperties": False}},
+         "colors": {"type": "array", "items": {"type": "string"}, "maxItems": 500},
+         "css": {"type": "string", "maxLength": 500000}},
+         "required": ["client"], "additionalProperties": False}},
     {"name": "propose_version", "level": "draft",
      "description": "Write a new version back as a draft, e.g. after a redesign. Give the parts that change "
                     "(colors, fonts, scale, rules) in nexbrand's shape; with based_on, the rest is kept from that "
@@ -101,7 +104,10 @@ TOOLS: list[dict[str, Any]] = [
              "colors: [{name, hex '#RRGGBB', role: primary|secondary|accent|neutral}], "
              "fonts: [{family, role, weights, license: free|internal|system, fallback}], "
              "scale: [{name, use: h1|h2|h3|h4|lead|body|small|caption|label, size (px), weight, font, line_height}], "
-             "rules: [{kind: do|dont, text}]")}},
+             "rules: [{type: text, kind: do|dont, text, topic: logo|color|font|image|tone}] or checkable ones: "
+             "{type: pair, kind, fg: colour name, bg: colour name, size: text|large}, "
+             "{type: logo, kind, logo: logo id, grounds: [colour names]}, "
+             "{type: font, kind, font: family, use: ''|headings|h1|body|..., min_size: px}")}},
          "required": ["client", "label", "data"], "additionalProperties": False}},
 ]
 BY_NAME = {tool["name"]: tool for tool in TOOLS}
@@ -163,8 +169,8 @@ def _run(caller: Caller, name: str, args: dict[str, Any], base: str) -> Any:
             return checks.pair(brandset.color_value(args["foreground"], "foreground"),
                                brandset.color_value(args["background"], "background"))
         if name == "audit":
-            return brandapi.audit(db, caller, args["client"], [str(c) for c in args["colors"]],
-                                  project=args.get("project"))
+            return brandapi.audit(db, caller, args["client"], [str(c) for c in args.get("colors") or []],
+                                  project=args.get("project"), css=args.get("css"))
         if name == "propose_version":
             return brandapi.propose(db, caller, args["client"], label=args["label"], data=args["data"],
                                     note=args.get("note") or "", source=args.get("based_on"))

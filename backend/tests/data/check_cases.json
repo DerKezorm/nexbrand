@@ -113,6 +113,213 @@
    "fonts": [],
    "logos": [],
    "scale": []
+  },
+  {
+   "colors": [
+    {
+     "name": "Ofenrot",
+     "hex": "#B8322A",
+     "role": "primary"
+    },
+    {
+     "name": "Honig",
+     "hex": "#E9A23B",
+     "role": "accent"
+    },
+    {
+     "name": "Mehl",
+     "hex": "#F2E3C6",
+     "role": "neutral"
+    },
+    {
+     "name": "Kruste",
+     "hex": "#3B2A20",
+     "role": "neutral"
+    },
+    {
+     "name": "Weiss",
+     "hex": "#FFFFFF",
+     "role": "neutral"
+    },
+    {
+     "name": "Tanne",
+     "hex": "#3D8A80",
+     "role": "secondary"
+    }
+   ],
+   "fonts": [
+    {
+     "family": "Fraunces",
+     "license": "free"
+    },
+    {
+     "family": "Inter",
+     "license": "free"
+    }
+   ],
+   "logos": [
+    {
+     "id": "neg",
+     "name": "Neg",
+     "wordmark": {
+      "text": "M",
+      "font": ""
+     },
+     "fg": "#F2E3C6",
+     "accent": "#B8322A",
+     "ground": "#3B2A20"
+    },
+    {
+     "id": "pos",
+     "name": "Pos",
+     "wordmark": {
+      "text": "M",
+      "font": ""
+     },
+     "fg": "#3B2A20",
+     "accent": "#B8322A",
+     "ground": "#FFFFFF"
+    },
+    {
+     "id": "file",
+     "name": "File",
+     "media": "abcdefghij",
+     "fg": "#000000",
+     "accent": "#000000",
+     "ground": "#E9A23B"
+    }
+   ],
+   "scale": [
+    {
+     "name": "H1",
+     "use": "h1",
+     "size": 40,
+     "font": "Fraunces"
+    },
+    {
+     "name": "Body",
+     "use": "body",
+     "size": 15,
+     "font": "Fraunces"
+    },
+    {
+     "name": "Small",
+     "use": "small",
+     "size": 12,
+     "font": "Inter"
+    }
+   ],
+   "rules": [
+    {
+     "type": "pair",
+     "kind": "do",
+     "fg": "Weiss",
+     "bg": "Honig",
+     "size": "text"
+    },
+    {
+     "type": "pair",
+     "kind": "dont",
+     "fg": "Weiss",
+     "bg": "Honig"
+    },
+    {
+     "type": "pair",
+     "kind": "dont",
+     "fg": "mehl",
+     "bg": "Kruste"
+    },
+    {
+     "type": "pair",
+     "kind": "do",
+     "fg": "Weiss",
+     "bg": "Ofenrot",
+     "size": "large"
+    },
+    {
+     "type": "pair",
+     "kind": "do",
+     "fg": "Weiss",
+     "bg": "Lila"
+    },
+    {
+     "type": "logo",
+     "kind": "do",
+     "logo": "neg",
+     "grounds": [
+      "Weiss",
+      "Honig"
+     ]
+    },
+    {
+     "type": "logo",
+     "kind": "dont",
+     "logo": "pos",
+     "grounds": [
+      "Weiss"
+     ]
+    },
+    {
+     "type": "logo",
+     "kind": "do",
+     "logo": "gone",
+     "grounds": [
+      "Weiss"
+     ]
+    },
+    {
+     "type": "font",
+     "kind": "do",
+     "font": "Inter",
+     "use": "body",
+     "min_size": 16
+    },
+    {
+     "type": "font",
+     "kind": "dont",
+     "font": "Fraunces",
+     "use": "headings",
+     "min_size": 0
+    },
+    {
+     "type": "font",
+     "kind": "do",
+     "font": "Comic",
+     "use": ""
+    },
+    {
+     "type": "text",
+     "kind": "dont",
+     "topic": "tone",
+     "text": "Nie duzen."
+    },
+    {
+     "kind": "do",
+     "text": "Ohne Typ: frei."
+    },
+    {
+     "type": "logo",
+     "kind": "do",
+     "logo": "file",
+     "grounds": [
+      "Honig"
+     ]
+    },
+    {
+     "type": "pair",
+     "kind": "do",
+     "fg": "Weiss",
+     "bg": "Tanne",
+     "size": "text"
+    },
+    {
+     "type": "pair",
+     "kind": "do",
+     "fg": "Weiss",
+     "bg": "Tanne",
+     "size": "large"
+    }
+   ]
   }
  ],
  "hints": [
@@ -192,6 +399,209 @@
     ]
    }
   ],
-  []
+  [],
+  [
+   {
+    "level": "bad",
+    "code": "white_on",
+    "colors": [
+     "Honig"
+    ],
+    "hex": [
+     "#FFFFFF",
+     "#E9A23B"
+    ],
+    "ratio": 2.17,
+    "better": "Kruste",
+    "better_ratio": 6.3
+   },
+   {
+    "level": "bad",
+    "code": "rule_pair_low",
+    "rule": 0,
+    "colors": [
+     "Weiss",
+     "Honig"
+    ],
+    "hex": [
+     "#FFFFFF",
+     "#E9A23B"
+    ],
+    "ratio": 2.17,
+    "need": 4.5
+   },
+   {
+    "level": "bad",
+    "code": "rule_conflict",
+    "rule": 0,
+    "colors": [
+     "Weiss",
+     "Honig"
+    ],
+    "hex": [
+     "#FFFFFF",
+     "#E9A23B"
+    ]
+   },
+   {
+    "level": "bad",
+    "code": "rule_pair_logo",
+    "rule": 2,
+    "logo": "Neg",
+    "colors": [
+     "Mehl",
+     "Kruste"
+    ],
+    "hex": [
+     "#F2E3C6",
+     "#3B2A20"
+    ]
+   },
+   {
+    "level": "bad",
+    "code": "rule_logo_ground_dont",
+    "rule": 6,
+    "logo": "Pos",
+    "colors": [
+     "Weiss"
+    ],
+    "hex": [
+     "#FFFFFF"
+    ]
+   },
+   {
+    "level": "bad",
+    "code": "rule_font_forbidden",
+    "rule": 9,
+    "font": "Fraunces",
+    "step": "H1"
+   },
+   {
+    "level": "warn",
+    "code": "ground_large_only",
+    "colors": [
+     "Tanne"
+    ],
+    "hex": [
+     "#3D8A80"
+    ]
+   },
+   {
+    "level": "warn",
+    "code": "white_on",
+    "colors": [
+     "Tanne"
+    ],
+    "hex": [
+     "#FFFFFF",
+     "#3D8A80"
+    ],
+    "ratio": 4.08
+   },
+   {
+    "level": "warn",
+    "code": "logo_mark",
+    "logo": "Neg",
+    "hex": [
+     "#B8322A",
+     "#3B2A20"
+    ],
+    "ratio": 2.29
+   },
+   {
+    "level": "warn",
+    "code": "body_small",
+    "size": 15
+   },
+   {
+    "level": "warn",
+    "code": "rule_missing",
+    "rule": 4,
+    "missing": "Lila"
+   },
+   {
+    "level": "warn",
+    "code": "rule_logo_ground_do",
+    "rule": 5,
+    "logo": "Neg",
+    "colors": [
+     "Kruste"
+    ],
+    "hex": [
+     "#3B2A20"
+    ]
+   },
+   {
+    "level": "warn",
+    "code": "rule_logo_contrast",
+    "rule": 5,
+    "logo": "Neg",
+    "colors": [
+     "Weiss"
+    ],
+    "hex": [
+     "#F2E3C6",
+     "#FFFFFF"
+    ],
+    "ratio": 1.27
+   },
+   {
+    "level": "warn",
+    "code": "rule_logo_contrast",
+    "rule": 5,
+    "logo": "Neg",
+    "colors": [
+     "Honig"
+    ],
+    "hex": [
+     "#F2E3C6",
+     "#E9A23B"
+    ],
+    "ratio": 1.71
+   },
+   {
+    "level": "warn",
+    "code": "rule_missing",
+    "rule": 7,
+    "missing": "gone"
+   },
+   {
+    "level": "warn",
+    "code": "rule_font_wrong",
+    "rule": 8,
+    "font": "Inter",
+    "step": "Body"
+   },
+   {
+    "level": "warn",
+    "code": "rule_font_small",
+    "rule": 8,
+    "font": "Inter",
+    "step": "Body",
+    "size": 15,
+    "min": 16
+   },
+   {
+    "level": "warn",
+    "code": "rule_missing",
+    "rule": 10,
+    "missing": "Comic"
+   },
+   {
+    "level": "warn",
+    "code": "rule_pair_low",
+    "rule": 14,
+    "colors": [
+     "Weiss",
+     "Tanne"
+    ],
+    "hex": [
+     "#FFFFFF",
+     "#3D8A80"
+    ],
+    "ratio": 4.08,
+    "need": 4.5
+   }
+  ]
  ]
 }

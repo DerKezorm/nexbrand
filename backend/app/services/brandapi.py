@@ -194,13 +194,21 @@ def compare(db: Session, caller: Caller, client_key: str, older: str, newer: str
 
 def audit(
     db: Session, caller: Caller, client_key: str, found: list[str], *, project: str | None = None,
+    css: str | None = None,
 ) -> dict[str, Any]:
-    """Colour values found in code or on a page, against the design set: the same, nearly (a slip?), or foreign."""
+    """Colour values found in code or on a page, against the design set: the same, nearly (a slip?), or foreign.
+    With ``css``, its colours join the list and text colour plus ground of each CSS rule are held against the
+    forbidden pairs of the set."""
     from . import colors
 
+    if not found and not css:
+        raise ApiError("invalid_input", "Give colours, a style sheet or both.")
     client = find_client(db, caller, client_key)
     row, chosen_project = _chosen(db, client, project=project)
     palette = brands.project_colors(row, chosen_project) if chosen_project else row.data.get("colors", [])
+    sheet = checks.css_audit(css, palette, row.data.get("rules", [])) if css else None
+    if sheet is not None:
+        found = [*found, *(value for value in sheet.pop("values") if value not in found)]
     out = []
     for raw in found[:500]:
         try:
@@ -217,7 +225,10 @@ def audit(
         item = {"value": value, "verdict": verdict, "nearest": nearest["name"], "nearest_hex": nearest["hex"],
                 "delta_e": round(d, 2)}
         out.append(item)
-    return {"version": version_summary(row), "colors": out}
+    answer: dict[str, Any] = {"version": version_summary(row), "colors": out}
+    if sheet is not None:
+        answer["css"] = sheet
+    return answer
 
 
 def propose(

@@ -14,12 +14,23 @@ The shape::
       "logos":   [{"id", "name", "media", "files", "wordmark", "fg", "accent", "ground", "compact", "min_width",
                    "clear_space"}],
       "scale":   [{"name", "use", "size", "weight", "font", "line_height"}],
-      "rules":   [{"kind", "text"}],
+      "rules":   [{"type", "kind", "text", ...}],
       "samples": [{"name", "media"}]
     }
 
 ``catalog`` names a font that ships with nexbrand (free licences, drawn in every browser without an upload);
 ``files`` are uploaded font files. ``wordmark`` stands in for a logo until there is one: the name set in a font.
+
+A rule is ``do`` or ``dont`` and of a ``type``; all but ``text`` point at parts of the set by name and are checked
+(``services/checks.py``), ``text`` is free words with a ``topic`` and checked by nobody::
+
+    {"type": "text", "kind", "text", "topic": "" | logo | color | font | image | tone}
+    {"type": "pair", "kind", "fg": colour name, "bg": colour name, "size": text | large, "text": note}
+    {"type": "logo", "kind", "logo": logo id, "grounds": [colour names], "text": note}
+    {"type": "font", "kind", "font": family, "use": "" | headings | a step's use, "min_size": px or 0, "text": note}
+
+A rule without a type (stored before 05.10.2026) is a ``text`` rule. A name that is gone is not refused here: the
+checks name it, so an old version stays readable.
 """
 
 from __future__ import annotations
@@ -37,9 +48,14 @@ ROLES = ("primary", "secondary", "accent", "neutral")
 LICENSES = ("free", "internal", "system")
 FALLBACKS = ("serif", "sans-serif", "monospace", "cursive")
 RULE_KINDS = ("do", "dont")
+RULE_TYPES = ("text", "pair", "logo", "font")
+RULE_TOPICS = ("", "logo", "color", "font", "image", "tone")
+PAIR_SIZES = ("text", "large")
 #: What a step of the type scale is for; empty: just a size with a name.
 USES = ("", "h1", "h2", "h3", "h4", "lead", "body", "small", "caption", "label")
 #: Fonts that ship with the interface (``frontend/src/lib/fonts.ts``), all under the SIL Open Font License.
+#: What a font rule is about: every step, the headings (h1 to h4), or the steps of one use.
+RULE_USES = ("", "headings", *USES[1:])
 CATALOG = ("fraunces", "playfair", "lora", "sourceserif", "inter", "dmsans", "outfit", "spacegrotesk", "nunito")
 
 MOST = {"colors": 48, "fonts": 12, "logos": 24, "scale": 12, "rules": 60, "samples": 60}
@@ -266,11 +282,7 @@ def clean(data: Any, db: Session | None = None, space_id: int | None = None) -> 
         })
 
     for index, item in enumerate(_list(data, "rules")):
-        at = f"rules.{index}"
-        out["rules"].append({
-            "kind": _choice(item.get("kind"), RULE_KINDS, f"{at}.kind"),
-            "text": _text(item.get("text"), f"{at}.text", 400, required=True),
-        })
+        out["rules"].append(clean_rule(item, f"rules.{index}"))
 
     for index, item in enumerate(_list(data, "samples")):
         at = f"samples.{index}"
@@ -279,6 +291,42 @@ def clean(data: Any, db: Session | None = None, space_id: int | None = None) -> 
             "media": files.one(item.get("media"), f"{at}.media", None),
         })
     return out
+
+
+RULE_KEYS = {
+    "text": {"topic"},
+    "pair": {"fg", "bg", "size"},
+    "logo": {"logo", "grounds"},
+    "font": {"font", "use", "min_size"},
+}
+
+
+def clean_rule(item: dict[str, Any], at: str) -> dict[str, Any]:
+    kind = item.get("type") or "text"
+    kind = _choice(kind, RULE_TYPES, f"{at}.type")
+    unknown = set(item) - {"type", "kind", "text"} - RULE_KEYS[kind]
+    if unknown:
+        raise SetError(f"{at}.{min(unknown)}", "Not a part of this kind of rule.")
+    rule: dict[str, Any] = {"type": kind, "kind": _choice(item.get("kind"), RULE_KINDS, f"{at}.kind"),
+                            "text": _text(item.get("text"), f"{at}.text", 400, required=kind == "text")}
+    if kind == "text":
+        rule["topic"] = _choice(item.get("topic"), RULE_TOPICS, f"{at}.topic", "")
+    elif kind == "pair":
+        rule["fg"] = _text(item.get("fg"), f"{at}.fg", 60, required=True)
+        rule["bg"] = _text(item.get("bg"), f"{at}.bg", 60, required=True)
+        rule["size"] = _choice(item.get("size"), PAIR_SIZES, f"{at}.size", "text")
+    elif kind == "logo":
+        rule["logo"] = _text(item.get("logo"), f"{at}.logo", 32, required=True)
+        grounds = item.get("grounds")
+        if not isinstance(grounds, list) or not 1 <= len(grounds) <= MOST["colors"]:
+            raise SetError(f"{at}.grounds", "One colour or more.")
+        names = [_text(g, f"{at}.grounds.{n}", 60, required=True) for n, g in enumerate(grounds)]
+        rule["grounds"] = list(dict.fromkeys(names))
+    else:
+        rule["font"] = _text(item.get("font"), f"{at}.font", 80, required=True)
+        rule["use"] = _choice(item.get("use"), RULE_USES, f"{at}.use", "")
+        rule["min_size"] = _number(item.get("min_size", 0), f"{at}.min_size", 0, 400, whole=False)
+    return rule
 
 
 def media_of(data: Any) -> set[str]:

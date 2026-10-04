@@ -27,7 +27,7 @@ type Step = (typeof STEPS)[number]
 type Bench = { colors: BrandColor[]; head: string; body: string; base: number; ratio: number; logo?: MediaInfo }
 
 export function NewClientPage() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { me } = useAuth()
   const brands = useBrands()
@@ -75,7 +75,7 @@ export function NewClientPage() {
       fonts,
       logos,
       scale: typeScale(bench.base, bench.ratio, familyOf(head), familyOf(body), scaleNames),
-      rules: startRules(valid, { whiteOk: (n, r) => t('gen.whiteOk', { name: n, ratio: r }), whiteBad: (n, r) => t('gen.whiteBad', { name: n, ratio: r }), clear: t('gen.clear'), distort: t('gen.distort') }, i18n.language),
+      rules: startRules(valid, { clear: t('gen.clear'), distort: t('gen.distort') }),
     }
   }
 
