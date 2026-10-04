@@ -21,7 +21,22 @@ from .config import get_settings
 from .db import SessionLocal, init_db
 from .errors import detail
 from .middleware import GuardMiddleware, RequestContextMiddleware, unhandled_error
-from .routers import about, apitokens, auth, clients, health, mcp, media, members, oidc, reviews, shares, spaces
+from .routers import (
+    about,
+    ai,
+    apitokens,
+    auth,
+    clients,
+    collect,
+    health,
+    mcp,
+    media,
+    members,
+    oidc,
+    reviews,
+    shares,
+    spaces,
+)
 from .routers import avatars as avatars_router
 from .routers import backups as backups_router
 from .routers import directory as directory_router
@@ -33,13 +48,14 @@ from .routers import totp as totp_router
 from .routers import v1 as v1_router
 from .security import HashingBusy, purge_sessions
 from .services import accounts, backups, cleanup, locales, logs, settings_service, totp
+from .services import ai as ai_service
 
 logger = logging.getLogger("nexbrand")
 
 ROUTERS = [
     health, about, locales_router, logs_router, auth, totp_router, oidc, members, settings_router, backups_router,
     avatars_router, spaces, directory_router, suite_router, clients, media, shares, reviews, apitokens, v1_router,
-    mcp,
+    mcp, ai, collect,
 ]
 
 
@@ -80,6 +96,7 @@ async def _sweep_forever(stop: asyncio.Event) -> None:
         if rounds % 60 == 0:
             with SessionLocal() as db:
                 purge_sessions(db)
+                ai_service.purge_events(db)
         rounds += 1
         try:
             await asyncio.wait_for(stop.wait(), 60)

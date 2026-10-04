@@ -19,6 +19,7 @@ import {
   RotateCcw,
   Shield,
   ShieldCheck,
+  Sparkles,
   Users,
   UsersRound,
 } from 'lucide-react'
@@ -35,15 +36,15 @@ import { TeamBadge, TeamRightsDialog, TeamsCard } from '../components/Teams'
 import { changeLanguage, languageOptions, templateFile, type LanguageOption } from '../i18n'
 import { applyMode, storedMode, type Mode } from '../lib/theme'
 import { useAuth } from '../state/auth'
-import { AccountsCard, AllSpacesCard, ApiTokensCard, BackupsCard, FilesCard, LanguagesCard, LogCard, MailCard, SharesCard, SignInCard, useServerSettings } from './settings/ServerCards'
+import { AccountsCard, AllSpacesCard, ApiTokensCard, BackupsCard, FilesCard, LanguagesCard, LogCard, MailCard, OutsideCard, SharesCard, SignInCard, useServerSettings } from './settings/ServerCards'
 import { Button, Card, Feedback, saveAsFile, TabRow, useAction, type Tab } from './settings/ui'
 
 type Top = 'general' | 'looks' | 'spaces' | 'teams' | 'server'
-type Part = 'accounts' | 'signin' | 'suite' | 'shares' | 'api' | 'files' | 'backups' | 'languages' | 'log'
+type Part = 'accounts' | 'signin' | 'suite' | 'shares' | 'api' | 'outside' | 'files' | 'backups' | 'languages' | 'log'
 const TOPS: Top[] = ['general', 'looks', 'spaces', 'teams', 'server']
-const PARTS: Part[] = ['accounts', 'signin', 'suite', 'shares', 'api', 'files', 'backups', 'languages', 'log']
+const PARTS: Part[] = ['accounts', 'signin', 'suite', 'shares', 'api', 'outside', 'files', 'backups', 'languages', 'log']
 const TOP_ICON = { general: Globe, looks: Eye, spaces: Box, teams: UsersRound, server: ShieldCheck }
-const PART_ICON = { accounts: Users, signin: KeyRound, suite: Shield, shares: Globe, api: Plug, files: Files, backups: History, languages: Globe, log: Info }
+const PART_ICON = { accounts: Users, signin: KeyRound, suite: Shield, shares: Globe, api: Plug, outside: Sparkles, files: Files, backups: History, languages: Globe, log: Info }
 
 export function SettingsPage() {
   const { t } = useTranslation()
@@ -100,6 +101,8 @@ function ServerPart({ part }: { part: Part }) {
       return <SharesCard server={server} />
     case 'api':
       return <ApiTokensCard server={server} />
+    case 'outside':
+      return <OutsideCard server={server} />
     case 'files':
       return <FilesCard server={server} />
     case 'backups':

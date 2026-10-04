@@ -309,6 +309,30 @@ export type MediaInfo = {
 export type SetupState = { needs_setup: boolean; code_required: boolean; signed_in: boolean; version: string; min_password: number }
 export type Methods = { password: boolean; oidc: boolean; oidc_name: string; suite?: boolean }
 
+export type AiAccess = { active: boolean; url: string; model: string; key_set: boolean }
+export type AiState = { allowed: boolean; ready: boolean; access: AiAccess }
+export type AiModel = { id: string; name: string }
+export type AiEvent = { id: number; at: string; model: string; task: 'order' | 'directions'; tokens_in: number; tokens_out: number; error: string; body: unknown }
+export type Direction = { label: string; why: string; hue: number; accent_hue: number; saturation: number; mood: string; head: string; body: string }
+
+export type SourceKind = 'website' | 'repo' | 'pdf'
+export type FoundColor = {
+  hex: string
+  share: number
+  where: string[]
+  names: string[]
+  detail: string
+  pantone: string
+  cmyk: string
+  role: 'primary' | 'secondary' | 'accent' | 'neutral'
+  name: string
+  keep: boolean
+  reason: string
+}
+export type FoundFont = { family: string; where: string[]; license: 'free' | 'unknown'; detail: string; use: 'headings' | 'body' | 'other'; keep: boolean }
+export type FoundLogo = { url: string; kind: string; where: string }
+export type Collected = { colors: FoundColor[]; fonts: FoundFont[]; logos: FoundLogo[]; notes: { source: string; problem: string }[]; ai: boolean }
+
 // ---- Calls ----------------------------------------------------------------------------------------------------------
 
 export const authApi = {
@@ -395,7 +419,7 @@ export const clientsApi = {
   trash: (id: string) => api<void>(`/api/clients/${id}`, { method: 'DELETE' }),
   restore: (id: string) => api<ClientInfo>(`/api/clients/${id}/restore`, { method: 'POST' }),
   purge: (id: string) => api<void>(`/api/clients/${id}/purge`, { method: 'DELETE' }),
-  newVersion: (id: string, body: { label: string; source?: string; data?: BrandSet; note?: string }) =>
+  newVersion: (id: string, body: { label: string; source?: string; data?: BrandSet; note?: string; origin?: 'hand' | 'collect' }) =>
     api<VersionInfo>(`/api/clients/${id}/versions`, { method: 'POST', body }),
   saveDraft: (id: string, version: string, change: { label?: string; note?: string; data?: BrandSet }) =>
     api<VersionInfo>(`/api/clients/${id}/versions/${version}`, { method: 'PUT', body: change }),
@@ -459,4 +483,20 @@ export function pageMediaUrl(kind: 'public' | 'review', token: string, id: strin
 
 export function avatarUrl(person: { id: number; avatar: string | null }): string | null {
   return person.avatar ? `/api/avatars/${person.id}?v=${encodeURIComponent(person.avatar)}` : null
+}
+
+export const aiApi = {
+  state: () => api<AiState>('/api/ai'),
+  save: (change: Partial<{ active: boolean; url: string; model: string; key: string }>) => api<AiState>('/api/ai', { method: 'PUT', body: change }),
+  models: (url?: string, key?: string) => api<AiModel[]>('/api/ai/models', { method: 'POST', body: { url, key } }),
+  directions: (brief: string, name: string, language: string) =>
+    api<{ directions: Direction[] }>('/api/ai/directions', { method: 'POST', body: { brief, name, language } }),
+  events: () => api<AiEvent[]>('/api/ai/events'),
+  clear: () => api<{ removed: number }>('/api/ai/events', { method: 'DELETE' }),
+}
+
+export const collectApi = {
+  run: (sources: { kind: SourceKind; value: string }[], useAi: boolean, language: string) =>
+    api<Collected>('/api/collect', { method: 'POST', body: { sources, use_ai: useAi, language } }),
+  logo: (spaceId: number, url: string) => api<MediaInfo>('/api/collect/logo', { method: 'POST', body: { space_id: spaceId, url } }),
 }

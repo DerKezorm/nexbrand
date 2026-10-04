@@ -1,11 +1,11 @@
 /** A new client: who it is, then a start (a few words, a picture, one colour, or empty), colours, fonts, sizes and logo
  * in the workbench, and the draft, before the client if wanted. Also the way to record a CI that exists already. */
 import { ArrowLeft, ArrowRight, Check, Eraser, ImagePlus, Loader2, Palette, Pipette, Send, Sparkles, Table2 } from 'lucide-react'
-import { useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
-import { ApiError, clientsApi, mediaApi, mediaUrl, reviewsApi, type MediaInfo } from '../api/client'
+import { aiApi, ApiError, clientsApi, mediaApi, mediaUrl, reviewsApi, type MediaInfo } from '../api/client'
 import { HintList, Matrix } from '../components/brand/Checks'
 import { LogoView } from '../components/brand/LogoView'
 import { ColorsEditor, useNames } from '../components/brand/SetEditor'
@@ -16,7 +16,7 @@ import { check } from '../lib/checks'
 import { isHex, textOn } from '../lib/color'
 import { errorText } from '../lib/errors'
 import { CATALOG, PAIRINGS, catalogEntry, catalogFont, fontStack } from '../lib/fonts'
-import { colorsOfImage, directions, familyOf, neutralsFor, RATIOS, rolesFor, startRules, typeScale, wordmarks, type Direction } from '../lib/generate'
+import { colorsOfImage, directions, familyOf, fromAi, neutralsFor, RATIOS, rolesFor, startRules, typeScale, wordmarks, type Direction } from '../lib/generate'
 import { useAuth } from '../state/auth'
 import { useBrands } from '../state/brands'
 import { Feedback } from './settings/ui'
@@ -82,7 +82,7 @@ export function NewClientPage() {
       const draft = made.versions[0]
       if (review && reviewPossible) {
         const variants = [{ id: 'a', label: t('wizard.worked'), why: t('wizard.workedWhy'), data: current }]
-        for (const d of dirs ?? []) if (along[d.id]) variants.push({ id: String.fromCharCode(97 + variants.length), label: t(`wizard.dir.${d.id}.label`), why: dirWhy(d), data: setOf(d.colors, d.head, d.body) })
+        for (const d of dirs ?? []) if (along[d.id]) variants.push({ id: String.fromCharCode(97 + variants.length), label: d.label || t(`wizard.dir.${d.id}.label`), why: dirWhy(d), data: setOf(d.colors, d.head, d.body) })
         await reviewsApi.create(made.id, { version_id: draft.id, variants, label: '1.0', sender: me?.display_name || me?.name || '', days: 30 })
       }
       await brands.refresh()
@@ -95,7 +95,7 @@ export function NewClientPage() {
   }
 
   const moodWord = (m: string) => t(`wizard.mood.${m}`)
-  const dirWhy = (d: Direction) => t(`wizard.dir.${d.id}.why`, { mood: moodWord(d.mood), second: moodWord(d.second) })
+  const dirWhy = (d: Direction) => d.why || t(`wizard.dir.${d.id}.why`, { mood: moodWord(d.mood), second: moodWord(d.second) })
   const fileUrl = (id: string) => mediaUrl(id)
 
   return (
@@ -288,7 +288,7 @@ export function NewClientPage() {
                   <label key={d.id} className="flex items-start gap-3 rounded-xl border border-ink-700 p-3 text-sm">
                     <input type="checkbox" checked={!!along[d.id]} onChange={(e) => setAlong({ ...along, [d.id]: e.target.checked })} className="mt-1 accent-accent-500" />
                     <span className="flex-1">
-                      <b>{t(`wizard.dir.${d.id}.label`)}</b>
+                      <b>{d.label || t(`wizard.dir.${d.id}.label`)}</b>
                       <span className="block text-xs text-mist-500">{t('wizard.alongText')}</span>
                     </span>
                     <Swatches colors={d.colors} />
@@ -407,9 +407,30 @@ function StartStep({
   onColors: (c: BrandColor[]) => void
   onEmpty: () => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [mode, setMode] = useState<'words' | 'picture' | 'color' | 'empty'>(brief.trim() ? 'words' : 'color')
   const [loading, setLoading] = useState(false)
+  // The account's own AI when it has one switched on; without it, or when it fails, the rules of `lib/generate.ts`.
+  const [aiReady, setAiReady] = useState(false)
+  const [aiProblem, setAiProblem] = useState<string | null>(null)
+  useEffect(() => {
+    aiApi.state().then((s) => setAiReady(s.ready), () => setAiReady(false))
+  }, [])
+  const propose = async () => {
+    setLoading(true)
+    setAiProblem(null)
+    if (aiReady && brief.trim().length >= 3) {
+      try {
+        const answer = await aiApi.directions(brief.trim(), name.trim(), i18n.language.startsWith('de') ? 'German' : 'English')
+        setDirs(fromAi(answer.directions, names))
+        setLoading(false)
+        return
+      } catch (error) {
+        setAiProblem(error instanceof ApiError ? error.code : 'internal_error')
+      }
+    }
+    window.setTimeout(() => (setDirs(directions(brief, name, names)), setLoading(false)), 300)
+  }
   const [start, setStart] = useState('#2E7D5B')
   const [found, setFound] = useState<string[] | null>(null)
   const [picture, setPicture] = useState<string | null>(null)
@@ -458,13 +479,16 @@ function StartStep({
               type="button"
               className="nc-btn nc-btn-accent"
               disabled={loading}
-              onClick={() => {
-                setLoading(true)
-                window.setTimeout(() => (setDirs(directions(brief, name, names)), setLoading(false)), 300)
-              }}
+              onClick={() => void propose()}
             >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} {t('wizard.propose')}
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} {aiReady ? t('wizard.proposeAi') : t('wizard.propose')}
             </button>
+          )}
+          {!dirs && <p className="text-xs text-mist-500">{aiReady ? t('wizard.aiHint') : t('wizard.rulesHint')}</p>}
+          {aiProblem && (
+            <p role="status" className="text-xs text-warn-500">
+              {t('wizard.aiFailed', { reason: errorText(aiProblem) })}
+            </p>
           )}
           {dirs && (
             <>
@@ -476,7 +500,7 @@ function StartStep({
                     <article key={d.id} className="flex flex-col gap-3 rounded-xl border border-ink-700 bg-ink-850 p-3">
                       <WebPreview colors={d.colors} head={catalogFont(d.head)!.stack} body={catalogFont(d.body)!.stack} name={name || t('wizard.yourName')} fileUrl={mediaUrl} compact />
                       <div>
-                        <h3 className="text-sm font-semibold">{t(`wizard.dir.${d.id}.label`)}</h3>
+                        <h3 className="text-sm font-semibold">{d.label || t(`wizard.dir.${d.id}.label`)}</h3>
                         <p className="mt-1 text-xs text-gelb-text">{dirWhy(d)}</p>
                       </div>
                       <div className="flex items-center justify-between gap-2 text-xs text-mist-500">

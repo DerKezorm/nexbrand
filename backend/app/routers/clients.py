@@ -8,7 +8,7 @@ takes writing to put in and take out, and managing to delete for good.
 from __future__ import annotations
 
 import logging
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Query, Response
 from fastapi import Path as PathParam
@@ -56,6 +56,8 @@ class VersionIn(BaseModel):
     source: str | None = Field(default=None, max_length=24)
     data: dict[str, Any] | None = None
     note: str = Field(default="", max_length=1000)
+    #: Where it came from: by hand, or collected from websites, repositories and PDFs (shown in the history).
+    origin: Literal["hand", "collect"] = "hand"
 
 
 class VersionChange(BaseModel):
@@ -282,7 +284,7 @@ def new_version(client_id: ClientId, payload: VersionIn, account: Account, db: D
     source = _version(db, client, payload.source) if payload.source else None
     try:
         row = brands.create_version(db, account, client, label=payload.label, source=source, data=payload.data,
-                                    note=payload.note)
+                                    note=payload.note, origin=payload.origin)
     except brands.BrandError as exc:
         raise _fail(exc) from exc
     return version_view(row)

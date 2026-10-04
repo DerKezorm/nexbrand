@@ -17,7 +17,7 @@ from ..deps import DbSession, OperatorAccount
 from ..errors import error
 from ..models import SIGN_IN_PASSWORD
 from ..security import encrypt_secret
-from ..services import accounts, mailer, settings_service, suite
+from ..services import accounts, ai, mailer, settings_service, suite
 
 logger = logging.getLogger("nexbrand.settings")
 
@@ -38,6 +38,10 @@ class SettingsOut(BaseModel):
     smtp_password_set: bool
     smtp_from: str
     api_tokens_allowed: bool
+    collect_allowed: bool
+    collect_github_token_set: bool
+    ai_allowed: bool
+    ai_private_hosts: str
     upload_max_mb: int
     upload_ceiling_mb: int
     strip_location: bool
@@ -59,6 +63,11 @@ class SettingsIn(BaseModel):
     smtp_password: str | None = Field(default=None, max_length=500)
     smtp_from: str | None = Field(default=None, max_length=255)
     api_tokens_allowed: bool | None = None
+    collect_allowed: bool | None = None
+    #: Empty removes the token; left out keeps it.
+    collect_github_token: str | None = Field(default=None, max_length=500)
+    ai_allowed: bool | None = None
+    ai_private_hosts: str | None = Field(default=None, max_length=4000)
     upload_max_mb: int | None = Field(default=None, ge=1, le=100_000)
     strip_location: bool | None = None
     update_check: bool | None = None
@@ -84,6 +93,10 @@ def _view(db: DbSession) -> SettingsOut:
         smtp_password_set=bool(values["smtp_password_enc"]),
         smtp_from=values["smtp_from"],
         api_tokens_allowed=bool(values["api_tokens_allowed"]),
+        collect_allowed=bool(values["collect_allowed"]),
+        collect_github_token_set=bool(values["collect_github_token_enc"]),
+        ai_allowed=bool(values["ai_allowed"]),
+        ai_private_hosts=str(values["ai_private_hosts"] or ""),
         upload_max_mb=settings_service.upload_max_mb(db),
         upload_ceiling_mb=get_settings().upload_max_mb,
         strip_location=bool(values["strip_location"]),
@@ -131,6 +144,15 @@ def save(payload: SettingsIn, operator: OperatorAccount, db: DbSession) -> Setti
         elif key == "smtp_password":
             changes["smtp_password_enc"] = encrypt_secret(value)
             continue
+        elif key == "collect_github_token":
+            token = value.strip()
+            changes["collect_github_token_enc"] = encrypt_secret(token, "collect:github") if token else ""
+            continue
+        elif key == "ai_private_hosts":
+            try:
+                value = "\n".join(ai.parse_hosts(value))
+            except ai.AiError as exc:
+                raise error(exc.code, "One of the hosts is not valid.", 422) from exc
         elif isinstance(value, str):
             value = value.strip()
         changes[key] = value

@@ -7,6 +7,7 @@ import { AccountPage } from './pages/AccountPage'
 import { InvitePage, LoginPage, SetupPage } from './pages/AuthPages'
 import { ClientPage } from './pages/ClientPage'
 import { ClientsPage } from './pages/ClientsPage'
+import { CollectPage } from './pages/CollectPage'
 import { ContrastPage } from './pages/ContrastPage'
 import { NewClientPage } from './pages/NewClientPage'
 import { ProjectPage } from './pages/ProjectPage'
@@ -69,6 +70,7 @@ export default function App() {
         <Route path="c/:id" element={<ClientPage />} />
         <Route path="c/:id/p/:pid" element={<ProjectPage />} />
         <Route path="new" element={<NewClientPage />} />
+        <Route path="collect" element={<CollectPage />} />
         <Route path="contrast" element={<ContrastPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="account" element={<AccountPage />} />

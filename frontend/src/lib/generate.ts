@@ -91,7 +91,7 @@ const KEYWORDS: [RegExp, Mood, number][] = [
   [/ruhig|calm|medizin|medic|praxis|clinic|pflege|care|therapie|therapy|klar|clear|sanft|gentle|wellness/, 'calm', 188],
 ]
 
-export type Direction = { id: 'a' | 'b' | 'c'; mood: Mood; second: Mood; colors: BrandColor[]; head: string; body: string }
+export type Direction = { id: 'a' | 'b' | 'c'; mood: Mood; second: Mood; colors: BrandColor[]; head: string; body: string; label?: string; why?: string }
 
 /** Three directions from a few words, without an AI: hue and fonts by the moods the words name. The main colour is
  * then darkened until a button with white text and a link on the light ground reach 4.5:1. */
@@ -129,6 +129,39 @@ export function directions(brief: string, name: string, names: Names): Direction
     build('b', h1, 72, 44, h1 + 180, 55, 52, m2),
     build('c', h2, 30, 34, h2 - 40, 35, 60, m2 === m1 ? 'calm' : m2, pair(m1).head),
   ]
+}
+
+/** What the account's AI proposed (`routers/ai.py`, checked there: hue, saturation, a mood and fonts of the catalog).
+ * The AI names a direction and says why; the colours are made here, the same way as without it, so the main colour
+ * reaches 4.5:1 with white and on the light ground whatever the model said. */
+export type AiDirection = { label: string; why: string; hue: number; accent_hue: number; saturation: number; mood: string; head: string; body: string }
+const MOODS: Mood[] = ['warm', 'fresh', 'serious', 'playful', 'fine', 'bold', 'calm']
+
+export function fromAi(list: AiDirection[], names: Names): Direction[] {
+  return list.slice(0, 3).map((d, index) => {
+    const mood = MOODS.includes(d.mood as Mood) ? (d.mood as Mood) : 'calm'
+    const base = fromHsl(wrap(d.hue), Math.min(90, Math.max(20, d.saturation)), 42)
+    const neutrals = neutralsFor(base, names)
+    let primary = reach(base, '#FFFFFF', 4.5) ?? base
+    primary = reach(primary, neutrals[0].hex, 4.5) ?? primary
+    const fallback = PAIRINGS.find((p) => p.moods.includes(mood)) ?? PAIRINGS[0]
+    return {
+      id: (['a', 'b', 'c'] as const)[index],
+      mood,
+      second: mood,
+      head: catalogFont(d.head) ? d.head : fallback.head,
+      body: catalogFont(d.body) ? d.body : fallback.body,
+      label: d.label,
+      why: d.why,
+      colors: [
+        { name: names.primary, hex: primary, role: 'primary' },
+        { name: names.accent, hex: fromHsl(wrap(d.accent_hue), 65, 55), role: 'accent' },
+        neutrals[0],
+        neutrals[2],
+        { name: names.white, hex: '#FFFFFF', role: 'neutral' },
+      ],
+    }
+  })
 }
 
 /** Rules a fresh design set can start with; those about contrast come from the numbers. */

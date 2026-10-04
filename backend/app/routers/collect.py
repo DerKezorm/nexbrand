@@ -1,0 +1,139 @@
+"""Collecting a brand: websites, GitHub repositories, PDF style guides (``services/collect.py``), sorted by rules or
+by the account's AI, and a logo found there taken into a space.
+
+Websites and repositories are a way out: closed until the operator opens it (``collect_allowed``). A PDF is a file
+already uploaded into a space the account may read; it never leaves the house.
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+from typing import Annotated, Any, Literal
+
+from fastapi import APIRouter
+from fastapi.concurrency import run_in_threadpool
+from pydantic import BaseModel, Field
+
+from ..db import SessionLocal
+from ..deps import Account
+from ..errors import error
+from ..models import READ, WRITE, Media
+from ..models import Account as AccountRow
+from ..security import decrypt_secret
+from ..services import ai, collect, media, media_store, outbound, rights, settings_service
+
+logger = logging.getLogger("nexbrand.collect")
+
+router = APIRouter(prefix="/api/collect", tags=["collect"])
+
+MAX_SOURCES = 6
+PICTURES = {"svg", "png", "jpeg", "webp", "gif", "avif"}
+
+
+class Source(BaseModel):
+    kind: Literal["website", "repo", "pdf"]
+    #: An address (website, repository) or a media id (PDF).
+    value: str = Field(min_length=1, max_length=2000)
+
+
+class CollectIn(BaseModel):
+    sources: Annotated[list[Source], Field(min_length=1, max_length=MAX_SOURCES)]
+    #: Sort with the account's AI when it has one switched on.
+    use_ai: bool = False
+    language: str = Field(default="en", max_length=8)
+
+
+class LogoIn(BaseModel):
+    space_id: int = Field(ge=1)
+    url: str = Field(min_length=8, max_length=2000)
+
+
+def _language_name(code: str) -> str:
+    return {"de": "German", "en": "English", "fr": "French", "es": "Spanish", "it": "Italian", "nl": "Dutch"}.get(
+        code[:2].lower(), "English")
+
+
+def _collect(account_id: int, payload: CollectIn) -> dict[str, Any]:
+    found = collect.Found()
+    with SessionLocal() as db:
+        outside = bool(settings_service.get(db, "collect_allowed"))
+        token_enc = str(settings_service.get(db, "collect_github_token_enc") or "")
+        account = db.get(AccountRow, account_id)
+        assert account is not None
+        for source in payload.sources:
+            try:
+                if source.kind in ("website", "repo"):
+                    if not outside:
+                        raise error("collect_off", "The operator has not allowed collecting from outside.", 403)
+                    if source.kind == "website":
+                        collect.from_website(found, source.value.strip())
+                    else:
+                        token = decrypt_secret(token_enc, "collect:github") if token_enc else ""
+                        collect.from_repo(found, source.value.strip(), token)
+                else:
+                    row = db.get(Media, source.value)
+                    if row is None or row.kind != "pdf" or not rights.at_least(
+                            rights.role_in(db, account, row.space_id), READ):
+                        raise error("not_found", "Not found.", 404)
+                    collect.from_pdf(found, media_store.path_of(row.id), row.name)
+            except outbound.FetchError as exc:
+                found.notes.append({"source": source.value[:200], "problem": exc.code})
+            except Exception as exc:
+                if getattr(exc, "status_code", 0):
+                    raise
+                logger.warning("A source could not be read: %s", type(exc).__name__)
+                found.notes.append({"source": source.value[:200], "problem": "unreadable"})
+        items = collect.merged(found)
+        language = payload.language[:2].lower()
+        used_ai = False
+        answer: Any = None
+        if payload.use_ai and items and ai.ready(db, account):
+            material = {"colors": [{k: i[k] for k in ("hex", "share", "names", "where")} for i in items],
+                        "fonts": [{"family": f["family"], "where": sorted(f["where"])} for f in found.fonts.values()]}
+            try:
+                answer = ai.run(db, account, task="order", material=material, language=_language_name(language))
+                used_ai = True
+            except ai.AiError as exc:
+                found.notes.append({"source": "ai", "problem": exc.code})
+        ordered = collect.order_with_ai(items, answer, language) if used_ai else collect.order_by_rules(items, language)
+        return {"colors": ordered, "fonts": collect.fonts_of(found, answer if used_ai else None), "logos": found.logos,
+                "notes": found.notes, "ai": used_ai}
+
+
+@router.post("", summary="Collect colours, fonts and logos from websites, repositories and PDFs")
+async def run(payload: CollectIn, account: Account) -> dict[str, Any]:
+    logger.info("Collecting sources=%s by=%s", ",".join(s.kind for s in payload.sources), account.name)
+    return await run_in_threadpool(_collect, account.id, payload)
+
+
+@router.post("/logo", status_code=201, summary="Take a logo found while collecting into a space")
+async def take_logo(payload: LogoIn, account: Account) -> dict[str, Any]:
+    with SessionLocal() as db:
+        if not settings_service.get(db, "collect_allowed"):
+            raise error("collect_off", "The operator has not allowed collecting from outside.", 403)
+        try:
+            rights.check(db, account, payload.space_id, WRITE)
+        except rights.RightsError as exc:
+            raise error(exc.code, exc.text, exc.status) from exc
+        limit = min(media_store.max_bytes(db), 5 * 1024 * 1024)
+    try:
+        fetched = await run_in_threadpool(outbound.get, payload.url, limit=limit, accept="image/*")
+    except outbound.FetchError as exc:
+        raise error("collect_failed", "The logo could not be fetched.", 502, problem=exc.code) from exc
+    head = fetched.body[:1024]
+    if (media.sniff(head[:64]) or ("svg" if media_store.is_svg(head) else "file")) not in PICTURES:
+        raise error("not_a_picture", "This file is not a picture that works as a logo.", 422)
+    received = media_store.temporary()
+    received.write_bytes(fetched.body)
+    name = os.path.basename(fetched.url.split("?")[0]) or "logo"
+
+    def finish() -> media_store.Stored:
+        with SessionLocal() as db:
+            return media_store.finish(db, account, payload.space_id, received, name)
+
+    try:
+        stored = await run_in_threadpool(finish)
+    finally:
+        received.unlink(missing_ok=True)
+    return {"id": stored.id, "name": stored.name, "kind": stored.kind, "size": stored.size}

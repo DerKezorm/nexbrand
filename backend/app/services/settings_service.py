@@ -41,6 +41,14 @@ DEFAULTS: dict[str, Any] = {
     "shares_allowed": False,
     #: Tokens for programs such as n8n or nexdeck (``/api/v1``): closed until the operator opens it.
     "api_tokens_allowed": False,
+    #: Collecting from websites and repositories (``services/collect.py``): a way out, closed until opened.
+    "collect_allowed": False,
+    #: A token for private GitHub repositories when collecting, encrypted; empty: public repositories only.
+    "collect_github_token_enc": "",
+    #: Each account's own AI service (``services/ai.py``): a client's material leaves the house, so closed first.
+    "ai_allowed": False,
+    #: Hosts in the own network an AI service may run on (Ollama at home), one per line.
+    "ai_private_hosts": "",
     #: Ask GitHub once a day whether a newer nexbrand is out (services/updates). Only the question goes out, so on.
     "update_check": True,
     #: Invitation mail: without a host nothing is sent, the link to copy is enough.

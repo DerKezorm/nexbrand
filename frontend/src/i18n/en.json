@@ -125,7 +125,8 @@
       "backups": "Backups",
       "languages": "Languages",
       "log": "Log",
-      "api": "API"
+      "api": "API",
+      "outside": "Collecting and AI"
     },
     "start": {
       "title": "Start page",
@@ -350,7 +351,22 @@
     "noPassword": "no password",
     "givePassword": "Give a password",
     "unblock": "Unblock",
-    "ownSecondFactorFirst": "Set up your own second factor first (My account, Security), or you would be the first one who cannot go on."
+    "ownSecondFactorFirst": "Set up your own second factor first (My account, Security), or you would be the first one who cannot go on.",
+    "outside": {
+      "title": "Collecting and AI",
+      "text": "Two ways out, both closed until you open them. When collecting, the website learns that this server asked for it; with AI, a client's material goes to the service an account has entered.",
+      "collect": "Allow collecting from websites and GitHub repositories",
+      "collectHint": "Addresses in the own network are always blocked. PDFs from a space work without this switch; they never leave the house.",
+      "github": "GitHub token for private repositories",
+      "githubHint": "Leave empty for public repositories. A token that may read contents is enough; it is stored encrypted and never shown again.",
+      "githubRemove": "Remove the token",
+      "githubRemoved": "Token removed.",
+      "ai": "Allow each account its own AI service",
+      "aiHint": "Each account enters its service and key itself. The AI sorts what was collected and proposes directions in the wizard; nexbrand always measures the values.",
+      "hosts": "Machines in the own network an AI service may run on",
+      "hostsHint": "One name or address per line, with a port if you like, for Ollama at home for example. Everything else in the own network stays blocked.",
+      "githubNone": "No token saved"
+    }
   },
   "errors": {
     "avatar_not_a_picture": "That is not a picture nexbrand takes (JPEG, PNG, WebP, GIF, HEIC or AVIF).",
@@ -509,12 +525,38 @@
     "too_many_comments": "This review holds as many comments as it may.",
     "level_too_low": "This token may only read.",
     "no_version": "There is no published version for that day.",
-    "not_a_picture": "This file is not a picture that works as a logo.",
+    "not_a_picture": "This is not a picture that works as a logo.",
     "invalid_label": "A version needs a name of up to 60 characters.",
     "invalid_date": "That is not a date.",
     "invalid_note": "The note is too long.",
     "invalid_sector": "The sector is too long.",
-    "invalid_contact": "That is too long."
+    "invalid_contact": "That is too long.",
+    "collect_off": "The operator has not allowed collecting from websites and repositories.",
+    "collect_failed": "The picture could not be fetched.",
+    "collect_space_first": "Choose a client or a space first.",
+    "collect_nothing": "Enter a source first.",
+    "ai_off": "The operator has not allowed AI.",
+    "ai_not_on": "Your AI is switched off.",
+    "ai_incomplete": "Save an address and a model first.",
+    "ai_address_missing": "An address is missing.",
+    "ai_address_invalid": "The address must start with http:// or https://.",
+    "ai_address_not_found": "No AI service answers at this address.",
+    "ai_address_private": "This address is in the own network. The operator has to allow the machine first.",
+    "ai_address_refused": "This address is blocked.",
+    "ai_hosts_invalid": "One of the machines is not a valid name.",
+    "ai_key_refused": "The service refuses the key.",
+    "ai_no_list": "The service names no models. Enter the model by hand.",
+    "ai_no_models": "The service has no models.",
+    "ai_not_json": "The AI did not answer in the format asked for.",
+    "ai_empty": "The AI answered nothing.",
+    "ai_unreadable": "The AI's answer could not be read.",
+    "ai_service_busy": "The service is busy right now. Try again in a moment.",
+    "ai_service_failed": "The service reports an error.",
+    "ai_task_unknown": "There is no such task.",
+    "ai_text_too_long": "Too much material at once (at most {{max}} characters).",
+    "ai_timeout": "The service did not answer within {{seconds}} seconds.",
+    "ai_too_often": "Too many requests in one minute.",
+    "ai_unreachable": "The server cannot reach the service."
   },
   "auth": {
     "name": "Name",
@@ -631,7 +673,8 @@
     "tabs": {
       "profile": "Profile",
       "security": "Security",
-      "connections": "Connections"
+      "connections": "Connections",
+      "ai": "AI"
     },
     "profile": {
       "displayName": "Display name",
@@ -1473,7 +1516,11 @@
     "next": "Next",
     "yourName": "Your name",
     "allPairs": "Every pair",
-    "asideEmpty": "Once there are colours, a sample page in the CI shows here, with the checks running again on every change."
+    "asideEmpty": "Once there are colours, a sample page in the CI shows here, with the checks running again on every change.",
+    "proposeAi": "Propose with AI",
+    "aiHint": "Your AI proposes a hue, a pair of fonts and a reason; nexbrand then works out the colours itself.",
+    "rulesHint": "Without AI, the directions come from key words in the description.",
+    "aiFailed": "The AI did not answer ({{reason}}). The directions come from the key words."
   },
   "contrast": {
     "title": "Contrast checker",
@@ -1511,5 +1558,122 @@
     "color": "Colour",
     "hint": "You manage the space and invite others into it.",
     "create": "Create space"
+  },
+  "ai": {
+    "title": "AI",
+    "text": "Your own AI service sorts the colours and fonts found when collecting and proposes three directions for a new client in the wizard. You pay for its key yourself. The AI never invents a colour value: nexbrand measures them and checks the contrast again.",
+    "off": "The operator has not switched on AI.",
+    "offOperator": "Switch it on under Settings, Server, Collecting and AI.",
+    "tiles": "Fill in the address of a service",
+    "getKey": "Get a key from {{name}}",
+    "address": "Address (any service that speaks the usual chat interface)",
+    "key": "Key",
+    "keyKept": "saved, not shown again",
+    "keyNone": "none (a service at home may need none)",
+    "model": "Model",
+    "loadModels": "Load the models",
+    "modelsFound_one": "{{count}} model found: address and key are right.",
+    "modelsFound_other": "{{count}} models found: address and key are right.",
+    "saved": "Saved.",
+    "switch": "Use AI in nexbrand",
+    "switchHint": "Collecting then offers “Sort with AI”, the wizard “Propose with AI”.",
+    "switchIncomplete": "Save an address and a model first.",
+    "whereItGoes": "What was collected (colour values, names, where they were found) or your description goes to the address above, nothing else. What happens to it there is up to that service and its conditions.",
+    "events": "What went out",
+    "eventsText": "Every request to your service, word for word, 14 days long. Shown as text, never as a page.",
+    "eventsNone": "Nothing went out.",
+    "clear": "Clear the list now",
+    "tokens": "in {{in}}, out {{out}}",
+    "tasks": {
+      "order": "Sort what was collected",
+      "directions": "Propose directions"
+    }
+  },
+  "collect": {
+    "title": "Collect",
+    "text": "Colours, fonts and logos from websites, GitHub repositories and PDF style guides. The values are measured; rules or your AI only sort them. They become a draft, or you check a site against the CI.",
+    "mode": "What should happen?",
+    "modes": {
+      "draft": "Take as a draft",
+      "audit": "Check against the CI"
+    },
+    "client": "Client",
+    "newClient": "New client",
+    "pick": "Choose a client",
+    "newName": "Name of the new client",
+    "space": "Space",
+    "noCurrent": "This client has no published version yet to check against.",
+    "sources": "Sources",
+    "kind": "Kind of source",
+    "kinds": {
+      "website": "Website",
+      "repo": "GitHub repository",
+      "pdf": "PDF style guide"
+    },
+    "remove": "Remove the source",
+    "add": "Add a source",
+    "useAi": "Sort with AI",
+    "useAiHint": "Your AI gives roles and names and leaves out what does not belong. It sees only the measured values.",
+    "aiNotReady": "Without AI, fixed rules sort: the most frequent colourful one leads, greys become neutrals.",
+    "aiSetUp": "Set up AI",
+    "privacy": "The server fetches websites and repositories, never an address in the own network. A PDF is uploaded into the client's space.",
+    "operatorSwitch": "Switch for operators",
+    "run": "Collect",
+    "running": "Collecting …",
+    "theAi": "AI",
+    "nothing": "Nothing found. The page may load its colours with JavaScript only; a repository or a style guide helps then.",
+    "colors": "Colours",
+    "sortedByAi": "Sorted by your AI. What is ticked is taken; role and name can be changed.",
+    "sortedByRules": "Sorted by rules. Nearly identical colours and tiny shares are unticked.",
+    "keep": "Take {{hex}}",
+    "name": "Name",
+    "role": "Role",
+    "fonts": "Fonts",
+    "keepFont": "Take {{family}}",
+    "use": "Use",
+    "uses": {
+      "headings": "Headings",
+      "body": "Body text",
+      "other": "Other"
+    },
+    "license": {
+      "free": "free",
+      "unknown": "licence unknown"
+    },
+    "fontForeign": "Not in the CI.",
+    "logos": "Logos",
+    "logosText": "Pictures found with “logo” in their name, icons and preview images. Taking one uploads it into the client's space.",
+    "logoTake": "Take",
+    "logoTaken": "Taken",
+    "takeHint_one": "{{count}} colour becomes a new draft. Fonts replace those of the current version, logos are added, everything else stays. Publishing happens on the client's page.",
+    "takeHint_other": "{{count}} colours become a new draft. Fonts replace those of the current version, logos are added, everything else stays. Publishing happens on the client's page.",
+    "takeNewHint_one": "A new client with {{count}} colour as a draft.",
+    "takeNewHint_other": "A new client with {{count}} colours as a draft.",
+    "take": "Take as a draft",
+    "label": "Collected on {{date}}",
+    "note_one": "Collected from {{count}} source.",
+    "note_other": "Collected from {{count}} sources.",
+    "auditTitle": "Checked against {{label}}",
+    "auditText": "Every colour found next to the nearest one of the CI (ΔE 2000). Nearly right usually means a wrong shade in a style sheet.",
+    "same": "Matches.",
+    "near": "Nearly right, ΔE {{de}}. The CI colour is probably meant.",
+    "foreign": "Not in the CI ({{share}} % of what was found).",
+    "problems": {
+      "not_public": "is in the own network and is never fetched.",
+      "bad_address": "is not a valid web address.",
+      "not_found": "does not exist.",
+      "refused": "asks for a sign-in.",
+      "no_answer": "does not answer as expected.",
+      "too_large": "is too large.",
+      "timeout": "took too long.",
+      "unreachable": "cannot be reached.",
+      "too_many_redirects": "redirects too often.",
+      "no_page": "is not a web page.",
+      "not_a_repo": "is not the address of a GitHub repository.",
+      "unreadable": "could not be read."
+    },
+    "details": {
+      "pdf": "embedded in the PDF"
+    }
   }
 }

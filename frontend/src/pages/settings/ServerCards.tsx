@@ -3,7 +3,7 @@
  * (password, second factor, public address, OIDC and authentik), public pages, files, backups, languages and the
  * log. Everything here is the server's; it applies to all.
  */
-import { Box, Download, Files, Globe, History, Info, KeyRound, Mail, RotateCcw, ShieldCheck, Trash2, Upload, Users } from 'lucide-react'
+import { Box, Download, Files, Globe, History, Info, KeyRound, Mail, RotateCcw, ShieldCheck, Sparkles, Trash2, Upload, Users } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -28,13 +28,17 @@ export type ServerSettings = {
   smtp_password_set: boolean
   smtp_from: string
   api_tokens_allowed: boolean
+  collect_allowed: boolean
+  collect_github_token_set: boolean
+  ai_allowed: boolean
+  ai_private_hosts: string
   upload_max_mb: number
   upload_ceiling_mb: number
   strip_location: boolean
   update_check: boolean
 }
 
-type Change = Partial<ServerSettings> & { smtp_password?: string }
+type Change = Partial<ServerSettings> & { smtp_password?: string; collect_github_token?: string }
 type Server = ReturnType<typeof useServerSettings>
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -482,6 +486,73 @@ export function ApiTokensCard({ server }: { server: Server }) {
           }}
         />
       )}
+    </Card>
+  )
+}
+
+/** The two ways out a client's material can take, each closed until the operator opens it: collecting from websites
+ * and repositories (the page learns that this server asked), and each account's own AI service (the material leaves the
+ * house). A GitHub token for private repositories is typed once and never shown again; hosts in the own network an AI
+ * may run on are listed by name. */
+export function OutsideCard({ server }: { server: Server }) {
+  const { t } = useTranslation()
+  const s = server.settings
+  const [token, setToken] = useState('')
+  const [hosts, setHosts] = useState<string | null>(null)
+  if (!s) return null
+  return (
+    <Card id="outside" icon={Sparkles} title={t('server.outside.title')} text={t('server.outside.text')}>
+      <Toggle label={t('server.outside.collect')} hint={t('server.outside.collectHint')} checked={s.collect_allowed} onChange={(collect_allowed) => void server.save({ collect_allowed })} />
+      <form
+        className="flex flex-wrap items-end gap-2"
+        onSubmit={(event) => {
+          event.preventDefault()
+          void server.save({ collect_github_token: token.trim() }, t('settings.saved')).then(() => setToken(''))
+        }}
+      >
+        <Input
+          label={t('server.outside.github')}
+          type="password"
+          value={token}
+          onChange={setToken}
+          placeholder={s.collect_github_token_set ? t('ai.keyKept') : t('server.outside.githubNone')}
+          hint={t('server.outside.githubHint')}
+          className="min-w-0 flex-1"
+        />
+        <Button type="submit" busy={server.busy} disabled={!token.trim()}>
+          {t('common.save')}
+        </Button>
+        {s.collect_github_token_set && (
+          <Button danger busy={server.busy} onClick={() => void server.save({ collect_github_token: '' }, t('server.outside.githubRemoved'))}>
+            {t('server.outside.githubRemove')}
+          </Button>
+        )}
+      </form>
+      <SubHead title={t('ai.title')} />
+      <Toggle label={t('server.outside.ai')} hint={t('server.outside.aiHint')} checked={s.ai_allowed} onChange={(ai_allowed) => void server.save({ ai_allowed })} />
+      <form
+        className="space-y-2"
+        onSubmit={(event) => {
+          event.preventDefault()
+          void server.save({ ai_private_hosts: hosts ?? s.ai_private_hosts }, t('settings.saved')).then(() => setHosts(null))
+        }}
+      >
+        <label className="block text-sm">
+          <span className="text-xs font-medium text-mist-400">{t('server.outside.hosts')}</span>
+          <textarea
+            value={hosts ?? s.ai_private_hosts}
+            onChange={(event) => setHosts(event.target.value)}
+            rows={3}
+            placeholder="ollama.lan:11434"
+            className="mt-1 block w-full rounded-lg border border-ink-700 bg-ink-850 px-3 py-2 font-mono text-xs text-mist-100 outline-none placeholder:text-mist-600 focus:border-accent-500"
+          />
+          <span className="mt-1 block text-xs text-mist-500">{t('server.outside.hostsHint')}</span>
+        </label>
+        <Button type="submit" busy={server.busy} disabled={hosts === null}>
+          {t('common.save')}
+        </Button>
+      </form>
+      <Feedback problem={server.problem} done={server.done} />
     </Card>
   )
 }

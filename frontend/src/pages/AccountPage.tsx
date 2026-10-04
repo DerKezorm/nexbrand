@@ -3,12 +3,13 @@
  * mail address), Security (password, second factor, the link to the provider, signing out everywhere), Connections
  * (API tokens for programs and AI tools). The tab stands in the address (`?tab=`).
  */
-import { KeyRound, Lock, Plug, Shield, ShieldCheck, UserRound } from 'lucide-react'
+import { KeyRound, Lock, Plug, Shield, ShieldCheck, Sparkles, UserRound } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 
 import { api, ApiError, authApi, type Me, type Methods } from '../api/client'
+import { AiAccess } from '../components/AiAccess'
 import { ApiTokens } from '../components/ApiTokens'
 import { Avatar } from '../components/Avatar'
 import { Field, Problem } from '../components/Field'
@@ -19,8 +20,8 @@ import { useAuth } from '../state/auth'
 import { saveAsFile, TabRow, type Tab } from './settings/ui'
 import { copyText } from '../lib/copy'
 
-type Part = 'profile' | 'security' | 'connections'
-const PARTS: Part[] = ['profile', 'security', 'connections']
+type Part = 'profile' | 'security' | 'ai' | 'connections'
+const PARTS: Part[] = ['profile', 'security', 'ai', 'connections']
 
 const QUIET = 'rounded-full border border-ink-700 px-3 py-1 text-xs text-mist-300 hover:bg-ink-850 disabled:opacity-50'
 const LOUD = 'rounded-full bg-accent-500 px-4 py-1.5 text-sm font-semibold text-on-accent hover:bg-accent-400 disabled:opacity-50'
@@ -57,6 +58,7 @@ export function AccountPage() {
   const tabs: Tab<Part>[] = [
     { value: 'profile', label: t('me.tabs.profile'), icon: UserRound },
     { value: 'security', label: t('me.tabs.security'), icon: Shield },
+    { value: 'ai', label: t('me.tabs.ai'), icon: Sparkles },
     { value: 'connections', label: t('me.tabs.connections'), icon: Plug },
   ]
 
@@ -255,6 +257,7 @@ export function AccountPage() {
           </>
         )}
 
+        {part === 'ai' && <AiAccess />}
         {part === 'connections' && <ApiTokens />}
       </div>
     </main>

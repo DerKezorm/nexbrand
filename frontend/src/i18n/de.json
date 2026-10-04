@@ -125,7 +125,8 @@
       "backups": "Sicherung",
       "languages": "Sprachen",
       "log": "Log",
-      "api": "API"
+      "api": "API",
+      "outside": "Sammeln und KI"
     },
     "start": {
       "title": "Startseite",
@@ -350,7 +351,22 @@
     "noPassword": "ohne Passwort",
     "givePassword": "Passwort geben",
     "unblock": "Entsperren",
-    "ownSecondFactorFirst": "Richte zuerst deinen eigenen zweiten Faktor ein (Mein Konto, Sicherheit), sonst wärst du der Erste, der nicht mehr weiterkommt."
+    "ownSecondFactorFirst": "Richte zuerst deinen eigenen zweiten Faktor ein (Mein Konto, Sicherheit), sonst wärst du der Erste, der nicht mehr weiterkommt.",
+    "outside": {
+      "title": "Sammeln und KI",
+      "text": "Zwei Wege nach draußen, beide zu, bis du sie öffnest. Beim Sammeln erfährt die Webseite, dass dieser Server sie abgerufen hat; mit KI geht das Material eines Kunden an den Dienst, den ein Konto eingetragen hat.",
+      "collect": "Sammeln aus Webseiten und GitHub-Repos erlauben",
+      "collectHint": "Adressen im eigenen Netz sind immer gesperrt. PDFs aus einem Bereich gehen auch ohne diesen Schalter, sie verlassen das Haus nicht.",
+      "github": "GitHub-Token für private Repos",
+      "githubHint": "Leer lassen für öffentliche Repos. Ein Token mit Leserecht auf Inhalte reicht; es wird verschlüsselt gespeichert und nie wieder gezeigt.",
+      "githubRemove": "Token entfernen",
+      "githubRemoved": "Token entfernt.",
+      "ai": "Jedem Konto einen eigenen KI-Dienst erlauben",
+      "aiHint": "Jedes Konto trägt seinen Dienst und Schlüssel selbst ein. Die KI ordnet beim Sammeln und schlägt im Assistenten Richtungen vor; Werte misst immer nexbrand.",
+      "hosts": "Rechner im eigenen Netz, auf denen ein KI-Dienst laufen darf",
+      "hostsHint": "Ein Name oder eine Adresse je Zeile, gern mit Port, etwa für Ollama zu Hause. Alles andere im eigenen Netz bleibt gesperrt.",
+      "githubNone": "Kein Token gespeichert"
+    }
   },
   "errors": {
     "avatar_not_a_picture": "Das ist kein Bild, das nexbrand annimmt (JPEG, PNG, WebP, GIF, HEIC oder AVIF).",
@@ -509,12 +525,38 @@
     "too_many_comments": "Diese Abstimmung hat so viele Kommentare, wie sie haben darf.",
     "level_too_low": "Dieser Schlüssel darf nur lesen.",
     "no_version": "Für diesen Tag gibt es keine veröffentlichte Fassung.",
-    "not_a_picture": "Diese Datei ist kein Bild, das als Logo taugt.",
+    "not_a_picture": "Das ist kein Bild, das als Logo taugt.",
     "invalid_label": "Eine Fassung braucht einen Namen bis 60 Zeichen.",
     "invalid_date": "Das ist kein Datum.",
     "invalid_note": "Die Notiz ist zu lang.",
     "invalid_sector": "Die Branche ist zu lang.",
-    "invalid_contact": "Die Angabe ist zu lang."
+    "invalid_contact": "Die Angabe ist zu lang.",
+    "collect_off": "Der Betreiber hat Sammeln aus Webseiten und Repos nicht erlaubt.",
+    "collect_failed": "Das Bild ließ sich nicht abrufen.",
+    "collect_space_first": "Erst einen Kunden oder Bereich wählen.",
+    "collect_nothing": "Erst eine Quelle eintragen.",
+    "ai_off": "Der Betreiber hat KI nicht erlaubt.",
+    "ai_not_on": "Deine KI ist ausgeschaltet.",
+    "ai_incomplete": "Erst Adresse und Modell speichern.",
+    "ai_address_missing": "Eine Adresse fehlt.",
+    "ai_address_invalid": "Die Adresse muss mit http:// oder https:// beginnen.",
+    "ai_address_not_found": "Unter dieser Adresse antwortet kein KI-Dienst.",
+    "ai_address_private": "Diese Adresse liegt im eigenen Netz. Der Betreiber muss den Rechner erst freigeben.",
+    "ai_address_refused": "Diese Adresse ist gesperrt.",
+    "ai_hosts_invalid": "Einer der Rechner ist kein gültiger Name.",
+    "ai_key_refused": "Der Dienst lehnt den Schlüssel ab.",
+    "ai_no_list": "Der Dienst nennt keine Modelle. Trag das Modell von Hand ein.",
+    "ai_no_models": "Der Dienst hat keine Modelle.",
+    "ai_not_json": "Die KI hat nicht im verlangten Format geantwortet.",
+    "ai_empty": "Die KI hat nichts geantwortet.",
+    "ai_unreadable": "Die Antwort der KI war nicht lesbar.",
+    "ai_service_busy": "Der Dienst ist gerade ausgelastet. Gleich noch einmal versuchen.",
+    "ai_service_failed": "Der Dienst meldet einen Fehler.",
+    "ai_task_unknown": "Diese Aufgabe gibt es nicht.",
+    "ai_text_too_long": "Zu viel Material auf einmal (höchstens {{max}} Zeichen).",
+    "ai_timeout": "Der Dienst hat nicht innerhalb von {{seconds}} Sekunden geantwortet.",
+    "ai_too_often": "Zu viele Anfragen in einer Minute.",
+    "ai_unreachable": "Der Server erreicht den Dienst nicht."
   },
   "auth": {
     "name": "Name",
@@ -631,7 +673,8 @@
     "tabs": {
       "profile": "Profil",
       "security": "Sicherheit",
-      "connections": "Verbindungen"
+      "connections": "Verbindungen",
+      "ai": "KI"
     },
     "profile": {
       "displayName": "Anzeigename",
@@ -1473,7 +1516,11 @@
     "next": "Weiter",
     "yourName": "Ihr Name",
     "allPairs": "Alle Kombinationen",
-    "asideEmpty": "Sobald es Farben gibt, steht hier eine Beispielseite mit der CI und die Prüfung, die bei jeder Änderung neu rechnet."
+    "asideEmpty": "Sobald es Farben gibt, steht hier eine Beispielseite mit der CI und die Prüfung, die bei jeder Änderung neu rechnet.",
+    "proposeAi": "Mit KI vorschlagen",
+    "aiHint": "Deine KI schlägt Farbton, Schriftpaar und eine Begründung vor; die Farben rechnet nexbrand danach nach.",
+    "rulesHint": "Ohne KI entstehen die Richtungen aus Stichworten der Beschreibung.",
+    "aiFailed": "Die KI hat nicht geantwortet ({{reason}}). Die Richtungen kommen aus den Stichworten."
   },
   "contrast": {
     "title": "Kontrastrechner",
@@ -1511,5 +1558,122 @@
     "color": "Farbe",
     "hint": "Du verwaltest den Bereich und lädst andere dazu ein.",
     "create": "Bereich anlegen"
+  },
+  "ai": {
+    "title": "KI",
+    "text": "Dein eigener KI-Dienst ordnet beim Sammeln die gefundenen Farben und Schriften und schlägt im Assistenten drei Richtungen für einen neuen Kunden vor. Den Schlüssel bezahlst du selbst. Farbwerte erfindet die KI nie: nexbrand misst sie und rechnet die Kontraste nach.",
+    "off": "Der Betreiber hat KI nicht eingeschaltet.",
+    "offOperator": "Einschalten unter Einstellungen, Server, Sammeln und KI.",
+    "tiles": "Adresse eines Dienstes eintragen",
+    "getKey": "Schlüssel bei {{name}} holen",
+    "address": "Adresse (jeder Dienst mit der üblichen Chat-Schnittstelle)",
+    "key": "Schlüssel",
+    "keyKept": "gespeichert, wird nicht mehr gezeigt",
+    "keyNone": "keiner (ein Dienst zu Hause braucht oft keinen)",
+    "model": "Modell",
+    "loadModels": "Modelle laden",
+    "modelsFound_one": "{{count}} Modell gefunden: Adresse und Schlüssel stimmen.",
+    "modelsFound_other": "{{count}} Modelle gefunden: Adresse und Schlüssel stimmen.",
+    "saved": "Gespeichert.",
+    "switch": "KI in nexbrand verwenden",
+    "switchHint": "Sammeln bietet dann „Mit KI ordnen“ an, der Assistent „Mit KI vorschlagen“.",
+    "switchIncomplete": "Erst Adresse und Modell speichern.",
+    "whereItGoes": "Was gesammelt wurde (Farbwerte, Namen, Fundorte) oder deine Beschreibung geht an die Adresse oben, sonst nichts. Was dort damit geschieht, regeln der Dienst und seine Bedingungen.",
+    "events": "Was hinausging",
+    "eventsText": "Jede Anfrage an deinen Dienst, wörtlich, 14 Tage lang. Als Text gezeigt, nie als Seite.",
+    "eventsNone": "Nichts ging hinaus.",
+    "clear": "Liste jetzt leeren",
+    "tokens": "hinein {{in}}, heraus {{out}}",
+    "tasks": {
+      "order": "Gesammeltes ordnen",
+      "directions": "Richtungen vorschlagen"
+    }
+  },
+  "collect": {
+    "title": "Sammeln",
+    "text": "Farben, Schriften und Logos aus Webseiten, GitHub-Repos und PDF-Styleguides. Die Werte werden gemessen, Regeln oder deine KI ordnen sie nur. Daraus wird ein Entwurf, oder du prüfst eine Seite gegen die CI.",
+    "mode": "Was soll passieren?",
+    "modes": {
+      "draft": "Als Entwurf übernehmen",
+      "audit": "Gegen die CI prüfen"
+    },
+    "client": "Kunde",
+    "newClient": "Neuer Kunde",
+    "pick": "Kunden wählen",
+    "newName": "Name des neuen Kunden",
+    "space": "Bereich",
+    "noCurrent": "Dieser Kunde hat noch keine veröffentlichte Fassung, gegen die geprüft werden kann.",
+    "sources": "Quellen",
+    "kind": "Art der Quelle",
+    "kinds": {
+      "website": "Webseite",
+      "repo": "GitHub-Repo",
+      "pdf": "PDF-Styleguide"
+    },
+    "remove": "Quelle entfernen",
+    "add": "Quelle hinzufügen",
+    "useAi": "Mit KI ordnen",
+    "useAiHint": "Deine KI vergibt Rollen und Namen und sortiert aus, was nicht dazugehört. Sie sieht nur die gemessenen Werte.",
+    "aiNotReady": "Ohne KI ordnen feste Regeln: die häufigste bunte Farbe führt, Grautöne werden Neutraltöne.",
+    "aiSetUp": "KI einrichten",
+    "privacy": "Webseiten und Repos ruft der Server ab, Adressen im eigenen Netz nie. Ein PDF wird in den Bereich des Kunden geladen.",
+    "operatorSwitch": "Schalter für Betreiber",
+    "run": "Sammeln",
+    "running": "Sammelt …",
+    "theAi": "KI",
+    "nothing": "Nichts gefunden. Vielleicht lädt die Seite ihre Farben erst per JavaScript; ein Repo oder ein Styleguide hilft dann weiter.",
+    "colors": "Farben",
+    "sortedByAi": "Von deiner KI geordnet. Ausgewählt ist, was übernommen wird; Rolle und Name lassen sich ändern.",
+    "sortedByRules": "Nach Regeln geordnet. Fast gleiche Farben und winzige Anteile sind abgewählt.",
+    "keep": "{{hex}} übernehmen",
+    "name": "Name",
+    "role": "Rolle",
+    "fonts": "Schriften",
+    "keepFont": "{{family}} übernehmen",
+    "use": "Verwendung",
+    "uses": {
+      "headings": "Überschriften",
+      "body": "Fließtext",
+      "other": "Sonstiges"
+    },
+    "license": {
+      "free": "frei",
+      "unknown": "Lizenz unbekannt"
+    },
+    "fontForeign": "Steht nicht in der CI.",
+    "logos": "Logos",
+    "logosText": "Gefundene Bilder mit „Logo“ im Namen, Icons und Vorschaubilder. Übernehmen lädt sie in den Bereich des Kunden.",
+    "logoTake": "Übernehmen",
+    "logoTaken": "Übernommen",
+    "takeHint_one": "{{count}} Farbe wird ein neuer Entwurf. Schriften ersetzen die der aktuellen Fassung, Logos kommen dazu, alles andere bleibt. Veröffentlicht wird erst auf der Seite des Kunden.",
+    "takeHint_other": "{{count}} Farben werden ein neuer Entwurf. Schriften ersetzen die der aktuellen Fassung, Logos kommen dazu, alles andere bleibt. Veröffentlicht wird erst auf der Seite des Kunden.",
+    "takeNewHint_one": "Ein neuer Kunde mit {{count}} Farbe als Entwurf.",
+    "takeNewHint_other": "Ein neuer Kunde mit {{count}} Farben als Entwurf.",
+    "take": "Als Entwurf übernehmen",
+    "label": "Gesammelt am {{date}}",
+    "note_one": "Aus {{count}} Quelle gesammelt.",
+    "note_other": "Aus {{count}} Quellen gesammelt.",
+    "auditTitle": "Gegen {{label}} geprüft",
+    "auditText": "Jede gefundene Farbe neben der nächsten der CI (ΔE 2000). Fast richtig heißt meist: ein falscher Ton im Stylesheet.",
+    "same": "Stimmt.",
+    "near": "Fast richtig, ΔE {{de}}. Gemeint ist wohl die Farbe der CI.",
+    "foreign": "Nicht in der CI ({{share}} % der Funde).",
+    "problems": {
+      "not_public": "liegt im eigenen Netz und wird nie abgerufen.",
+      "bad_address": "ist keine gültige Webadresse.",
+      "not_found": "gibt es nicht.",
+      "refused": "verlangt eine Anmeldung.",
+      "no_answer": "antwortet nicht wie erwartet.",
+      "too_large": "ist zu groß.",
+      "timeout": "hat zu lange gebraucht.",
+      "unreachable": "ist nicht erreichbar.",
+      "too_many_redirects": "leitet zu oft weiter.",
+      "no_page": "ist keine Webseite.",
+      "not_a_repo": "ist keine Adresse eines GitHub-Repos.",
+      "unreadable": "ließ sich nicht lesen."
+    },
+    "details": {
+      "pdf": "in die PDF eingebettet"
+    }
   }
 }

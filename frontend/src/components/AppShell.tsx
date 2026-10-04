@@ -1,4 +1,4 @@
-import { Contrast, LayoutGrid, Plus, Search } from 'lucide-react'
+import { Contrast, LayoutGrid, Plus, Search, Wand2 } from 'lucide-react'
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
@@ -62,6 +62,7 @@ export function AppShell() {
 
   const items = [
     { to: '/', label: 'nav.clients', Icon: LayoutGrid, end: true },
+    { to: '/collect', label: 'nav.collect', Icon: Wand2 },
     { to: '/contrast', label: 'nav.contrast', Icon: Contrast },
   ]
 
