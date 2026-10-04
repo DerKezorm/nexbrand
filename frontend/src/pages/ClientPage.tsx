@@ -256,13 +256,16 @@ export function ClientPage() {
             })}
           </ol>
           {project && own && (
-            <div className={'mt-3 flex flex-wrap items-center gap-3 rounded-xl px-3 py-2 text-sm ' + (clientCurrent && own.base_id !== clientCurrent.id && base?.status === 'published' ? 'border border-gelb-500/40 bg-gelb-500/8' : 'bg-ink-850')} data-testid="project-base">
-              <span className="flex-1 text-mist-300">
+            <div className={'mt-3 space-y-2 rounded-xl px-3 py-2.5 text-sm ' + (clientCurrent && own.base_id !== clientCurrent.id && base?.status === 'published' ? 'border border-gelb-500/40 bg-gelb-500/8' : 'bg-ink-850')} data-testid="project-base">
+              {/* The sentence over the whole width, the parts and the button below: in one row the sentence was
+                  squeezed into a narrow column (04.10.2026). */}
+              <p className="text-mist-300">
                 {t('projects.base', { client: whole.name, label: own.base_label ?? '?' })}{' '}
                 {clientCurrent && own.base_id !== clientCurrent.id && base?.status === 'published' && t('projects.newer', { label: clientCurrent.label })}
                 {base?.status === 'draft' && t('projects.onDraftText', { label: base.label })}
-              </span>
-              <span className="flex flex-wrap gap-1 text-[11px]">
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="mr-auto flex flex-wrap gap-1 text-[11px]">
                 {INHERIT_PARTS.map((part) => {
                   const m = modesOf(own.data)[part]
                   return (
@@ -277,6 +280,7 @@ export function ClientPage() {
                   <ArrowUpCircle className="h-4 w-4" /> {t('projects.liftTo', { label: clientCurrent.label })}
                 </button>
               )}
+              </div>
             </div>
           )}
         </section>
