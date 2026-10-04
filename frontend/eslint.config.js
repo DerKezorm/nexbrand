@@ -33,7 +33,7 @@ export default tseslint.config(
       // pattern used by all settings pages.
       'react-hooks/set-state-in-effect': 'off',
       'react-hooks/refs': 'off',
-      // The board keeps manual memoisation for its pointer handlers; the React Compiler is not used in the build.
+      // Some components keep manual memoisation for their handlers; the React Compiler is not used in the build.
       'react-hooks/preserve-manual-memoization': 'off',
     },
   },

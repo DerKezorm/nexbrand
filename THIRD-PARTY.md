@@ -9,17 +9,17 @@ These files travel inside the container image, so their notices travel with them
 
 | What | Copyright | Licence | Notice in the app |
 |---|---|---|---|
-| Font Inter (via Fontsource) | The Inter Project Authors | OFL-1.1 | `/licenses/fonts.txt` |
-| Lucide icons (partly from Feather): the buttons, and the icon packages of the shape library | Lucide Contributors; Cole Bemis | ISC, MIT | `/licenses/lucide.txt` |
-| PDF.js, to show PDFs page by page | Mozilla and contributors | Apache-2.0 | `/licenses/pdfjs.txt` |
+| Nine fonts via Fontsource for the workbench's catalog: DM Sans, Fraunces, Inter, Lora, Nunito, Outfit, Playfair Display, Source Serif 4, Space Grotesk | Their project authors, each named in the notice | OFL-1.1 | `/licenses/fonts.txt` |
+| Lucide icons (partly from Feather), on the buttons | Lucide Contributors; Cole Bemis | ISC, MIT | `/licenses/lucide.txt` |
 
-nexbrand loads no font, icon or script from another host.
+nexbrand loads no font, icon or script from another host. Fonts a user uploads into a design set are theirs; the
+licence they enter there decides whether a file may leave through a public page or a token.
 
 ## Backend
 
 | Package | Licence |
 |---|---|
-| FastAPI, SQLAlchemy, pydantic, pydantic-settings, argon2-cffi, PyJWT, pycrdt | MIT |
+| FastAPI, SQLAlchemy, pydantic, pydantic-settings, argon2-cffi, PyJWT | MIT |
 | uvicorn, httpx, pypdf, segno | BSD-3-Clause |
 | Pillow | MIT-CMU |
 | python-multipart | Apache-2.0 |
@@ -28,7 +28,7 @@ nexbrand loads no font, icon or script from another host.
 
 ### HEIC photos: pillow-heif and the libraries it brings
 
-To turn iPhone photos (HEIC) into a picture every browser shows, nexbrand uses pillow-heif. Its binary wheels, and
+To turn iPhone photos (HEIC) among the example files into a picture every browser shows, nexbrand uses pillow-heif. Its binary wheels, and
 so the container image, contain:
 
 | Library | Licence |
@@ -44,10 +44,9 @@ with an AGPL-3.0 work, and the source of every part is public.
 
 | Package | Licence |
 |---|---|
-| React, React DOM, React Router, Yjs, y-websocket, y-protocols, perfect-freehand, html-to-image, i18next, react-i18next | MIT |
+| React, React DOM, React Router, i18next, react-i18next | MIT |
 | lucide-react | ISC |
-| pdfjs-dist | Apache-2.0 |
-| Fontsource packages | MIT (the font itself OFL-1.1, see above) |
+| Fontsource packages | MIT (the fonts themselves OFL-1.1, see above) |
 
 Build and test tools (Vite, TypeScript, Tailwind CSS, Vitest, ruff, pytest) are not part of the image.
 

@@ -37,9 +37,6 @@
   --color-warn-500: #fbbf24;
   --color-bad-500: #fb7185;
 
-  /* The board: a touch lighter than the page, with dots that move along when panning. */
-  --color-board: #111117;
-  --color-board-dot: rgb(255 255 255 / 0.1);
 
   --color-scrim: rgb(6 6 10 / 0.85);
 
@@ -81,8 +78,6 @@
   --color-warn-500: #b45309;
   --color-bad-500: #e11d48;
 
-  --color-board: #fbfbfc;
-  --color-board-dot: rgb(20 20 30 / 0.14);
 
   --color-scrim: rgb(20 20 30 / 0.35);
 }
@@ -118,31 +113,6 @@
   .nc-scroll {
     scrollbar-width: thin;
     scrollbar-color: var(--color-ink-600) transparent;
-  }
-
-  /* Floating bars on the board: a little glass, so the board stays visible underneath. */
-  .nc-float {
-    @apply rounded-2xl border border-ink-700 shadow-lg shadow-black/30;
-    background: color-mix(in srgb, var(--color-ink-850) 90%, transparent);
-    backdrop-filter: blur(12px);
-  }
-
-  :root[data-theme='light'] .nc-float {
-    @apply shadow-black/10;
-  }
-
-  .nc-tool {
-    @apply relative flex h-[34px] w-[34px] items-center justify-center rounded-xl text-mist-400 transition-colors hover:bg-ink-800 hover:text-mist-100 sm:h-9 sm:w-9;
-  }
-
-  .nc-tool[aria-pressed='true'] {
-    @apply text-accent-400;
-    background: color-mix(in srgb, var(--color-accent-500) 16%, transparent);
-  }
-
-  .nc-board {
-    background-color: var(--color-board);
-    background-image: radial-gradient(var(--color-board-dot) 1.1px, transparent 1.3px);
   }
 
   .nc-menu {

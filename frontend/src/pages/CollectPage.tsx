@@ -99,7 +99,7 @@ export function CollectPage() {
         .filter((c) => c.share >= 0.5)
         .map((c) => {
           const near = nearest(c.hex, ci)
-          const state = !near ? 'foreign' : near.distance < 2 ? 'same' : near.distance < 10 ? 'near' : 'foreign'
+          const state = !near ? 'foreign' : near.distance < 1 ? 'same' : near.distance < 8 ? 'near' : 'foreign'
           return { found: c, near, state }
         }),
     [colors, ci],

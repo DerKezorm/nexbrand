@@ -14,7 +14,7 @@ services:
       - "8540:8000"
 
     volumes:
-      # Database, photos and files of the boards (data/media), logs, backups and the operator's own languages.
+      # Database, logos, fonts and example files (data/media), logs, backups and the operator's own languages.
       # A local disk, never an SMB or NFS share: SQLite's locking does not work reliably over network filesystems.
       - ./data:/data
 
@@ -27,10 +27,9 @@ services:
 
       # The address people use to reach nexbrand, for invitation links, public pages and the OIDC redirect. Can
       # also be set in the interface.
-      # NEXBRAND_PUBLIC_URL: https://boards.example.com
+      # NEXBRAND_PUBLIC_URL: https://brand.example.com
 
       # Behind a reverse proxy: its address, so that the brake against password guessing sees the real sender.
-      # The proxy must pass WebSockets through (the boards are edited live over /api/boards/<id>/live).
       # NEXBRAND_TRUSTED_PROXIES: 172.16.0.0/12
 
       # The code the first account needs. Without it nexbrand makes one at every start until it is set up and

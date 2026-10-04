@@ -55,7 +55,7 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD curl -fsS "http://127.0.0.1:${NEXBRAND_PORT:-8000}/api/health" || exit 1
 
-# One worker: SQLite, and the live rooms of the open boards live in this process.
+# One worker: SQLite, and the brakes against guessing and the AI's pace live in this process.
 ENTRYPOINT ["/entrypoint.sh"]
 # No --forwarded-allow-ips "*": which proxies may speak for a sender is decided inside the app
 # (NEXBRAND_TRUSTED_PROXIES), so that nobody can dodge the sign-in brake with a made-up X-Forwarded-For.

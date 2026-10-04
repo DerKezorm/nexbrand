@@ -1,7 +1,14 @@
 # The nexbrand API
 
-Programs such as [nexdeck](https://github.com/DerKezorm/nexdeck) or n8n read nexbrand over `/api/v1`: the boards,
-numbers for a dashboard and a small picture of a board. The API only reads; nothing under `/api/v1` changes a board.
+Build pipelines, scripts, [nexdeck](https://github.com/DerKezorm/nexdeck) and AI tools in an editor read a client's
+design set from nexbrand: colours, fonts, logos, type scale and rules, as JSON or as code to paste. Two ways in, with
+the same tokens and the same rights:
+
+- **`/api/v1`**, plain HTTP for programs.
+- **`/api/mcp`**, the Model Context Protocol for an AI assistant in an editor.
+
+Reading changes nothing. A token of the level **draft** may also write a version back, always as a draft; publishing
+stays a person's act in nexbrand.
 
 ## Switching it on
 
@@ -9,96 +16,161 @@ API tokens are off until the operator switches them on, under **Settings → Ser
 its own tokens under **My account → Connections**:
 
 - A token reads what its account may read, never more. It can be limited to some spaces.
+- Its level is **read** (the default) or **draft**: a draft token may also propose a version where its account may
+  write.
 - It runs out after 30, 90 or 365 days, or never. The list marks a token a week before it runs out.
 - It is shown once, right after it was made. nexbrand keeps only a checksum.
 - The operator sees every token (never the token itself) and can block one for good.
+
+Fonts with the licence **internal** never leave through a token: the design set names them, their files are not
+handed out.
 
 ## Asking
 
 Every request carries the token in a header:
 
 ```
-Authorization: Bearer nxa_…
+Authorization: Bearer nxb_…
 ```
 
 A request that carries an `Origin` header is refused (403): the API is for programs, not web pages. The answers are
-JSON, the picture of a board is SVG.
+JSON; code comes as text.
 
 | Answer | Code | Meaning |
 |---|---|---|
 | 401 | `api_off` | The operator has not switched API tokens on. |
 | 401 | `token_invalid` | No such token, or it ran out, was blocked or deleted. |
 | 403 | `origin_refused` | The request came from a web page. |
-| 404 | `not_found` | No such board or space, or the token may not read it. Both answer the same. |
+| 403 | `level_too_low` | A read token tried to propose a draft. |
+| 404 | `not_found` | No such client, version, project or file, or the token may not read it. Both answer the same. |
+| 422 | `invalid_input` | A value that is not a colour, a day that is not `YYYY-MM-DD`, a design set of the wrong shape. |
 | 429 | `slow_down` | More than 600 requests in a minute with this token; `Retry-After` says when to go on. |
 
 Errors look like `{"detail": {"code": "token_invalid", "message": "No valid API token."}}`.
 
+**The promise.** What is under `/api/v1` stays as it is: new fields may come, nothing is renamed or taken away. A
+change that would break a program goes to `/api/v2` beside it.
+
 ## Routes
+
+A client is named by its id or its name (`Example Bakery`, as it is written in nexbrand, any case). A version by its
+id or its label (`2026`, `1.0`). A project by its id or its name.
 
 ### `GET /api/v1/me`
 
-Who the token speaks for: `name`, `display_name`, `level` (always `read`), `spaces` (the names of the spaces it may
-read) and the nexbrand `version`.
+Who the token speaks for: `name`, `display_name`, `level` (`read` or `draft`), `spaces` (how many it may read) and
+the `version` of nexbrand.
 
 ### `GET /api/v1/spaces`
 
-The spaces the token may read: `id`, `name`, `color`, `boards` (how many) and `role` (`read`, `write` or `manage`, the
-account's right there).
+The spaces the token may read: `id`, `name`, `color` and `clients` (how many).
 
-### `GET /api/v1/boards`
+### `GET /api/v1/clients`
 
-Boards the token may read, the ones changed last first.
+The clients the token may read. `?search=` keeps those whose name or sector contains it.
 
-| Parameter | Default | |
-|---|---|---|
-| `space` | all | Only the boards of this space (its `id`). |
-| `order` | `updated` | `updated` or `title`. |
-| `limit` | 50 | 1 to 200. |
+Each: `id`, `name`, `sector`, `space`, `current_version` (the label of the version that holds today, or `null`),
+`colors` (up to twelve hex values of that version) and `projects` (`id`, `name`).
 
-Each board: `id`, `title`, `space_id`, `space`, `created_at`, `updated_at` (ISO 8601, UTC), `updated_by` (the account
-name of whoever changed it last), `items` (how many things are on it), `url` (where it opens in the browser) and
-`picture` (the path of its picture, see below).
+### `GET /api/v1/clients/{client}`
 
-### `GET /api/v1/boards/{id}`
+A client's design set. Without a parameter, the version that holds today.
 
-One board, as in the list.
-
-### `GET /api/v1/boards/{id}/picture.svg`
-
-The board as a small picture, as the overview in the app shows it: shapes, notes, frames and drawings as they are;
-words, photos, files and links as plain boxes. 16 to 10, on the board's own background colour.
-
-| Parameter | Default | |
-|---|---|---|
-| `look` | `dark` | `dark` or `light`, the looks of the app. |
-| `width` | 480 | 120 to 1600 pixels. |
-
-The answer is `image/svg+xml` with a policy that lets nothing in it run or load. It may be kept for 30 seconds.
-
-### `GET /api/v1/dashboard`
-
-Numbers for a dashboard card:
+| Parameter | Meaning |
+|---|---|
+| `version` | A version by label or id, published or draft. |
+| `at` | A day, `YYYY-MM-DD`: the version that held then (`?at=2023-10-04` for "three years ago"). |
+| `project` | A project: its pinned version, with the project's own colours laid over it. |
 
 ```json
 {
-  "spaces": 2,
-  "boards": 14,
-  "changed_today": 3,
-  "changed_week": 6,
-  "recent": [ … the five boards changed last, as in the list … ]
+  "client": {"id": "m14tCjpkfnvZ", "name": "Example Bakery", "sector": "Bakery"},
+  "project": null,
+  "version": {"id": "k30G1ZelflqM", "label": "2026", "status": "published", "valid_from": "2026-03-01",
+              "origin": "hand", "author": "robin", "note": ""},
+  "current": true,
+  "design": {"colors": [{"name": "Dawn red", "hex": "#C23B2E", "role": "primary"}], "fonts": [], "logos": [],
+             "scale": [], "rules": [], "samples": []},
+  "files": {"Hk2…": {"name": "logo.svg", "kind": "svg", "size": 2311, "url": "https://brand.example.com/api/v1/files/Hk2…"}},
+  "checks": [{"level": "warn", "code": "white_on", "colors": ["Dawn red"], "hex": ["#FFFFFF", "#E0453A"], "ratio": 4.13}]
 }
 ```
 
-"Today" is the server's day.
+`origin` says where a version came from: `hand`, `collect` (collected from websites, repositories or PDFs), `mcp`
+(written back by a token) or `review` (chosen by the client). `checks` are the same hints the app computes: contrast
+by WCAG 2.2, logos at 3:1, colour vision deficiencies, nearly identical colours, small body text, font licences.
+Each has a `level` (`warn` or `bad`), a `code`, the names and hex values it is about, and a `ratio` where one
+applies. Nothing to say means an empty list.
 
-## A dashboard card
+### `GET /api/v1/clients/{client}/versions`
 
-A card that shows the boards changed last asks `/api/v1/dashboard` now and then (a minute is plenty) and shows the
-`recent` boards with their pictures: the picture of each is `picture` after the server's address, fetched with the
-same header. A click opens `url`.
+Every version, published ones in the order they hold, then drafts; each as `version` above.
 
-## The promise
+### `GET /api/v1/clients/{client}/code`
 
-What is under `/api/v1` stays as it is: new fields may come, nothing is renamed or taken away. A change that would
-break a program goes to `/api/v2` beside it.
+The design set as code to paste, with `version`, `at` and `project` as above.
+
+| `format` | What comes |
+|---|---|
+| `css` (default) | CSS variables: every colour with its scale 50 to 950, fonts, text sizes in `rem`. |
+| `tailwind` | A Tailwind 4 `@theme` block. |
+| `scss` | SCSS variables. |
+| `json` | Design tokens (W3C draft format). |
+
+### `POST /api/v1/clients/{client}/audit`
+
+Colour values found in code or on a page, against the design set (or a project's colours with `project`):
+
+```json
+{"colors": ["#c23b2f", "#1a1a1a", "rgb(20, 40, 90)"], "project": null}
+```
+
+Each value comes back with a `verdict`: `same` (ΔE 2000 below 1), `near` (below 8, mostly a slip: `nearest` and
+`nearest_hex` say what was meant), `foreign`, or `unreadable`. Up to 500 values per request.
+
+### `POST /api/v1/clients/{client}/drafts`
+
+Only for **draft** tokens, and only where the token's account may write. Proposes a new version as a draft:
+
+```json
+{"label": "Redesign 2027", "note": "Warmer red, larger body text.", "based_on": "2026",
+ "data": {"colors": [{"name": "Dawn red", "hex": "#B8352A", "role": "primary"}]}}
+```
+
+With `based_on`, the parts of the design set that are not sent are taken from that version (logos and fonts with
+their files, for instance). The answer is the new `version` (origin `mcp`) with its `checks`. The draft shows up in
+nexbrand with the token's name as author; a person publishes it there, or throws it away.
+
+### `GET /api/v1/contrast?fg=…&bg=…`
+
+Two colours (`#RRGGBB`, `#` written as `%23`):
+`ratio`, `text` and `large_text` (`AAA`, `AA`, `AA large` or `fail`), `graphics` (`pass` or `fail`), `vision`
+(the ratio as people with each colour vision deficiency see it) and, below 4.5:1, `nearest_passing`: the nearest
+colour of the same hue that reaches it.
+
+### `GET /api/v1/files/{id}`
+
+A logo, a free font or an example file named in a design set's `files`. Fonts with the licence **internal** answer
+404.
+
+## MCP
+
+`POST /api/mcp` speaks MCP's Streamable HTTP transport without streams: JSON-RPC 2.0, every request gets its answer
+as JSON, a notification gets 202. No session is kept; every request carries the token as above. In the usual MCP
+configuration of an editor:
+
+```json
+{"mcpServers": {"nexbrand": {"type": "http", "url": "https://brand.example.com/api/mcp",
+                             "headers": {"Authorization": "Bearer nxb_…"}}}}
+```
+
+| Tool | Level | What it does |
+|---|---|---|
+| `list_clients` | read | The clients, with their current version, main colours and projects. |
+| `get_brand` | read | A client's design set, with `version`, `at` or `project` as in the routes above. |
+| `get_code` | read | The design set as CSS, Tailwind, SCSS or tokens. |
+| `list_versions` | read | Every version, with the day it holds from. |
+| `compare_versions` | read | What changed between two versions: colours (with their distance), fonts. |
+| `check_contrast` | read | Contrast of a text colour on a ground, with grades and the nearest passing colour. |
+| `audit` | read | Colour values from code against the design set. |
+| `propose_version` | draft | A redesign written back as a draft. A read token does not see this tool. |
