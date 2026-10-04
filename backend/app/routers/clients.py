@@ -141,6 +141,12 @@ def project_view(db: DbSession, row: Project, client_current: BrandVersion | Non
     base = db.get(BrandVersion, shown.base_id) if shown is not None and shown.base_id else None
     data = brands.effective(db, shown) if shown is not None else None
     modes = inherit.modes(shown.data) if shown is not None else {}
+    if data is not None and base is not None:
+        # The card shows the project's own colours first: inherited neutrals of the client say little about it.
+        where = inherit.origin(base.data, shown.data)["colors"]
+        colors = data.get("colors", [])
+        data = {**data, "colors": [c for c, w in zip(colors, where, strict=True) if w == "project"]
+                + [c for c, w in zip(colors, where, strict=True) if w == "client"]}
     return {
         "id": row.id,
         "name": row.name,

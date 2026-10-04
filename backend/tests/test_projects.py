@@ -96,6 +96,7 @@ def test_a_new_project_has_a_draft_that_takes_everything(client: TestClient, ope
 
 def test_own_colours_come_on_top_and_go_into_the_export(client: TestClient, operator: Account, space: int) -> None:
     cid, _, project = _project(client, space, own=OWN_CASES[1]["colors"])
+    assert project["face"]["colors"][:2] == ["#DDAA00", "#F2C230"], "its own colours first on the card"
     code = client.get(f"/api/clients/{cid}/export?format=css&project={project['id']}").text
     assert "--color-honig: #DDAA00;" in code and "--color-sommergelb: #F2C230;" in code and "--color-mehl:" in code
 
