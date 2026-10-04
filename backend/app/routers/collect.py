@@ -105,7 +105,7 @@ def _collect(account_id: int, payload: CollectIn) -> dict[str, Any]:
         used_ai = False
         answer: Any = None
         if payload.use_ai and items and ai.ready(db, account):
-            material = {"colors": [{k: i[k] for k in ("hex", "share", "names", "where")} for i in items],
+            material = {"colors": [{k: i[k] for k in ("hex", "share", "names", "where", "framework")} for i in items],
                         "fonts": [{"family": f["family"], "where": sorted(f["where"])} for f in found.fonts.values()]}
             try:
                 answer = ai.run(db, account, task="order", material=material, language=_language_name(language))

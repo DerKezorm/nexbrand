@@ -99,6 +99,26 @@ _SIZE = re.compile(r"(?:^|\s)(?:\d*\.?\d+(?:px|em|rem|%|pt|pc|ex|ch|vw|vh|vmin|v
                    r"large|x-large|xx-large|smaller|larger)(?:\s*/\s*\S+)?\s+(.+)$", re.IGNORECASE)
 
 
+#: A style sheet of a framework (its colours are the framework's, not the brand's), by its file name.
+_FRAMEWORK_SHEET = re.compile(
+    r"(?:^|[/._-])(bootstrap|tailwind|foundation|bulma|materialize|uikit|semantic)[^/]*\.css$",
+    re.IGNORECASE,
+)
+#: The colours Bootstrap 4 and 5 bring along (theme, greys, alerts, tables, focus): a page that bundles Bootstrap into
+#: its own style sheet carries them too. Marked and left out; a person ticks one back when it is the brand's after all.
+FRAMEWORK_COLORS = frozenset([
+    "#007BFF", "#6610F2", "#6F42C1", "#E83E8C", "#DC3545", "#FD7E14", "#FFC107", "#28A745", "#20C997", "#17A2B8",
+    "#6C757D", "#343A40", "#F8F9FA", "#0056B3", "#80BDFF", "#DEE2E6", "#E9ECEF", "#CED4DA", "#ADB5BD", "#495057",
+    "#212529", "#868E96", "#004085", "#CCE5FF", "#B8DAFF", "#383D41", "#E2E3E5", "#D6D8DB", "#155724", "#D4EDDA",
+    "#C3E6CB", "#0C5460", "#D1ECF1", "#BEE5EB", "#856404", "#FFF3CD", "#FFEEBA", "#721C24", "#F8D7DA", "#F5C6CB",
+    "#818182", "#FEFEFE", "#FDFDFE", "#1B1E21", "#D6D8D9", "#C6C8CA", "#9FCDFF", "#B3B7BB", "#8FD19E", "#86CFDA",
+    "#FFDF7E", "#ED969E", "#FBFCFC", "#95999C", "#ECECF6", "#B9BBBE", "#F1B0B7", "#FFE8A1", "#ABDDE5", "#B1DFBB",
+    "#0D6EFD", "#D63384", "#198754", "#0DCAF0", "#0A58CA", "#86B7FE", "#CFE2FF", "#084298", "#B6D4FE", "#D1E7DD",
+    "#0F5132", "#BADBCC", "#842029", "#F5C2C7", "#664D03", "#FFECB5", "#CFF4FC", "#055160", "#B6EFFB", "#41464B",
+    "#D3D6D8", "#141619", "#BCBEBF", "#E2E3E5", "#6EA8FE", "#DEE2E6",
+])
+
+
 def _names(value: str) -> list[str]:
     return [part.strip().strip("'\"").strip() for part in value.split(",") if part.strip()]
 
@@ -144,10 +164,13 @@ class Found:
     system_font: str = ""
 
     def color(self, hexvalue: str, weight: float, where: str, *, name: str = "", detail: str = "", pantone: str = "",
-              cmyk: str = "") -> None:
+              cmyk: str = "", framework: bool = False) -> None:
         entry = self.colors.setdefault(hexvalue, {"hex": hexvalue, "weight": 0.0, "where": set(), "names": [],
-                                                  "details": [], "pantone": "", "cmyk": ""})
+                                                  "details": [], "pantone": "", "cmyk": "", "own": 0.0})
         entry["weight"] += weight
+        # Weight from the page's own style, not from a framework's sheet: what is left over is the framework's.
+        if not framework:
+            entry["own"] += weight
         entry["where"].add(where)
         clean = " ".join(name.split())[:60]
         if clean and clean not in entry["names"] and len(entry["names"]) < 6:
@@ -199,7 +222,7 @@ def _best_src(src: str, base: str) -> str | None:
     return best[1] if best else None
 
 
-def read_css(found: Found, css: str, where: str, base: str = "") -> None:
+def read_css(found: Found, css: str, where: str, base: str = "", *, framework: bool = False) -> None:
     for block in _FONT_FACE.finditer(css):
         family = re.search(r"font-family\s*:\s*([^;]+)", block.group(1), re.IGNORECASE)
         if family and _kind_of_stack(family.group(1)) != "font":
@@ -229,7 +252,7 @@ def read_css(found: Found, css: str, where: str, base: str = "") -> None:
             name = prop[2:] if prop.startswith("--") else ""
             name = re.sub(r"^(color|colour|clr|brand|theme)-", "", name)
             found.color(hexvalue, _weight(prop), where, name=name.replace("-", " "),
-                        detail=f"{prop}: {value.strip()[:60]}")
+                        detail=f"{prop}: {value.strip()[:60]}", framework=framework)
 
 
 # --- A website -------------------------------------------------------------------------------------------------------
@@ -322,7 +345,7 @@ def from_website(found: Found, url: str) -> None:
             google.append("https://" + imported)
             for family in _google_families("https://" + imported):
                 found.font(family, 2.0, where, license="free", detail="Google Fonts")
-        read_css(found, css, where, sheet.url)
+        read_css(found, css, where, sheet.url, framework=bool(_FRAMEWORK_SHEET.search(urlsplit(sheet.url).path)))
     # Where Google keeps the files of the free fonts named: its stylesheet names them (one per weight and style).
     for href in dict.fromkeys(google[:4]):
         try:
@@ -330,11 +353,14 @@ def from_website(found: Found, url: str) -> None:
         except outbound.FetchError:
             continue
         read_css(found, sheet.body.decode("utf-8", errors="replace"), where, sheet.url)
+    # The same picture under two addresses (a theme folder and the upload folder, say) is offered once: by its file
+    # name, without the query.
     seen = set()
     for href, kind in parser.logos:
         absolute = urljoin(page.url, href)
-        if absolute not in seen and absolute.startswith(("http://", "https://")):
-            seen.add(absolute)
+        name = urlsplit(absolute).path.rsplit("/", 1)[-1].lower() or absolute
+        if name not in seen and absolute.startswith(("http://", "https://")):
+            seen.add(name)
             found.logos.append({"url": absolute[:500], "kind": kind, "where": where})
     found.logos = found.logos[:12]
 
@@ -514,8 +540,13 @@ def describe(hexvalue: str, language: str) -> str:
 
 
 def merged(found: Found) -> list[dict[str, Any]]:
-    """The colours found, near-identical ones (ΔE below 2) taken together, heaviest first, with their share."""
-    entries = sorted(found.colors.values(), key=lambda e: -e["weight"])
+    """The colours found, near-identical ones (ΔE below 2) taken together, heaviest first, with their share. What a
+    framework's sheet uses counts a tenth: a framework's many buttons must not make one of its colours the brand's."""
+    def counted(entry: dict[str, Any]) -> dict[str, Any]:
+        own = entry.get("own", entry["weight"])
+        return {**entry, "weight": own + (entry["weight"] - own) / 10}
+
+    entries = sorted((counted(entry) for entry in found.colors.values()), key=lambda e: -e["weight"])
     groups: list[dict[str, Any]] = []
     for entry in entries:
         home = next((g for g in groups if colors.delta_e(g["hex"], entry["hex"]) < 2), None)
@@ -524,6 +555,7 @@ def merged(found: Found) -> list[dict[str, Any]]:
                            "details": list(entry["details"])})
             continue
         home["weight"] += entry["weight"]
+        home["own"] += entry.get("own", 0.0)
         home["where"] |= entry["where"]
         home["names"] += [n for n in entry["names"] if n not in home["names"]][:3]
         home["details"] += entry["details"][:2]
@@ -534,7 +566,9 @@ def merged(found: Found) -> list[dict[str, Any]]:
     for g in groups[:MAX_COLORS]:
         out.append({"hex": g["hex"], "share": round(100 * g["weight"] / total, 1), "where": sorted(g["where"]),
                     "names": g["names"][:4], "detail": "; ".join(g["details"][:2])[:200], "pantone": g["pantone"],
-                    "cmyk": g["cmyk"]})
+                    "cmyk": g["cmyk"],
+                    # Only from a framework's sheet, or one of Bootstrap's own colours: no colour of the brand.
+                    "framework": g.get("own", g["weight"]) <= 0 or g["hex"] in FRAMEWORK_COLORS})
     return out
 
 
@@ -548,8 +582,11 @@ def order_by_rules(items: list[dict[str, Any]], language: str) -> list[dict[str,
         _, saturation, lightness = colors.hsl(item["hex"])
         neutral = saturation < 12 or lightness >= 90 or lightness < 8
         near = any(colors.delta_e(item["hex"], other) < 6 for other in taken)
-        keep = not near and (item["share"] >= 1.0 or neutral is False and item["share"] >= 0.5)
-        if neutral:
+        framework = bool(item.get("framework"))
+        keep = not framework and not near and (item["share"] >= 1.0 or neutral is False and item["share"] >= 0.5)
+        if framework:
+            role = "neutral" if neutral else "secondary"
+        elif neutral:
             role = "neutral"
         elif not primary:
             role, primary = "primary", True
@@ -582,6 +619,10 @@ def order_with_ai(items: list[dict[str, Any]], answer: Any, language: str) -> li
     rest = order_by_rules([i for i in items if i["hex"] not in out], language)
     for item in rest:
         item["keep"] = False
+    # A framework's colour stays out unless a person ticks it, whatever the model thought.
+    for item in out.values():
+        if item.get("framework"):
+            item["keep"] = False
     return [*out.values(), *rest]
 
 

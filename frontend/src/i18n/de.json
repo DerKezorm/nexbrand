@@ -1697,6 +1697,8 @@
       "img": "Bild auf der Seite",
       "icon": "Symbol der Seite (Favicon)",
       "og:image": "Vorschaubild für soziale Netze"
-    }
+    },
+    "framework": "aus dem Baukasten",
+    "frameworkHint": "Eine Farbe, die Bootstrap oder ein ähnlicher Baukasten mitbringt, keine der Marke. Abgewählt; wer sie doch will, hakt sie an."
   }
 }

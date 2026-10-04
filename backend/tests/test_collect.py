@@ -609,3 +609,49 @@ def test_a_found_logo_is_shown_through_the_server_and_only_a_picture(client: Tes
     assert inside.status_code == 502 and inside.json()["detail"]["problem"] == "not_public"
     with new_client() as stranger:
         assert stranger.get(url + "https://example.com/logo.png").status_code == 401
+
+
+def test_framework_colours_are_marked_left_out_and_never_lead(client: TestClient, opened: None, web: Pages) -> None:
+    web["example.com/"] = (200, "text/html", (b'<html><head><link rel="stylesheet" href="/css/bootstrap.min.css">'
+                                             b'<link rel="stylesheet" href="/css/site.css"></head></html>'))
+    # Only in the framework's sheet; in both; one of Bootstrap's own colours bundled into the page's sheet.
+    web["example.com/css/bootstrap.min.css"] = (200, "text/css", (b".btn{background:#123ABC}.x{color:#2E8B57;"
+                                                                   b"background:#2E8B57;border-color:#2E8B57}"))
+    web["example.com/css/site.css"] = (200, "text/css", (b".brand{background:#E40000;color:#E40000}"
+                                                          b".a{color:#2E8B57}.b{background:#007BFF;color:#007BFF}"))
+    colours = {c["hex"]: c for c in client.post(
+        "/api/collect", json={"sources": [{"kind": "website", "value": "https://example.com/"}]}).json()["colors"]}
+    assert colours["#123ABC"]["framework"] and not colours["#123ABC"]["keep"], "only the framework's"
+    assert not colours["#2E8B57"]["framework"], "the page uses it too: the brand's"
+    assert colours["#007BFF"]["framework"] and not colours["#007BFF"]["keep"], "Bootstrap's blue, bundled"
+    assert colours["#E40000"]["role"] == "primary" and colours["#E40000"]["keep"]
+    assert all(c["role"] != "primary" for c in colours.values() if c["framework"])
+
+
+def test_an_ai_cannot_tick_a_framework_colour() -> None:
+    items = [{"hex": "#007BFF", "share": 50.0, "where": [], "names": [], "detail": "", "pantone": "", "cmyk": "",
+              "framework": True},
+             {"hex": "#E40000", "share": 50.0, "where": [], "names": [], "detail": "", "pantone": "", "cmyk": "",
+              "framework": False}]
+    answer = {"colors": [{"hex": "#007BFF", "role": "primary", "keep": True}, {"hex": "#E40000", "role": "accent"}]}
+    ordered = {c["hex"]: c for c in collect.order_with_ai(items, answer, "en")}
+    assert ordered["#007BFF"]["keep"] is False and ordered["#E40000"]["keep"] is True
+
+
+def test_the_same_logo_under_two_addresses_is_offered_once(client: TestClient, opened: None, web: Pages) -> None:
+    web["example.com/"] = (200, "text/html", (b'<html><body><img src="/theme/logo.png" alt="Logo">'
+                                             b'<img src="/uploads/Logo.png?v=2" alt="Logo">'
+                                             b'<img src="/uploads/other-logo.svg" alt="logo"></body></html>'))
+    logos = client.post("/api/collect", json={"sources": [{"kind": "website", "value": "https://example.com/"}]}
+                        ).json()["logos"]
+    assert [logo["url"] for logo in logos] == ["https://example.com/theme/logo.png",
+                                               "https://example.com/uploads/other-logo.svg"]
+
+
+def test_a_heavier_framework_colour_still_leaves_the_lead_to_the_brand() -> None:
+    found = collect.Found()
+    collect.read_css(found, ".b{background:#007BFF;color:#007BFF;border-color:#007BFF}.brand{color:#E40000}",
+                     "website:example.com")
+    ordered = {c["hex"]: c for c in collect.order_by_rules(collect.merged(found), "en")}
+    assert collect.merged(found)[0]["hex"] == "#007BFF", "Bootstrap's blue, bundled, is the most used here"
+    assert ordered["#E40000"]["role"] == "primary" and ordered["#007BFF"]["role"] != "primary"

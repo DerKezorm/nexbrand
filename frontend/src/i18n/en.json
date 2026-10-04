@@ -1697,6 +1697,8 @@
       "img": "Picture on the page",
       "icon": "The page's icon (favicon)",
       "og:image": "Preview picture for social networks"
-    }
+    },
+    "framework": "from the framework",
+    "frameworkHint": "A colour Bootstrap or a similar framework brings along, not one of the brand. Left out; tick it if you want it after all."
   }
 }

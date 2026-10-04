@@ -405,6 +405,11 @@ export function CollectPage() {
                           ))}
                         </select>
                         <span className="font-mono text-xs text-mist-300">{color.hex}</span>
+                        {color.framework && (
+                          <span className="shrink-0 rounded-full border border-ink-600 px-2 py-0.5 text-[11px] text-mist-400" title={t('collect.frameworkHint')}>
+                            {t('collect.framework')}
+                          </span>
+                        )}
                         <span className="min-w-0 flex-1 truncate text-xs text-mist-500" title={color.detail}>
                           {color.reason || color.detail}
                         </span>

@@ -336,6 +336,8 @@ export type FoundColor = {
   name: string
   keep: boolean
   reason: string
+  /** A framework's colour (Bootstrap and the like), not the brand's: left out until a person ticks it. */
+  framework?: boolean
 }
 export type FontFileFound = { url: string; weight: string; style: string }
 export type FontFileTaken = { id: string; name: string; kind: string; weight: string; style: string }
