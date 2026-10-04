@@ -12,6 +12,7 @@ import { CATALOG, catalogEntry, findFont, fontStack } from '../../lib/fonts'
 import { harmonies, neutralsFor, RATIOS, startRules, typeScale, wordmarks, type Names } from '../../lib/generate'
 import { TabRow, type Tab } from '../../pages/settings/ui'
 import { HintList } from './Checks'
+import { LogoView } from './LogoView'
 import { WebPreview } from './WebPreview'
 
 export type FileMap = Record<string, FileInfo>
@@ -366,6 +367,14 @@ function LogosEditor({ logos, colors, fonts, name, onChange, ctx }: { logos: Bra
     <div className="space-y-3">
       {logos.map((l, i) => (
         <Row key={l.id} label={l.name} onRemove={() => onChange(logos.filter((_, j) => j !== i))} onUp={i ? () => onChange(move(logos, i, i - 1)) : undefined} onDown={i < logos.length - 1 ? () => onChange(move(logos, i, i + 1)) : undefined}>
+          {/* The logo itself, on the ground chosen for it: a row of fields alone did not show it (04.10.2026). */}
+          <span
+            className={'grid h-16 w-32 shrink-0 place-items-center overflow-hidden rounded-lg border border-ink-700 p-2 ' + (l.ground === 'transparent' ? 'nb-checker' : '')}
+            style={l.ground === 'transparent' ? undefined : { background: l.ground }}
+            data-testid="logo-thumb"
+          >
+            <LogoView logo={l} fonts={fonts} fileUrl={ctx.fileUrl} className={l.compact ? 'h-12' : 'h-10'} />
+          </span>
           <input value={l.name} onChange={(e) => edit(i, { name: e.target.value })} aria-label={t('editor.name')} className={field + ' w-40'} />
           {l.wordmark ? (
             <>

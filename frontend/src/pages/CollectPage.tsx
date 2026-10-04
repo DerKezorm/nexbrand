@@ -205,7 +205,7 @@ export function CollectPage() {
     if (keptFonts.length) base.fonts = keptFonts.map((f) => fontOf(f, t(`collect.uses.${f.use}`), fontFiles[f.family], fontFiles[f.family]?.length ? note : ''))
     const logos: BrandLogo[] = taken.map((x, index) => ({
       id: `collect-${Date.now().toString(36)}-${index}`,
-      name: x.media.name,
+      name: x.media.name.replace(/\.[^.]+$/, ''),
       media: x.media.id,
       fg: primary,
       accent,
