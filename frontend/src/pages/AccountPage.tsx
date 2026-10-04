@@ -155,7 +155,7 @@ export function AccountPage() {
               </button>
             </form>
             {/* Under the row, so the button sits beside the field and not beside its explanation. */}
-            <p className="mt-1 text-xs text-mist-500">{t('me.profile.displayHint', { name: me.name })}</p>
+            {me.suite !== 'connected' && <p className="mt-1 text-xs text-mist-500">{t('me.profile.displayHint', { name: me.name })}</p>}
             <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm" data-testid="account-facts">
               <dt className="text-mist-500">{t('me.profile.name')}</dt>
               <dd className="text-mist-100">{me.name}</dd>
