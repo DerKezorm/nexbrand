@@ -17,9 +17,9 @@ from sqlalchemy import func, select
 
 from ..deps import Account, DbSession
 from ..errors import error
-from ..models import DRAFT, MANAGE, READ, WRITE, BrandVersion, Client, Favorite, Project, Review, Share, Visit
+from ..models import DRAFT, MANAGE, READ, WRITE, BrandVersion, Client, Favorite, Media, Project, Review, Share, Visit
 from ..models import Account as AccountRow
-from ..services import brands, rights, tokens
+from ..services import brands, brandset, rights, tokens
 
 logger = logging.getLogger("nexbrand.clients")
 
@@ -129,11 +129,12 @@ def project_view(row: Project) -> dict[str, Any]:
 def _face(version: BrandVersion | None) -> dict[str, Any]:
     """What the overview shows of a client: the colours and the small logo of the current version."""
     if version is None:
-        return {"colors": [], "logo": None}
+        return {"colors": [], "logo": None, "mark": None, "fonts": []}
     data = version.data or {}
     logos = data.get("logos", [])
-    logo = next((item for item in logos if item.get("compact")), logos[0] if logos else None)
-    return {"colors": [c["hex"] for c in data.get("colors", [])][:10], "logo": logo,
+    wide = next((item for item in logos if not item.get("compact")), None)
+    small = next((item for item in logos if item.get("compact")), None)
+    return {"colors": [c["hex"] for c in data.get("colors", [])][:10], "logo": wide or small, "mark": small or wide,
             "fonts": [f["family"] for f in data.get("fonts", [])][:4]}
 
 
@@ -212,6 +213,19 @@ def whole(db: DbSession, account: AccountRow, client: Client) -> dict[str, Any]:
 def read(client_id: ClientId, account: Account, db: DbSession) -> dict[str, Any]:
     client = client_of(db, account, client_id, READ)
     return whole(db, account, client)
+
+
+@router.get("/clients/{client_id}/files", summary="Names and kinds of the files the client's versions name")
+def files(client_id: ClientId, account: Account, db: DbSession) -> dict[str, dict[str, Any]]:
+    client = client_of(db, account, client_id, READ)
+    named: set[str] = set()
+    for row in brands.versions(db, client):
+        named |= brandset.media_of(row.data)
+    if not named:
+        return {}
+    rows = db.scalars(select(Media).where(Media.id.in_(named), Media.space_id == client.space_id))
+    return {row.id: {"name": row.name, "kind": row.kind, "size": row.size, "width": row.width, "height": row.height}
+            for row in rows}
 
 
 @router.patch("/clients/{client_id}", summary="Rename, describe, star")

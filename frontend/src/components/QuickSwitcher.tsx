@@ -1,46 +1,36 @@
-import { LayoutDashboard, Plus, Search } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 
-import { useBoards } from '../board/store'
-import type { Board } from '../board/types'
+import type { ClientInfo } from '../api/client'
+import { useBrands } from '../state/brands'
 import { useShell } from './AppShell'
+import { Swatch } from './Sidebar'
 
-/** Ctrl K, as in nexlore: type, arrows, Enter. Finds boards by name and by the words on them. */
+/** Ctrl K, as in nexlore: type, arrows, Enter. Finds clients by name and sector, and by the fonts they use. */
 export function QuickSwitcher({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const boards = useBoards()
+  const brands = useBrands()
   const shell = useShell()
   const [query, setQuery] = useState('')
   const [index, setIndex] = useState(0)
 
   const hits = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    const live = boards.boards.filter((b) => !b.deleted)
-    if (!q) return [...live].sort((a, b) => b.opened - a.opened).slice(0, 8).map((board) => ({ board, words: '' }))
-    const found: { board: Board; words: string }[] = []
-    for (const board of live) {
-      if (board.title.toLowerCase().includes(q)) {
-        found.push({ board, words: '' })
-        continue
-      }
-      for (const item of board.items) {
-        if ('text' in item && item.text.toLowerCase().includes(q)) {
-          found.push({ board, words: item.text.replace(/\s+/g, ' ') })
-          break
-        }
-      }
-    }
+    const q = query.trim().toLocaleLowerCase()
+    if (!q) return [...brands.clients].filter((c) => c.opened_at).sort((a, b) => Date.parse(b.opened_at!) - Date.parse(a.opened_at!)).slice(0, 8)
+    const found: ClientInfo[] = brands.clients.filter(
+      (c) => c.name.toLocaleLowerCase().includes(q) || c.sector.toLocaleLowerCase().includes(q) || (c.face.fonts ?? []).some((f) => f.toLocaleLowerCase().includes(q)),
+    )
     return found.slice(0, 12)
-  }, [query, boards.boards])
+  }, [query, brands.clients])
 
   const rows = hits.length + 1
   const open = (i: number) => {
     onClose()
-    if (i < hits.length) navigate(`/b/${hits[i].board.id}`)
-    else shell.newBoard()
+    if (i < hits.length) navigate(`/c/${hits[i].id}`)
+    else shell.newClient()
   }
 
   return (
@@ -73,21 +63,21 @@ export function QuickSwitcher({ onClose }: { onClose: () => void }) {
           <kbd>Esc</kbd>
         </div>
         <ul className="nc-scroll max-h-[50vh] overflow-y-auto p-1.5" role="listbox" aria-label={t('search.button')}>
-          {!query && <li className="px-3 pt-1.5 pb-1 text-[11px] font-semibold tracking-wider text-mist-600 uppercase">{t('sidebar.recent')}</li>}
-          {hits.map(({ board, words }, i) => {
-            const space = boards.space(board.space)
+          {!query && hits.length > 0 && <li className="px-3 pt-1.5 pb-1 text-[11px] font-semibold tracking-wider text-mist-600 uppercase">{t('sidebar.recent')}</li>}
+          {hits.map((client, i) => {
+            const space = brands.space(client.space_id)
             return (
-              <li key={board.id} role="option" aria-selected={i === index}>
+              <li key={client.id} role="option" aria-selected={i === index}>
                 <button
                   type="button"
                   onMouseEnter={() => setIndex(i)}
                   onClick={() => open(i)}
                   className={'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left ' + (i === index ? 'bg-accent-500/12 text-mist-100' : 'text-mist-300')}
                 >
-                  <LayoutDashboard className="h-4 w-4 shrink-0 text-mist-500" strokeWidth={1.8} />
+                  <Swatch client={client} className="h-4 w-4" />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm">{board.title}</span>
-                    {words && <span className="block truncate text-xs text-mist-600">{words}</span>}
+                    <span className="block truncate text-sm">{client.name}</span>
+                    {client.sector && <span className="block truncate text-xs text-mist-600">{client.sector}</span>}
                   </span>
                   <span className="flex shrink-0 items-center gap-1.5 text-xs text-mist-600">
                     <span className="h-2 w-2 rounded-full" style={{ background: space?.color }} />
@@ -106,7 +96,7 @@ export function QuickSwitcher({ onClose }: { onClose: () => void }) {
               className={'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm ' + (index === hits.length ? 'bg-accent-500/12 text-mist-100' : 'text-accent-400')}
             >
               <Plus className="h-4 w-4" />
-              {t('board.new')}
+              {t('client.new')}
             </button>
           </li>
         </ul>

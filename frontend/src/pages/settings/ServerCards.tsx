@@ -254,7 +254,7 @@ export function AllSpacesCard() {
       <Feedback problem={problem} />
       {open && (
         <MembersDialog
-          space={{ id: open.id, name: open.name, color: '', role: open.role, boards: 0, members: [], teams: [] }}
+          space={{ id: open.id, name: open.name, color: '', role: open.role, clients: 0, members: [], teams: [] }}
           onClose={() => {
             setOpen(null)
             void load()
@@ -307,7 +307,7 @@ export function SignInCard({ server }: { server: Server }) {
           void server.save({ public_url: (address ?? s.public_url).trim() }, t('settings.saved'))
         }}
       >
-        <Input label={t('server.publicUrl')} value={address ?? s.public_url} onChange={setAddress} placeholder="https://boards.example.com" hint={t('server.publicUrlHint')} className="min-w-60 flex-1" />
+        <Input label={t('server.publicUrl')} value={address ?? s.public_url} onChange={setAddress} placeholder="https://brand.example.com" hint={t('server.publicUrlHint')} className="min-w-60 flex-1" />
         <Button type="submit" busy={server.busy}>
           {t('common.save')}
         </Button>
@@ -567,8 +567,8 @@ export function MailCard({ server }: { server: Server }) {
   )
 }
 
-type Backup = { name: string; size: number; created: string; kind: string; note: string; boards: number; files: number; version: string }
-type Brief = { usable: boolean; boards: number; files: number; would_add: number; would_change: number; would_remove: number; damaged: string[]; created: string }
+type Backup = { name: string; size: number; created: string; kind: string; note: string; clients: number; files: number; version: string }
+type Brief = { usable: boolean; clients: number; files: number; would_add: number; would_change: number; would_remove: number; damaged: string[]; created: string }
 
 export function BackupsCard({ server }: { server: Server }) {
   const { t, i18n } = useTranslation()
@@ -636,7 +636,7 @@ export function BackupsCard({ server }: { server: Server }) {
             <div className="min-w-0 flex-1">
               <div className="text-mist-100">{new Date(entry.created).toLocaleString(i18n.language)}</div>
               <div className="text-xs text-mist-500">
-                {t(`server.kinds.${entry.kind}`)} · {t('server.backupContent', { boards: entry.boards, files: entry.files })} · {size(entry.size)} · {entry.version}
+                {t(`server.kinds.${entry.kind}`)} · {t('server.backupContent', { clients: entry.clients, files: entry.files })} · {size(entry.size)} · {entry.version}
               </div>
             </div>
             <button type="button" className={icon} title={t('server.check')} aria-label={t('server.check')} onClick={() => void action.run(async () => setBrief({ ...(await api<Brief>(`/api/backups/${entry.name}/check`, { method: 'POST' })), name: entry.name }))}>
@@ -656,7 +656,7 @@ export function BackupsCard({ server }: { server: Server }) {
       </ul>
       {brief && (
         <div className={'rounded-xl border px-4 py-3 text-sm ' + (brief.usable ? 'border-ok-500/40 bg-ok-500/10 text-mist-200' : 'border-bad-500/40 bg-bad-500/10 text-bad-500')}>
-          {brief.usable ? t('server.checkOk', { boards: brief.boards, files: brief.files, add: brief.would_add, remove: brief.would_remove }) : t('server.checkBad')}
+          {brief.usable ? t('server.checkOk', { clients: brief.clients, files: brief.files, add: brief.would_add, remove: brief.would_remove }) : t('server.checkBad')}
         </div>
       )}
       {restarting && <p className="rounded-xl border border-warn-500/40 bg-warn-500/10 px-4 py-3 text-sm text-warn-500">{t('server.restarting')}</p>}

@@ -4,6 +4,8 @@
  * its sentence from `errors.<code>` in the language files.
  */
 
+import type { BrandColor, BrandLogo, BrandSet } from '../lib/brand'
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -154,15 +156,8 @@ export type Me = {
 }
 
 export type Preferences = {
-  snap: boolean
-  dots: boolean
-  tool_back: boolean
-  start: 'boards' | 'last'
-  library_open?: boolean
-  library_favorites?: string[]
-  library_recent?: string[]
-  /** Packages switched off for the own library, by id. */
-  library_hidden?: string[]
+  start: 'clients' | 'last'
+  color_format: 'hex' | 'rgb' | 'hsl' | 'cmyk'
 }
 
 export type Member = { id: number; name: string; display_name: string; role: Role; avatar: string | null }
@@ -172,7 +167,7 @@ export type SpaceInfo = {
   name: string
   color: string
   role: Role | null
-  boards: number
+  clients: number
   members: Member[]
   /** The teams with a right in the space. */
   teams: TeamGrantInfo[]
@@ -189,21 +184,114 @@ export type Person = { id: number; name: string; display_name: string; avatar: s
 
 export type Directory = { me: number; people: Person[]; teams: Team[] }
 
-export type BoardInfo = {
+export type VersionInfo = {
+  id: string
+  label: string
+  status: 'draft' | 'published'
+  valid_from: string
+  origin: 'hand' | 'collect' | 'mcp' | 'review'
+  author: string
+  note: string
+  created_at: string
+  updated_at: string
+  published_at: string | null
+  published_by: string
+  data: BrandSet
+}
+
+export type ProjectInfo = { id: string; name: string; version_id: string; note: string; own: BrandColor[]; created_at: string; updated_at: string }
+
+/** What the overview shows of a client: colours, the small logo and fonts of its current version. */
+export type ClientFace = { colors: string[]; logo: BrandLogo | null; mark?: BrandLogo | null; fonts?: string[] }
+
+export type ClientInfo = {
   id: string
   space_id: number
-  title: string
+  name: string
+  sector: string
+  contact: string
   created_at: string
   updated_at: string
   updated_by: string
   deleted_at: string | null
-  items: number
   favorite: boolean
   opened_at: string | null
-  public: boolean
   role: Role | null
-  picture?: { items: Record<string, unknown>[]; lines: Record<string, unknown>[]; background?: { pattern: string; color: string } }
+  current: string | null
+  drafts: number
+  projects: number
+  face: ClientFace
 }
+
+export type ReviewBrief = { id: number; version_id: string; status: 'open' | 'chosen' | 'closed'; chosen: string }
+
+export type ClientWhole = Omit<ClientInfo, 'projects'> & {
+  note: string
+  versions: VersionInfo[]
+  projects: ProjectInfo[]
+  shares: number
+  reviews: ReviewBrief[]
+}
+
+export type ShareInfo = {
+  id: number
+  label: string
+  link: string
+  version_id: string | null
+  version_label: string | null
+  views: number
+  created_at: string
+  expires_at: string | null
+  password: boolean
+}
+
+export type Variant = { id: string; label: string; why?: string; data: BrandSet }
+export type ReviewComment = { id?: number; variant: string; author: string; text: string; agency: boolean; at: string }
+
+export type ReviewInfo = {
+  id: number
+  link: string
+  version_id: string
+  label: string
+  sender: string
+  message: string
+  status: 'open' | 'chosen' | 'closed'
+  chosen: string
+  chosen_by: string
+  chosen_at: string | null
+  variants: Variant[]
+  comments: ReviewComment[]
+  created_at: string
+  expires_at: string | null
+}
+
+export type FileInfo = { name: string; kind: string; size?: number }
+
+export type PublicPageInfo = {
+  password?: boolean
+  client: string
+  sector: string
+  label: string
+  version: { label: string; valid_from: string }
+  design: BrandSet
+  files: Record<string, FileInfo>
+  token: string
+}
+
+export type ReviewPageInfo = {
+  client: string
+  sender: string
+  message: string
+  status: 'open' | 'chosen' | 'closed'
+  chosen: string
+  chosen_by: string
+  variants: Variant[]
+  comments: ReviewComment[]
+  files: Record<string, FileInfo>
+  expires_at: string | null
+}
+
+export type ExportFormat = 'css' | 'tailwind' | 'scss' | 'json'
 
 export type MediaInfo = {
   id: string
@@ -286,8 +374,8 @@ export type AnyApiToken = Omit<ApiToken, 'spaces'> & { account: string; spaces: 
 /** API tokens for programs (`/api/v1`); reading only. */
 export const apiTokensApi = {
   list: () => api<{ allowed: boolean; tokens: ApiToken[] }>('/api/api-tokens'),
-  make: (name: string, spaces: number[] | null, days: number | null) =>
-    api<{ token: ApiToken; secret: string }>('/api/api-tokens', { method: 'POST', body: { name, spaces, days } }),
+  make: (name: string, spaces: number[] | null, days: number | null, level: 'read' | 'draft' = 'read') =>
+    api<{ token: ApiToken; secret: string }>('/api/api-tokens', { method: 'POST', body: { name, spaces, days, level } }),
   remove: (id: number) => api<void>(`/api/api-tokens/${id}`, { method: 'DELETE' }),
   every: () => api<AnyApiToken[]>('/api/admin/api-tokens'),
   block: (id: number) => api<AnyApiToken>(`/api/admin/api-tokens/${id}/block`, { method: 'POST' }),
@@ -295,27 +383,61 @@ export const apiTokensApi = {
 
 export type Invite = { id: number; role: string; email: string; by: string | null; created_at: string; expires_at: string }
 
-export const boardsApi = {
-  list: (query: { space?: number; deleted?: boolean } = {}) => api<BoardInfo[]>('/api/boards', { query }),
-  read: (id: string) => api<BoardInfo>(`/api/boards/${id}`),
-  create: (space_id: number, title: string, content?: unknown) => api<BoardInfo>('/api/boards', { method: 'POST', body: { space_id, title, content } }),
-  change: (id: string, change: { title?: string; space_id?: number }) => api<BoardInfo>(`/api/boards/${id}`, { method: 'PATCH', body: change }),
-  copy: (id: string, title: string) => api<BoardInfo>(`/api/boards/${id}/copy`, { method: 'POST', body: { title } }),
-  trash: (id: string) => api<void>(`/api/boards/${id}`, { method: 'DELETE' }),
-  restore: (id: string) => api<BoardInfo>(`/api/boards/${id}/restore`, { method: 'POST' }),
-  purge: (id: string) => api<void>(`/api/boards/${id}/purge`, { method: 'DELETE' }),
-  favorite: (id: string, on: boolean) => api<{ favorite: boolean }>(`/api/boards/${id}/favorite`, { method: 'PUT', body: { on } }),
-  visit: (id: string) => api<void>(`/api/boards/${id}/visit`, { method: 'POST' }),
-  versions: (id: string) => api<{ id: number; created_at: string; authors: string; items: number }[]>(`/api/boards/${id}/versions`),
-  restoreVersion: (id: string, version: number) => api<void>(`/api/boards/${id}/versions/${version}/restore`, { method: 'POST' }),
-  /** Where the board downloads as JSON Canvas (a .canvas file, or a .zip when photos and files go along). */
-  exportUrl: (id: string) => `/api/boards/${encodeURIComponent(id)}/export`,
-  /** A new board from a JSON Canvas file (another nexbrand, nexlore, Obsidian); a typed name wins over the file's. */
-  fromFile: (space: number, file: File, title: string) =>
-    upload<{ board: BoardInfo; items: number; lines: number; files: number; missing: string[]; skipped: number }>('/api/boards/from-file', { space_id: space, name: file.name, title }, file),
-  importCanvas: (id: string, file: Blob, at: { x: number; y: number }) =>
-    upload<{ items: number; lines: number; files: number; missing: string[]; skipped: number }>(`/api/boards/${encodeURIComponent(id)}/import`, { x: Math.round(at.x), y: Math.round(at.y) }, file),
-  search: (q: string) => api<BoardInfo[]>('/api/search', { query: { q } }),
+export const clientsApi = {
+  list: (query: { space?: number; deleted?: boolean } = {}) => api<ClientInfo[]>('/api/clients', { query }),
+  read: (id: string) => api<ClientWhole>(`/api/clients/${id}`),
+  create: (body: { space_id: number; name: string; sector?: string; contact?: string; note?: string; label: string; data?: BrandSet; project?: string }) =>
+    api<ClientWhole>('/api/clients', { method: 'POST', body }),
+  change: (id: string, change: { name?: string; sector?: string; contact?: string; note?: string; favorite?: boolean }) =>
+    api<ClientInfo>(`/api/clients/${id}`, { method: 'PATCH', body: change }),
+  visit: (id: string) => api<void>(`/api/clients/${id}/visit`, { method: 'POST' }),
+  files: (id: string) => api<Record<string, FileInfo & { width?: number; height?: number }>>(`/api/clients/${id}/files`),
+  trash: (id: string) => api<void>(`/api/clients/${id}`, { method: 'DELETE' }),
+  restore: (id: string) => api<ClientInfo>(`/api/clients/${id}/restore`, { method: 'POST' }),
+  purge: (id: string) => api<void>(`/api/clients/${id}/purge`, { method: 'DELETE' }),
+  newVersion: (id: string, body: { label: string; source?: string; data?: BrandSet; note?: string }) =>
+    api<VersionInfo>(`/api/clients/${id}/versions`, { method: 'POST', body }),
+  saveDraft: (id: string, version: string, change: { label?: string; note?: string; data?: BrandSet }) =>
+    api<VersionInfo>(`/api/clients/${id}/versions/${version}`, { method: 'PUT', body: change }),
+  publish: (id: string, version: string, body: { valid_from?: string; label?: string }) =>
+    api<VersionInfo>(`/api/clients/${id}/versions/${version}/publish`, { method: 'POST', body }),
+  deleteDraft: (id: string, version: string) => api<void>(`/api/clients/${id}/versions/${version}`, { method: 'DELETE' }),
+  exportText: (id: string, query: { format: ExportFormat; version?: string; project?: string }) =>
+    fetch(`/api/clients/${encodeURIComponent(id)}/export?` + new URLSearchParams(Object.entries(query).filter(([, v]) => v) as [string, string][]).toString(), {
+      headers: { 'X-Nexbrand-Client': tabId() },
+    }).then((r) => (r.ok ? r.text() : Promise.reject(new ApiError(r.status, 'internal_error')))),
+  exportUrl: (id: string, query: { format: ExportFormat; version?: string; project?: string }) =>
+    `/api/clients/${encodeURIComponent(id)}/export?` + new URLSearchParams([...Object.entries(query).filter(([, v]) => v), ['download', 'true']] as [string, string][]).toString(),
+  newProject: (id: string, body: { name: string; version_id: string; note?: string; own?: BrandColor[] }) =>
+    api<ProjectInfo>(`/api/clients/${id}/projects`, { method: 'POST', body }),
+  changeProject: (id: string, project: string, change: { name?: string; note?: string; version_id?: string; own?: BrandColor[] }) =>
+    api<ProjectInfo>(`/api/clients/${id}/projects/${project}`, { method: 'PATCH', body: change }),
+  deleteProject: (id: string, project: string) => api<void>(`/api/clients/${id}/projects/${project}`, { method: 'DELETE' }),
+}
+
+export const sharesApi = {
+  list: (client: string) => api<ShareInfo[]>(`/api/clients/${client}/shares`),
+  create: (client: string, body: { label: string; version_id?: string | null; days?: number | null; password?: string }) =>
+    api<ShareInfo>(`/api/clients/${client}/shares`, { method: 'POST', body }),
+  change: (id: number, change: { label?: string; days?: number; forever?: boolean; password?: string; no_password?: boolean }) =>
+    api<ShareInfo>(`/api/shares/${id}`, { method: 'PATCH', body: change }),
+  remove: (id: number) => api<void>(`/api/shares/${id}`, { method: 'DELETE' }),
+  page: (token: string) => api<PublicPageInfo>(`/api/public/${token}`),
+  unlock: (token: string, password: string) => api<PublicPageInfo>(`/api/public/${token}`, { method: 'POST', body: { password } }),
+}
+
+export const reviewsApi = {
+  list: (client: string) => api<ReviewInfo[]>(`/api/clients/${client}/reviews`),
+  create: (client: string, body: { version_id: string; variants: Variant[]; label: string; sender?: string; message?: string; days?: number }) =>
+    api<ReviewInfo>(`/api/clients/${client}/reviews`, { method: 'POST', body }),
+  comment: (client: string, review: number, variant: string, text: string) =>
+    api<ReviewInfo>(`/api/clients/${client}/reviews/${review}/comments`, { method: 'POST', body: { variant, text } }),
+  withdraw: (client: string, review: number) => api<void>(`/api/clients/${client}/reviews/${review}`, { method: 'DELETE' }),
+  page: (token: string) => api<ReviewPageInfo>(`/api/review/${token}`),
+  say: (token: string, variant: string, author: string, text: string) =>
+    api<ReviewPageInfo>(`/api/review/${token}/comments`, { method: 'POST', body: { variant, author, text } }),
+  choose: (token: string, variant: string, author: string) =>
+    api<ReviewPageInfo>(`/api/review/${token}/choose`, { method: 'POST', body: { variant, author } }),
 }
 
 export const mediaApi = {
@@ -323,10 +445,16 @@ export const mediaApi = {
     upload<MediaInfo>('/api/media', { space, name }, file, onProgress),
 }
 
-/** Where a photo or file of a board is shown from. Only ever built from an id, never from what a board says. */
+const safeId = (id: string) => (/^[A-Za-z0-9_-]{8,40}$/.test(id) ? id : 'invalid0')
+
+/** Where a file of a brand is shown from. Only ever built from an id, never from what a design set says. */
 export function mediaUrl(id: string, preview = false): string {
-  const safe = /^[A-Za-z0-9_-]{8,40}$/.test(id) ? id : 'invalid0'
-  return `/api/media/${safe}${preview ? '?preview=1' : ''}`
+  return `/api/media/${safeId(id)}${preview ? '?preview=1' : ''}`
+}
+
+/** The same for a public page or a review: the page's token opens only the files that page shows. */
+export function pageMediaUrl(kind: 'public' | 'review', token: string, id: string): string {
+  return `/api/${kind}/${encodeURIComponent(token)}/media/${safeId(id)}`
 }
 
 export function avatarUrl(person: { id: number; avatar: string | null }): string | null {

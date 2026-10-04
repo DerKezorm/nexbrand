@@ -24,20 +24,17 @@ const PARTS = [
   { name: 'FastAPI', url: 'https://fastapi.tiangolo.com', licence: 'MIT' },
   { name: 'SQLAlchemy', url: 'https://www.sqlalchemy.org', licence: 'MIT' },
   { name: 'SQLite', url: 'https://sqlite.org', licence: 'Public Domain' },
-  { name: 'pycrdt', url: 'https://github.com/y-crdt/pycrdt', licence: 'MIT' },
   { name: 'Pillow', url: 'https://python-pillow.org', licence: 'MIT-CMU' },
   { name: 'pillow-heif', url: 'https://github.com/bigcat88/pillow_heif', licence: 'BSD-3' },
   { name: 'pypdf', url: 'https://github.com/py-pdf/pypdf', licence: 'BSD-3' },
   { name: 'React', url: 'https://react.dev', licence: 'MIT' },
   { name: 'Vite', url: 'https://vite.dev', licence: 'MIT' },
   { name: 'Tailwind CSS', url: 'https://tailwindcss.com', licence: 'MIT' },
-  { name: 'Yjs', url: 'https://yjs.dev', licence: 'MIT' },
-  { name: 'perfect-freehand', url: 'https://github.com/steveruizok/perfect-freehand', licence: 'MIT' },
-  { name: 'PDF.js', url: 'https://mozilla.github.io/pdf.js/', licence: 'Apache-2.0' },
-  { name: 'html-to-image', url: 'https://github.com/bubkoo/html-to-image', licence: 'MIT' },
   { name: 'Lucide', url: 'https://lucide.dev', licence: 'ISC' },
   { name: 'i18next', url: 'https://www.i18next.com', licence: 'MIT' },
   { name: 'Inter', url: 'https://rsms.me/inter/', licence: 'OFL-1.1' },
+  { name: 'Fraunces, Playfair Display, Lora, Source Serif 4, DM Sans, Outfit, Space Grotesk, Nunito', url: 'https://fontsource.org', licence: 'OFL-1.1' },
+  { name: 'httpx', url: 'https://www.python-httpx.org', licence: 'BSD-3' },
 ]
 
 function Out({ href, children }: { href: string; children: ReactNode }) {

@@ -45,6 +45,36 @@ def test_the_cases_file_is_what_the_server_computes() -> None:
     assert json.loads(CASES.read_text(encoding="utf-8")) == computed
 
 
+CHECK_CASES = Path(__file__).parent / "data" / "check_cases.json"
+CHECK_SETS = [
+    {"colors": [{"name": "Ofenrot", "hex": "#B8322A", "role": "primary"},
+                {"name": "Honig", "hex": "#E9A23B", "role": "accent"},
+                {"name": "Mehl", "hex": "#F2E3C6", "role": "neutral"},
+                {"name": "Kruste", "hex": "#3B2A20", "role": "neutral"},
+                {"name": "Kruste 2", "hex": "#3C2A20", "role": "neutral"},
+                {"name": "Weiss", "hex": "#FFFFFF", "role": "neutral"}],
+     "fonts": [{"family": "House", "license": "internal"}, {"family": "Verdana", "license": "system"}],
+     "logos": [{"name": "Neg", "wordmark": {"text": "M", "font": ""}, "fg": "#F2E3C6", "accent": "#B8322A",
+                "ground": "#3B2A20"},
+               {"name": "File", "media": "abcdefghij", "fg": "#000000", "accent": "#000000", "ground": "#000000"}],
+     "scale": [{"name": "Body", "use": "body", "size": 15}]},
+    {"colors": [{"name": "Gruen", "hex": "#3FA34D", "role": "secondary"},
+                {"name": "Signal", "hex": "#F5A400", "role": "accent"},
+                {"name": "Blau", "hex": "#0B5CAD", "role": "primary"},
+                {"name": "Blau hell", "hex": "#1569BC", "role": "secondary"},
+                {"name": "Nebel", "hex": "#EEF2F6", "role": "neutral"}],
+     "fonts": [], "logos": [], "scale": []},
+    {"colors": [{"name": "Gelb", "hex": "#FFE14A", "role": "primary"}], "fonts": [], "logos": [], "scale": []},
+]
+
+
+def test_the_check_cases_file_is_what_the_server_says() -> None:
+    computed = [checks.check(case) for case in CHECK_SETS]
+    if os.environ.get("UPDATE_COLOR_CASES"):
+        CHECK_CASES.write_bytes((json.dumps({"sets": CHECK_SETS, "hints": computed}, indent=1) + "\n").encode())
+    assert json.loads(CHECK_CASES.read_text(encoding="utf-8")) == {"sets": CHECK_SETS, "hints": computed}
+
+
 def test_known_values() -> None:
     assert colors.contrast("#FFFFFF", "#000000") == pytest.approx(21)
     assert colors.contrast("#777777", "#FFFFFF") == pytest.approx(4.48, abs=0.01)

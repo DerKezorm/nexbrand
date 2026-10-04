@@ -1,24 +1,24 @@
-import { FileStack, LayoutGrid, LayoutTemplate, Plus, Search } from 'lucide-react'
+import { Contrast, LayoutGrid, Plus, Search } from 'lucide-react'
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 
-import { useBoards } from '../board/store'
+import { useBrands } from '../state/brands'
 import { AccountMenu } from './AccountMenu'
 import { Logo } from './Logo'
-import { NewBoardDialog } from './NewBoardDialog'
 import { NewSpaceDialog } from './NewSpaceDialog'
 import { QuickSwitcher } from './QuickSwitcher'
 import { ThemeSwitcher } from './ThemeSwitcher'
 import { WhatsNewBanner } from './WhatsNew'
 
 interface Shell {
-  newBoard: (space?: number, template?: string) => void
+  /** The workbench for a new client, in a space when one is given. */
+  newClient: (space?: number) => void
   newSpace: () => void
   search: () => void
 }
 
-const ShellContext = createContext<Shell>({ newBoard: () => undefined, newSpace: () => undefined, search: () => undefined })
+const ShellContext = createContext<Shell>({ newClient: () => undefined, newSpace: () => undefined, search: () => undefined })
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function useShell(): Shell {
@@ -36,15 +36,14 @@ function navClass(isActive: boolean): string {
 export function AppShell() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const boards = useBoards()
-  const [asking, setAsking] = useState<{ space?: number; template?: string } | null>(null)
+  const brands = useBrands()
   const [searching, setSearching] = useState(false)
   const [spaceDialog, setSpaceDialog] = useState(false)
 
-  const newBoard = useCallback((space?: number, template?: string) => setAsking({ space, template }), [])
+  const newClient = useCallback((space?: number) => navigate(space ? `/new?space=${space}` : '/new'), [navigate])
   const newSpace = useCallback(() => setSpaceDialog(true), [])
   const search = useCallback(() => setSearching(true), [])
-  const shell = useMemo(() => ({ newBoard, newSpace, search }), [newBoard, newSpace, search])
+  const shell = useMemo(() => ({ newClient, newSpace, search }), [newClient, newSpace, search])
 
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
@@ -54,17 +53,16 @@ export function AppShell() {
       }
       if (e.altKey && e.key.toLowerCase() === 'n') {
         e.preventDefault()
-        setAsking({})
+        newClient()
       }
     }
     window.addEventListener('keydown', key)
     return () => window.removeEventListener('keydown', key)
-  }, [])
+  }, [newClient])
 
   const items = [
-    { to: '/', label: 'nav.boards', Icon: LayoutGrid, end: true },
-    { to: '/templates', label: 'nav.templates', Icon: LayoutTemplate },
-    { to: '/files', label: 'nav.files', Icon: FileStack },
+    { to: '/', label: 'nav.clients', Icon: LayoutGrid, end: true },
+    { to: '/contrast', label: 'nav.contrast', Icon: Contrast },
   ]
 
   return (
@@ -83,9 +81,9 @@ export function AppShell() {
                 </NavLink>
               ))}
             </nav>
-            <button type="button" onClick={() => setAsking({})} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-accent-500 px-3 py-1.5 text-sm font-semibold text-on-accent hover:bg-accent-400" title={t('board.newShortcut')}>
+            <button type="button" onClick={() => newClient()} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-accent-500 px-3 py-1.5 text-sm font-semibold text-on-accent hover:bg-accent-400" title={t('client.newShortcut')}>
               <Plus className="h-4 w-4" strokeWidth={2.2} />
-              <span className="hidden sm:inline">{t('board.new')}</span>
+              <span className="hidden sm:inline">{t('client.new')}</span>
             </button>
             <button type="button" onClick={() => setSearching(true)} className="inline-flex shrink-0 items-center gap-2 rounded-full border border-ink-700 bg-ink-850 px-2 py-1.5 text-sm text-mist-500 hover:text-mist-100 xl:pr-2 xl:pl-3" aria-label={t('search.button')}>
               <Search className="h-4 w-4" strokeWidth={1.8} />
@@ -103,27 +101,11 @@ export function AppShell() {
           <Outlet />
         </div>
       </div>
-      {asking && (
-        <NewBoardDialog
-          space={asking.space}
-          template={asking.template}
-          onClose={() => setAsking(null)}
-          onCreate={async (space, title, doc) => {
-            const id = await boards.create(space, title, doc.items.length || doc.background ? doc : undefined)
-            setAsking(null)
-            navigate(`/b/${id}`)
-          }}
-          onNewSpace={() => {
-            setAsking(null)
-            setSpaceDialog(true)
-          }}
-        />
-      )}
       {spaceDialog && (
         <NewSpaceDialog
           onClose={() => setSpaceDialog(false)}
           onCreate={async (name, color) => {
-            const made = await boards.createSpace(name, color)
+            const made = await brands.createSpace(name, color)
             setSpaceDialog(false)
             navigate(`/?space=${made.id}`)
           }}

@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 
-/* nexbrand: the same gray tones as nexlore, nexcrate, Nexview, nexpulse and nextrmnl, accent coral. */
+/* nexbrand: the same gray tones as nexlore, nexcanvas and nextasks; accent Dreiklang: cobalt leads, yellow and
+   magenta mark (proposals and older versions yellow, drafts and what stays in the house magenta). */
 @theme {
   --color-ink-950: #0b0b0f; /* page background */
   --color-ink-900: #101016;
@@ -17,14 +18,20 @@
   --color-mist-500: #9a9aa8; /* dimmed text */
   --color-mist-600: #858594; /* small text: 4.5:1 on every ground */
 
-  --color-accent-300: #ffc2b3;
-  --color-accent-400: #ffa48f;
-  --color-accent-500: #ff8a70; /* main accent */
-  --color-accent-600: #f26a4f;
-  --color-accent-700: #c2410c;
+  --color-accent-300: #9dbbff;
+  --color-accent-400: #6b9bff;
+  --color-accent-500: #2f7bff; /* main accent: cobalt */
+  --color-accent-600: #1f63e6;
+  --color-accent-700: #1849c9;
 
-  /* Text on coral. */
-  --color-on-accent: #240a03;
+  /* Text on cobalt. */
+  --color-on-accent: #020a1f;
+
+  /* The two marking colours of the Dreiklang. */
+  --color-gelb-500: #ffe14a;
+  --color-gelb-text: #ffe14a;
+  --color-magenta-500: #e255f5;
+  --color-magenta-text: #ee8bfa;
 
   --color-ok-500: #4ade80;
   --color-warn-500: #fbbf24;
@@ -58,14 +65,17 @@
   --color-mist-500: #61616f;
   --color-mist-600: #696976;
 
-  /* Darker coral, so white text on it stays readable. */
-  --color-accent-300: #9a3412;
-  --color-accent-400: #b83d22;
-  --color-accent-500: #c2452a;
-  --color-accent-600: #a8381f;
-  --color-accent-700: #8a2d18;
+  /* Deeper cobalt, so white text on it stays readable. */
+  --color-accent-300: #133ba6;
+  --color-accent-400: #1849c9;
+  --color-accent-500: #1849c9;
+  --color-accent-600: #133ba6;
+  --color-accent-700: #0f2f85;
 
   --color-on-accent: #ffffff;
+
+  --color-gelb-text: #7a6000;
+  --color-magenta-text: #9d17b0;
 
   --color-ok-500: #16a34a;
   --color-warn-500: #b45309;
@@ -177,4 +187,11 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* A transparent background, as image editors show it: for logos on "any" ground. */
+.nb-checker {
+  background-color: #fff;
+  background-image: conic-gradient(#e6e6ea 25%, transparent 0 50%, #e6e6ea 0 75%, transparent 0);
+  background-size: 16px 16px;
 }

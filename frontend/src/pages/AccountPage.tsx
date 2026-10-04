@@ -1,9 +1,9 @@
 /**
  * The own account, built as nexlore's (same parts, same words, same order): Profile (picture, display name, name, role,
  * mail address), Security (password, second factor, the link to the provider, signing out everywhere), Connections
- * (API tokens for programs) and Shapes (which packages the own library shows). The tab stands in the address (`?tab=`).
+ * (API tokens for programs and AI tools). The tab stands in the address (`?tab=`).
  */
-import { KeyRound, Lock, Plug, Shapes, Shield, ShieldCheck, UserRound } from 'lucide-react'
+import { KeyRound, Lock, Plug, Shield, ShieldCheck, UserRound } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
@@ -12,7 +12,6 @@ import { api, ApiError, authApi, type Me, type Methods } from '../api/client'
 import { ApiTokens } from '../components/ApiTokens'
 import { Avatar } from '../components/Avatar'
 import { Field, Problem } from '../components/Field'
-import { LibraryChoice } from '../components/LibraryChoice'
 import { Section } from '../components/Section'
 import { Managed } from '../components/Suite'
 import { errorText } from '../lib/errors'
@@ -20,8 +19,8 @@ import { useAuth } from '../state/auth'
 import { saveAsFile, TabRow, type Tab } from './settings/ui'
 import { copyText } from '../lib/copy'
 
-type Part = 'profile' | 'security' | 'connections' | 'shapes'
-const PARTS: Part[] = ['profile', 'security', 'connections', 'shapes']
+type Part = 'profile' | 'security' | 'connections'
+const PARTS: Part[] = ['profile', 'security', 'connections']
 
 const QUIET = 'rounded-full border border-ink-700 px-3 py-1 text-xs text-mist-300 hover:bg-ink-850 disabled:opacity-50'
 const LOUD = 'rounded-full bg-accent-500 px-4 py-1.5 text-sm font-semibold text-on-accent hover:bg-accent-400 disabled:opacity-50'
@@ -59,7 +58,6 @@ export function AccountPage() {
     { value: 'profile', label: t('me.tabs.profile'), icon: UserRound },
     { value: 'security', label: t('me.tabs.security'), icon: Shield },
     { value: 'connections', label: t('me.tabs.connections'), icon: Plug },
-    { value: 'shapes', label: t('me.tabs.shapes'), icon: Shapes },
   ]
 
   const run = async (action: () => Promise<unknown>, success: string) => {
@@ -258,7 +256,6 @@ export function AccountPage() {
         )}
 
         {part === 'connections' && <ApiTokens />}
-        {part === 'shapes' && <LibraryChoice me={me} />}
       </div>
     </main>
   )

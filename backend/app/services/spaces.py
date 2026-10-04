@@ -13,7 +13,7 @@ from ..models import MANAGE, Account, Membership, Space, utcnow
 logger = logging.getLogger("nexbrand.spaces")
 
 #: The colours a space may have: the palette of the interface, nothing else.
-COLORS = ("#ff8a70", "#fbbf24", "#4ade80", "#2dd4bf", "#60a5fa", "#a78bfa", "#f472b6", "#a1a1aa")
+COLORS = ("#2f7bff", "#fbbf24", "#4ade80", "#2dd4bf", "#ff8a70", "#a78bfa", "#f472b6", "#a1a1aa")
 COLOR = re.compile(r"^#[0-9a-f]{6}$")
 MAX_NAME = 80
 

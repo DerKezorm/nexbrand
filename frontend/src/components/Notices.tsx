@@ -2,19 +2,19 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ApiError } from '../api/client'
-import { useBoards } from '../board/store'
+import { useBrands } from '../state/brands'
 import { errorText } from '../lib/errors'
 import { answerNotice, type Notice } from '../lib/notices'
 
 /** The waiting notices as lines with their buttons, as in nexlore's sidebar: accept or decline, or mark seen. */
 export function NoticeList({ notices }: { notices: Notice[] }) {
   const { t } = useTranslation()
-  const boards = useBoards()
+  const brands = useBrands()
   const [problem, setProblem] = useState<string | null>(null)
   const answer = (notice: Notice, accept: boolean) => {
     setProblem(null)
     answerNotice(notice.id, accept).then(
-      () => accept && void boards.refresh(),
+      () => accept && void brands.refresh(),
       (error: unknown) => setProblem(error instanceof ApiError ? error.code : 'internal_error'),
     )
   }

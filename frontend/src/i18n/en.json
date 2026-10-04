@@ -4,9 +4,9 @@
     "mainMenu": "Main menu"
   },
   "nav": {
-    "boards": "Boards",
-    "templates": "Templates",
-    "files": "Files"
+    "clients": "Clients",
+    "contrast": "Contrast",
+    "collect": "Collect"
   },
   "theme": {
     "dark": "Dark",
@@ -15,8 +15,8 @@
     "system": "As the system"
   },
   "search": {
-    "button": "Search boards",
-    "placeholder": "Board name or words on a board …",
+    "button": "Search clients",
+    "placeholder": "Name, sector or font of a client …",
     "nothing": "Nothing found."
   },
   "common": {
@@ -35,45 +35,6 @@
     "mine": "My account",
     "language": "Language",
     "signOut": "Sign out"
-  },
-  "board": {
-    "new": "New board",
-    "newShortcut": "New board (Alt N)",
-    "newIn": "New board in {{space}}",
-    "name": "Name",
-    "untitled": "Untitled board",
-    "space": "Space",
-    "startWith": "Start with",
-    "create": "Create board",
-    "missing": "This board does not exist or is in the bin.",
-    "back": "Back to the boards",
-    "place": "Place of the board",
-    "rename": "Rename",
-    "duplicate": "Duplicate",
-    "copyOf": "{{title}} (copy)",
-    "trash": "Move to bin",
-    "favorite": "Add to favourites",
-    "unfavorite": "Remove from favourites",
-    "saved": "Saved",
-    "saving": "Saving …",
-    "readOnly": "You can only look at this board",
-    "hereNow": "Also here right now",
-    "versions": "Versions",
-    "connecting": "Connecting …",
-    "live": "Live",
-    "offline": "Offline: changes follow when the connection is back",
-    "gone": "No access any more",
-    "noSpace": "A board lives in a space. Make one first; you can invite others into it later.",
-    "fromFile": "From a file …"
-  },
-  "boards": {
-    "all": "All boards",
-    "sort": "Sort",
-    "sortUpdated": "Last changed",
-    "sortTitle": "Name",
-    "sortCreated": "Newest",
-    "count_one": "One board",
-    "count_other": "{{count}} boards"
   },
   "members": {
     "button_one": "One member",
@@ -101,344 +62,19 @@
     "invitedName": "If there is an account “{{name}}”, it finds the invitation under “New” and accepts or declines it."
   },
   "sidebar": {
-    "label": "Boards and spaces",
+    "label": "Clients and spaces",
     "recent": "Recent",
     "favorites": "Favourites",
-    "noFavorites": "Star a board to keep it here.",
+    "noFavorites": "Star a client to keep it here.",
     "spaces": "Spaces",
     "newSpace": "New space",
     "collapse": "Collapse",
     "expand": "Expand",
-    "nothingHere": "No boards here yet"
-  },
-  "templates": {
-    "intro": "Each puts a little structure on a new board. Everything stays changeable.",
-    "blank": {
-      "name": "Blank",
-      "hint": "An empty board"
-    },
-    "mood": {
-      "name": "Mood board",
-      "hint": "Slots for photos and ideas",
-      "title": "Mood board",
-      "note": "Drop photos onto the slots: each fills one"
-    },
-    "retro": {
-      "name": "Retro",
-      "hint": "Good, bad, next time",
-      "title": "Retro",
-      "good": "Went well",
-      "bad": "Went badly",
-      "next": "Next time"
-    },
-    "kanban": {
-      "name": "Kanban",
-      "hint": "Three columns for tasks",
-      "title": "Tasks",
-      "todo": "To do",
-      "doing": "Doing",
-      "done": "Done",
-      "first": "First task"
-    },
-    "mindmap": {
-      "name": "Mind map",
-      "hint": "A topic with branches",
-      "topic": "Topic",
-      "idea": "Idea {{n}}"
-    },
-    "week": {
-      "name": "Week plan",
-      "hint": "A column for each day",
-      "title": "This week",
-      "days": "Mon,Tue,Wed,Thu,Fri,Sat,Sun"
-    },
-    "categories": {
-      "start": "To begin",
-      "flow": "Flow and process",
-      "project": "Project",
-      "room": "Rooms",
-      "network": "Network",
-      "thinking": "Thinking",
-      "organisation": "Organisation"
-    },
-    "own": "Own templates",
-    "scope": {
-      "server": "For everybody on this server",
-      "space": "For this space"
-    },
-    "inSpace": "In “{{space}}”",
-    "download": "Download",
-    "rename": "Rename",
-    "remove": "Remove",
-    "removeTitle": "Remove “{{name}}”?",
-    "removeText": "The template goes. Boards made from it stay as they are.",
-    "import": {
-      "button": "Import template",
-      "title": "Import template",
-      "where": "For",
-      "choose": "Choose file"
-    },
-    "save": {
-      "title": "Save as template",
-      "name": "Name of the template",
-      "where": "For whom",
-      "space": "For the space “{{space}}”",
-      "server": "For everybody on this server",
-      "bare": "Only the frame",
-      "bareHint": "Frames, shapes, texts and lines stay; notes, drawings, photos, files and links do not.",
-      "button": "Save",
-      "saved": "“{{name}}” now lies under Templates."
-    },
-    "flowchart": {
-      "name": "Flowchart",
-      "hint": "Start, steps, a decision, end."
-    },
-    "swimlanes": {
-      "name": "Process with swimlanes",
-      "hint": "Who does which step, lane by lane."
-    },
-    "decision": {
-      "name": "Decision tree",
-      "hint": "One question, two ways, four outcomes."
-    },
-    "gantt": {
-      "name": "Gantt schedule",
-      "hint": "Weeks, work as bars, milestones."
-    },
-    "roadmap": {
-      "name": "Roadmap",
-      "hint": "Four quarters with phases and initiatives."
-    },
-    "kanbanWip": {
-      "name": "Kanban with limits",
-      "hint": "Four columns with limits on work."
-    },
-    "milestones": {
-      "name": "Milestone plan",
-      "hint": "A timeline with five milestones."
-    },
-    "raci": {
-      "name": "RACI matrix",
-      "hint": "Who is responsible, accountable, consulted, informed."
-    },
-    "brief": {
-      "name": "Project brief",
-      "hint": "Goal, scope, team, dates, risks, budget."
-    },
-    "flat": {
-      "name": "Floor plan flat",
-      "hint": "Walls, doors, windows, furniture in centimetres."
-    },
-    "office": {
-      "name": "Office",
-      "hint": "Four desks with chairs and a cupboard."
-    },
-    "meeting": {
-      "name": "Meeting room",
-      "hint": "A table for eight and a screen."
-    },
-    "seating": {
-      "name": "Seating plan",
-      "hint": "Round tables with six seats each."
-    },
-    "homeNet": {
-      "name": "Home network",
-      "hint": "Internet, router, switch, devices and Wi-Fi."
-    },
-    "rack": {
-      "name": "Rack layout",
-      "hint": "A rack with units and devices."
-    },
-    "vlans": {
-      "name": "Network plan with VLANs",
-      "hint": "Zones behind the firewall, apart by purpose."
-    },
-    "homelab": {
-      "name": "Homelab",
-      "hint": "A host with services, switch and NAS."
-    },
-    "mindmapLarge": {
-      "name": "Large mind map",
-      "hint": "One topic, four branches, two thoughts each."
-    },
-    "swot": {
-      "name": "SWOT analysis",
-      "hint": "Strengths, weaknesses, opportunities, threats."
-    },
-    "businessModel": {
-      "name": "Business model canvas",
-      "hint": "Nine fields for a business model."
-    },
-    "empathy": {
-      "name": "Empathy map",
-      "hint": "What a person says, thinks, does, feels."
-    },
-    "ishikawa": {
-      "name": "Ishikawa",
-      "hint": "Causes in six groups, one effect."
-    },
-    "eisenhower": {
-      "name": "Eisenhower matrix",
-      "hint": "Important and urgent, in four fields."
-    },
-    "startStop": {
-      "name": "Retro: start, stop, continue",
-      "hint": "Start, stop, keep doing."
-    },
-    "fourL": {
-      "name": "Retro: 4L",
-      "hint": "Liked, learned, lacked, longed for."
-    },
-    "orgChart": {
-      "name": "Org chart",
-      "hint": "Management, departments, teams."
-    },
-    "month": {
-      "name": "Month plan",
-      "hint": "Five weeks to fill in."
-    }
+    "nothingHere": "No clients here yet",
+    "noRecent": "Nothing opened yet."
   },
   "files": {
-    "intro_one": "One photo or file on your boards.",
-    "intro_other": "{{count}} photos and files on your boards.",
-    "photo": "Photo",
-    "trash": "Bin",
-    "trashHint": "Boards stay here for 30 days, then they go for good.",
-    "trashEmpty": "The bin is empty.",
-    "deleted": "deleted {{when}}",
-    "restore": "Restore",
-    "purge": "Delete for good",
-    "purgeTitle": "Delete for good?",
-    "purgeText": "“{{title}}” and everything on it will be gone. This cannot be undone."
-  },
-  "canvas": {
-    "tools": "Tools",
-    "undo": "Undo",
-    "redo": "Redo",
-    "zoomIn": "Zoom in",
-    "zoomOut": "Zoom out",
-    "zoom100": "Actual size",
-    "fit": "Show everything",
-    "connect": "Drag to connect, click to add a connected note",
-    "notePlaceholder": "Note",
-    "textPlaceholder": "Text",
-    "pages_one": "one page",
-    "pages_other": "{{count}} pages",
-    "emptyTitle": "An empty board",
-    "emptyHint": "Pick a tool at the top, double-click for text, or drop photos and files here.",
-    "rotate": "Turn (Shift: in steps of 15°)",
-    "branch": {
-      "title": "Add",
-      "same": "The same again",
-      "note": "Note",
-      "text": "Text",
-      "recent": "Recent",
-      "shapes": "Shapes",
-      "hint": "Double click or Alt+click on +: the same again. Tab: a new child, Shift+Tab: a sibling."
-    }
-  },
-  "tools": {
-    "select": "Select",
-    "hand": "Move the board",
-    "note": "Note",
-    "shape": "Shape",
-    "text": "Text",
-    "line": "Line",
-    "pen": "Pen",
-    "marker": "Highlighter",
-    "eraser": "Eraser",
-    "media": "Photo, file or link",
-    "size": "Size {{size}}",
-    "frame": "Frame"
-  },
-  "shapes": {
-    "rect": "Rectangle",
-    "round": "Rounded rectangle",
-    "ellipse": "Circle",
-    "triangle": "Triangle",
-    "diamond": "Diamond",
-    "hexagon": "Hexagon",
-    "star": "Star",
-    "arrow": "Arrow",
-    "speech": "Speech bubble"
-  },
-  "colors": {
-    "yellow": "Yellow",
-    "orange": "Orange",
-    "pink": "Pink",
-    "violet": "Violet",
-    "blue": "Blue",
-    "green": "Green",
-    "gray": "Grey",
-    "auto": "Text colour (white when dark, black when light)",
-    "none": "None"
-  },
-  "media": {
-    "upload": "Upload photo or file",
-    "link": "Add link",
-    "linkHint": "The card shows the address. Fetching the page title is a switch for the operator, as in nexlore.",
-    "add": "Add",
-    "sample": "Sample photo (mock)",
-    "dropHint": "Or drag photos and files onto the board, or paste them with Ctrl V.",
-    "camera": "Take a photo",
-    "cleaned": "Place and device were taken out of the photo.",
-    "unchecked": "Part of the photo could not be checked for its place.",
-    "download": "Download",
-    "uploading_one": "Uploading one file …",
-    "uploading_other": "Uploading {{count}} files …"
-  },
-  "context": {
-    "fill": "Fill",
-    "color": "Colour",
-    "stroke": "Outline",
-    "shape": "Change shape",
-    "size": {
-      "s": "Small",
-      "m": "Medium",
-      "l": "Large",
-      "xl": "Heading"
-    },
-    "hand": "Handwriting",
-    "arrowNone": "No arrow",
-    "arrowEnd": "Arrow at the end",
-    "arrowBoth": "Arrows at both ends",
-    "curve": "Curved",
-    "dashed": "Dashed",
-    "width": "Width {{width}}",
-    "front": "Bring to front",
-    "back": "Send to back",
-    "duplicate": "Duplicate",
-    "lock": "Lock",
-    "unlock": "Unlock",
-    "delete": "Delete",
-    "group": "Group",
-    "ungroup": "Ungroup"
-  },
-  "menu": {
-    "noteHere": "Note here",
-    "textHere": "Text here",
-    "selectAll": "Select all"
-  },
-  "keys": {
-    "title": "Keyboard shortcuts",
-    "tools": "Tools",
-    "edit": "Edit",
-    "view": "View",
-    "copyPaste": "Copy and paste",
-    "write": "Write in the selection",
-    "nudge": "Nudge (Shift: 10)",
-    "noSnap": "Hold while dragging: snapping the other way",
-    "pan": "Hold and drag: move the board",
-    "zoom": "Zoom",
-    "zoomStep": "Zoom in steps",
-    "del": "Del",
-    "ctrlWheel": "Ctrl + wheel",
-    "space": "Space",
-    "rotateSteps": "Hold while turning: steps of 15°",
-    "child": "Add a new item to it",
-    "sibling": "Add one beside it (sibling)",
-    "drawSquare": "Hold while drawing: equal sides",
-    "drawMiddle": "Hold while drawing: out of the middle"
+    "restore": "Restore"
   },
   "share": {
     "button": "Share",
@@ -468,16 +104,11 @@
     "spaces": "Spaces",
     "server": "Server",
     "startPage": "Start page",
-    "lastBoard": "The board I had open last",
-    "snap": "Snap to other items while dragging",
-    "grid": "Dots on the board",
-    "toolBack": "Back to Select after placing something",
-    "spacesHint": "Spaces hold boards and decide who sees them, as in nexlore.",
+    "spacesHint": "Spaces hold clients and decide who sees them, as in nexlore and nexcanvas.",
     "saved": "Saved.",
     "ownPassword": "Your own password",
-    "snapHint": "Alt while dragging does the opposite.",
     "spacesBin": "Spaces in the bin",
-    "spacesBinHint": "Their boards come back with them. After 30 days they go for good.",
+    "spacesBinHint": "Their clients come back with them. After 30 days they go for good.",
     "tabs": {
       "general": "General",
       "looks": "Look",
@@ -494,19 +125,12 @@
       "backups": "Backups",
       "languages": "Languages",
       "log": "Log",
-      "shapes": "Shape packages",
       "api": "API"
     },
     "start": {
       "title": "Start page",
       "text": "What shows first after signing in."
     },
-    "board": {
-      "title": "On the board",
-      "text": "How dragging and tools behave. For your account, on every device."
-    },
-    "toolBackHint": "Off: the tool stays chosen until you take another one.",
-    "gridHint": "For boards without a background of their own. Choose one in the … menu of a board.",
     "language": {
       "title": "Language",
       "text": "nexbrand brings English and German. Upload more under Server, Languages; whatever a file lacks shows in English.",
@@ -518,11 +142,10 @@
     },
     "looks": {
       "title": "Light or dark",
-      "text": "In this browser, like the switch top right.",
-      "board": "The board",
-      "boardText": "How the surface behind your boards looks."
+      "text": "In this browser, like the switch top right."
     },
-    "spacesMine": "Your spaces"
+    "spacesMine": "Your spaces",
+    "lastClient": "The client opened last"
   },
   "server": {
     "accounts": "Accounts",
@@ -536,10 +159,10 @@
     "twoFactor": "Second factor",
     "twoFactorRequired": "Require a second factor",
     "public": "Public pages",
-    "publicHint": "Off by default. When on, people who manage a space may publish a board as a read-only page.",
+    "publicHint": "Off by default. When on, managers of a space may share a version as a read-only page and put drafts before the client for a review.",
     "publicAllowed": "Allow public pages",
     "backups": "Backup",
-    "backupsHint": "Boards, photos, files and the database in one archive. Restoring shows a dry run first.",
+    "backupsHint": "Clients, versions, files and the database in one archive. Restoring shows a dry run first.",
     "schedule": "Automatically",
     "off": "off",
     "daily": "every night",
@@ -554,7 +177,7 @@
     "template": "Download template",
     "upload": "Upload language",
     "log": "Log",
-    "logHint": "Four levels as in every nex app. The two deep ones switch themselves off after an hour. Never board contents, passwords or keys.",
+    "logHint": "Four levels as in every nex app. The two deep ones switch themselves off after an hour. Never client contents, passwords or keys.",
     "level": "Level",
     "levels": {
       "quiet": "Quiet",
@@ -607,7 +230,7 @@
       },
       "delete": {
         "title": "Delete {{name}}?",
-        "text": "The account goes; its boards stay in their spaces.",
+        "text": "The account goes; its clients stay in their spaces.",
         "button": "Delete account"
       },
       "password": {
@@ -632,7 +255,7 @@
       },
       "backup_download": {
         "title": "Download this backup?",
-        "text": "It holds every board, photo and account. It is not encrypted.",
+        "text": "It holds every client, file and account. It is not encrypted.",
         "button": "Download"
       },
       "backup_delete": {
@@ -653,9 +276,9 @@
       "scheduled": "scheduled",
       "update": "before a change"
     },
-    "backupContent": "{{boards}} boards, {{files}} files",
+    "backupContent": "{{clients}} clients, {{files}} files",
     "check": "Check",
-    "checkOk": "Whole: {{boards}} boards, {{files}} files. A restore would add {{add}} files and remove {{remove}}.",
+    "checkOk": "Whole: {{clients}} clients, {{files}} files. A restore would add {{add}} files and remove {{remove}}.",
     "checkBad": "Damaged: this backup cannot be restored.",
     "deleteBackup": "Delete",
     "restarting": "nexbrand restarts with the backup. The page reloads in a moment.",
@@ -697,9 +320,9 @@
       "run": "Set up",
       "blueprint": "Download blueprint instead"
     },
-    "publicAllowedHint": "Managers of a space may then publish a board as a reading page. Switched off, every link answers as if it never existed.",
+    "publicAllowedHint": "Managers of a space may then make reading pages and reviews for clients. Switched off, every link answers as if it never existed.",
     "files": "Files",
-    "filesHint": "Photos and files on boards: how large they may be and what is taken out when uploading.",
+    "filesHint": "Logos, fonts and example files: how large they may be and what is taken out when uploading.",
     "smtpPort": "Port",
     "detail": "Detail",
     "inviteTitle": "Invite into nexbrand",
@@ -838,8 +461,8 @@
     "empty": "The file is empty.",
     "upload_aborted": "The upload stopped before the end.",
     "shares_off": "The operator has not allowed public pages.",
-    "invalid_title": "A board needs a name of 1 to 200 characters.",
-    "invalid_name": "A space needs a name of 1 to 80 characters.",
+    "invalid_title": "Please give a name of 1 to 200 characters.",
+    "invalid_name": "Please give a name.",
     "invalid_color": "Not a colour nexbrand offers.",
     "copy_other_space": "Copies stay in the same space for now.",
     "wrong_password": "The password is wrong.",
@@ -848,7 +471,6 @@
     "setup_code_wrong": "The setup code is wrong. It stands in the server log.",
     "invalid_canvas": "This is not a JSON Canvas file (.canvas) or an archive with one (.zip).",
     "empty_canvas": "There is nothing on this canvas to bring in.",
-    "invalid_package": "The shape package does not fit the format: {{reason}}",
     "too_many_packages": "There are 50 packages here already.",
     "packages_not_svg": "This is no SVG file.",
     "packages_empty_svg": "The SVG file holds nothing that can be drawn.",
@@ -873,7 +495,26 @@
     "person_twice": "Each person in nexsuite can be matched once only.",
     "space_twice": "Each space in nexsuite can be matched once only.",
     "team_twice": "Each team in nexsuite can be matched once only.",
-    "connecting_already": "A connection is under way already: resume it or give it up."
+    "connecting_already": "A connection is under way already: resume it or give it up.",
+    "invalid_set": "A value of this CI is not right.",
+    "published": "A published version never changes. Make a new version.",
+    "in_use": "A project builds on this draft. Move the project first.",
+    "too_many_versions": "This client has as many versions as it may hold.",
+    "too_many_projects": "This client has as many projects as it may hold.",
+    "not_published": "Only a published version can be shared.",
+    "review_open": "This draft is before the client already.",
+    "review_closed": "This review is closed.",
+    "not_a_draft": "Only a draft goes before the client.",
+    "too_many_shares": "This client has as many public pages as it may.",
+    "too_many_comments": "This review holds as many comments as it may.",
+    "level_too_low": "This token may only read.",
+    "no_version": "There is no published version for that day.",
+    "not_a_picture": "This file is not a picture that works as a logo.",
+    "invalid_label": "A version needs a name of up to 60 characters.",
+    "invalid_date": "That is not a date.",
+    "invalid_note": "The note is too long.",
+    "invalid_sector": "The sector is too long.",
+    "invalid_contact": "That is too long."
   },
   "auth": {
     "name": "Name",
@@ -889,7 +530,7 @@
     },
     "login": {
       "title": "Sign in",
-      "text": "Welcome back to your boards.",
+      "text": "Welcome back to your clients.",
       "submit": "Sign in",
       "passwordOff": "Sign-in with a password is turned off for members.",
       "oidc": "Sign in with {{name}}"
@@ -913,88 +554,27 @@
       "noWay": "Sign-in with a password is off and no sign-in provider is set up. Ask the operator."
     }
   },
-  "pdf": {
-    "previous": "Previous page",
-    "next": "Next page"
-  },
   "public": {
-    "missing": "This page does not exist (any more).",
-    "locked": "This board needs a password",
     "open": "Open",
-    "readOnly": "Read only",
-    "empty": "This board is empty."
+    "madeWith": "provided with nexbrand",
+    "gone": "This page does not exist any more, or its link ran out.",
+    "guarded": "This page has a password",
+    "password": "Password",
+    "title": "{{name}}: brand guidelines",
+    "version": "Version {{label}}, valid since {{from}}",
+    "for": "shared for {{label}}",
+    "reviewGone": "This review does not exist any more. Please ask the agency for a new link."
   },
   "roles": {
     "read": "Read",
     "write": "Write",
-    "manage": "Manage"
-  },
-  "space": {
-    "name": "Name",
-    "placeholder": "Family, Homelab, Holidays …",
-    "color": "Colour",
-    "hint": "You manage the space and invite others into it.",
-    "create": "Create space",
-    "edit": "Name and colour",
-    "options": "Space options",
-    "trash": "Move space to the bin",
-    "trashTitle": "Put “{{name}}” in the bin?",
-    "trashText": "With all its boards. Managers can bring it back for 30 days."
-  },
-  "versions": {
-    "lead": "nexbrand keeps a state of the board every half hour while people work on it. Bringing one back is a change like any other: everybody sees it at once.",
-    "none": "No earlier state yet. The first comes after a while of work.",
-    "items_one": "one thing",
-    "items_other": "{{count}} things",
-    "restore": "Bring back",
-    "restoreNow": "Yes, bring back"
-  },
-  "frames": {
-    "untitled": "Frame",
-    "numbered": "Frame {{n}}",
-    "name": "Name of the frame",
-    "scenes": "Scenes",
-    "noneHint": "No frames yet. Draw one with the frame tool (F) around what belongs together; every frame is a scene you can jump to and present.",
-    "none": "No frames on this board yet.",
-    "present": "Present",
-    "presentFrom": "Present from {{title}}",
-    "previous": "Previous scene",
-    "next": "Next scene",
-    "stop": "End presentation"
-  },
-  "export": {
-    "title": "Export",
-    "selection": "Export selection",
-    "selectionShort": "Selection",
-    "what": "What",
-    "board": "Whole board",
-    "scenes_one": "The scene",
-    "scenes_other": "{{count}} scenes",
-    "scenesHint": "One page per frame, in the order of the scene list.",
-    "format": "Format",
-    "background": "With the board background",
-    "go": "Export",
-    "busy": "Drawing …",
-    "failed": "The export did not work. Try a smaller part of the board."
-  },
-  "canvasFile": {
-    "export": "Save as JSON Canvas",
-    "import": "Bring in a JSON Canvas",
-    "imported_one": "One thing brought in.",
-    "imported_other": "{{count}} things brought in.",
-    "missing_one": "One file was not in it and is a note with its name now.",
-    "missing_other": "{{count}} files were not in it and are notes with their names now."
-  },
-  "arrange": {
-    "title": "Line up and spread",
-    "left": "Line up on the left",
-    "centerX": "Line up on the middle (across)",
-    "right": "Line up on the right",
-    "spreadX": "Spread evenly across",
-    "top": "Line up at the top",
-    "centerY": "Line up on the middle (up and down)",
-    "bottom": "Line up at the bottom",
-    "spreadY": "Spread evenly up and down"
+    "manage": "Manage",
+    "color": {
+      "primary": "Main colour",
+      "secondary": "Second colour",
+      "accent": "Accent",
+      "neutral": "Neutral"
+    }
   },
   "whatsNew": {
     "title": "What's new in nexbrand {{version}}",
@@ -1006,7 +586,7 @@
   },
   "about": {
     "menu": "About nexbrand",
-    "subtitle": "A whiteboard for your own server, live together.",
+    "subtitle": "Every client's corporate design in one place: colours, fonts, logos, in versions.",
     "version": "Version",
     "whatsNew": "What's new",
     "newer": "Version {{version}} is out",
@@ -1030,7 +610,7 @@
       "off": "The daily check is off.",
       "toRelease": "What is new",
       "checkedAt": "last checked {{when}}",
-      "whatGoesOut": "Only the question goes out: a request to api.github.com for the newest release of nexbrand, with no names, boards or settings. It is the only call nexbrand makes on its own."
+      "whatGoesOut": "Only the question goes out: a request to api.github.com for the newest release of nexbrand, with no names, clients or settings. It is the only call nexbrand makes on its own."
     }
   },
   "notices": {
@@ -1046,115 +626,11 @@
     "section_one": "New for you",
     "section_other": "New for you ({{count}})"
   },
-  "background": {
-    "title": "Background",
-    "pattern": "Pattern",
-    "color": "Colour",
-    "custom": "Own",
-    "default": "As my default",
-    "colorHint": "\"Automatic\" follows light and dark. A fixed colour stays the same in both, the writing adapts.",
-    "everyone": "For everybody who opens the board. Moving snaps to its grid when snapping is on.",
-    "patterns": {
-      "none": "Plain",
-      "dots": "Dots",
-      "grid": "Squares",
-      "lines": "Lines",
-      "mm": "Millimetre",
-      "iso": "Isometric"
-    },
-    "colors": {
-      "auto": "Automatic",
-      "paper": "Paper white",
-      "cream": "Cream",
-      "chalk": "Chalkboard",
-      "blueprint": "Blueprint"
-    }
-  },
-  "library": {
-    "title": "Shapes",
-    "open": "Open shapes",
-    "fold": "Fold shapes",
-    "search": "Search shapes",
-    "found_one": "One match",
-    "found_other": "{{count}} matches",
-    "nothing": "No shape matches.",
-    "favorites": "Favourites",
-    "recent": "Recent",
-    "hint": "Drag to place, click to choose and draw.",
-    "manage": "Manage shape packages",
-    "all": "All shapes …",
-    "star": "Add “{{name}}” to favourites",
-    "unstar": "Remove “{{name}}” from favourites",
-    "scope": {
-      "server": "Server",
-      "space": "Space"
-    },
-    "showAll": "Show all {{count}}",
-    "choose": "Show and hide packages"
-  },
-  "packages": {
-    "title": "Shape packages",
-    "serverTitle": "Shape packages for everybody",
-    "serverText": "Everybody on this server sees these packages in the shape library, next to the shipped ones.",
-    "spaceTitle": "Shape packages in “{{space}}”",
-    "spaceText": "Everybody in this space finds these packages in the shape library of every board here. Managers may change them.",
-    "none": "No packages of your own yet.",
-    "shapes_one": "one shape",
-    "shapes_other": "{{count}} shapes",
-    "on": "On",
-    "addSvg": "Add SVG",
-    "download": "Download",
-    "remove": "Remove",
-    "removeShape": "Remove “{{name}}”",
-    "empty": "Empty so far. Shapes come in with \"Add SVG\" or \"Save as shape\" on a board.",
-    "newName": "New package",
-    "newPlaceholder": "For example Office Hamburg",
-    "new": "Create",
-    "import": "Import file",
-    "made": "Package created.",
-    "imported": "Package imported.",
-    "svgAdded_one": "One shape added.",
-    "svgAdded_other": "{{count}} shapes added.",
-    "removeTitle": "Remove “{{name}}”?",
-    "removeText": "The package leaves the shape library. Shapes already on boards stay there as they are.",
-    "boardsKeep": "A board carries every shape on it: changing or removing a package changes no finished board."
-  },
-  "saveShape": {
-    "menu": "Save as shape",
-    "title": "Save as shape",
-    "name": "Name of the shape",
-    "placeholder": "My shape",
-    "package": "Into package",
-    "newPackage": "New package \"Own shapes\"",
-    "ownDe": "Eigene Formen",
-    "ownEn": "Own shapes",
-    "left_one": "One text, photo or frame does not come along.",
-    "left_other": "{{count}} texts, photos or frames do not come along.",
-    "nothing": "Nothing in the selection has lines or areas.",
-    "where": "The shape then lies in the shape library of every board in this space. Its colours follow fill and line colour, as with any shape.",
-    "save": "Save",
-    "saved": "“{{name}}” now lies in the shape library."
-  },
-  "libraryChoice": {
-    "title": "Shapes in the library",
-    "text": "Which packages the shape library on a board shows. Only for you; whatever is already on a board stays there.",
-    "shipped": "With nexbrand",
-    "shippedText": "Shapes drawn for diagrams, plans and sketches.",
-    "icons": "Icons",
-    "iconsText": "The Lucide symbols nexbrand draws its buttons with: by theme in two colours, or all of them as lines.",
-    "installed": "Installed",
-    "installedText": "Packages of the server and of your spaces.",
-    "count_one": "{{count}} shape",
-    "count_other": "{{count}} shapes",
-    "allOn": "All on",
-    "allOff": "All off"
-  },
   "me": {
     "title": "My account",
     "tabs": {
       "profile": "Profile",
       "security": "Security",
-      "shapes": "Shapes",
       "connections": "Connections"
     },
     "profile": {
@@ -1251,7 +727,7 @@
   },
   "apiTokens": {
     "title": "API tokens",
-    "text": "For programs such as nexdeck or n8n. A token reads what you may read, limited to its spaces: boards, numbers for a dashboard and a small picture of each board. A token changes nothing.",
+    "text": "For programs and AI tools in the editor (MCP). A token reads what you may read, limited to its spaces: clients, versions, the CI as code, the checks. A token of the level “drafts” also proposes drafts; it never publishes.",
     "none": "No tokens yet.",
     "new": "New token",
     "name": "Name, so you know it again",
@@ -1276,8 +752,7 @@
     "off": "The operator has not switched API tokens on. Ask them if you want to connect nexbrand with n8n or nexdeck.",
     "offOperator": "Switch them on under Settings → Server → API.",
     "whatItDoes": "What the API does",
-    "whatItDoesText": "Every request carries the token in the header Authorization: Bearer, the answers are JSON, a board's picture is SVG. All the rest is in docs/api.md.",
-    "readOnly": "A token only reads. Changing, deleting and sharing never go through a token.",
+    "whatItDoesText": "Every request carries the token in the header Authorization: Bearer, the answers are JSON. MCP speaks at /api/mcp. All the rest is in docs/api.md.",
     "copyNamed": "Copy: {{what}}",
     "done": "I have it",
     "spacesAll": "all spaces",
@@ -1285,7 +760,14 @@
     "used": "last used {{when}}",
     "unused": "never used",
     "allSpaces": "All spaces I may read, later ones too",
-    "someSpaces": "Only these"
+    "someSpaces": "Only these",
+    "level": "What the token may do",
+    "levels": {
+      "read": "Read only",
+      "readHint": "Clients, versions, the CI as code, the checks. For build scripts and AI tools that build in the CI.",
+      "draft": "Read and propose drafts",
+      "draftHint": "Also proposes versions as drafts, e.g. a redesign from the code. Publishing stays with people in nexbrand."
+    }
   },
   "teams": {
     "text": "Who works together. Separate from spaces: a space says who sees what. When a space gives a team a right, every member has it.",
@@ -1342,7 +824,7 @@
     "disconnect": "Disconnect",
     "disconnectTitle": "Disconnect from nexsuite?",
     "withCode": "Disconnect with an emergency code",
-    "leave1": "nexbrand keeps accounts, teams, spaces and boards and runs on its own.",
+    "leave1": "nexbrand keeps accounts, teams, spaces and clients and runs on its own.",
     "leave2": "Whoever has no password of their own needs one from you afterwards.",
     "leave3": "nexsuite forgets the app. You can connect again later.",
     "leaveCode": "For when nexsuite cannot be reached. nexsuite learns of it once it runs again.",
@@ -1357,7 +839,7 @@
     "step3": "Match spaces and teams",
     "step4": "Done",
     "step1Text": "You get the code in nexsuite under Apps, Connect. It is valid for 15 minutes.",
-    "step2Text": "Every account here belongs to a person in nexsuite from now on. Suggested by mail address and name. Boards, rights and history stay with it.",
+    "step2Text": "Every account here belongs to a person in nexsuite from now on. Suggested by mail address and name. Clients, rights and history stay with it.",
     "step3Text": "Spaces from here go to nexsuite. If there is a matching one already, you join the two: the rights from here come along, and where somebody has a right there already, the higher one holds.",
     "newPerson": "Create in nexsuite",
     "newSpace": "Create in nexsuite",
@@ -1386,5 +868,648 @@
     "newPersonHint": "“Make it in nexsuite”: nexsuite sends the person a link to set a password by mail; otherwise it is in nexsuite under People.",
     "freshMailed": "New in nexsuite and asked by mail to set a password: {{names}}.",
     "freshInSuite": "New in nexsuite but without a mail (no address or no mail server): {{names}}. Get the link to set the password in nexsuite under People, Edit."
+  },
+  "origin": {
+    "hand": "by hand",
+    "collect": "collected",
+    "mcp": "over MCP",
+    "review": "chosen by the client"
+  },
+  "clients": {
+    "title": "Clients",
+    "all": "All clients",
+    "text": "Every client has its CI in versions; projects build on one of them.",
+    "filter": "Filter clients",
+    "empty": "No clients here yet.",
+    "bin": "Bin",
+    "binText": "Clients stay in the bin for 30 days, then they go with all their versions.",
+    "binOpen": "Bin",
+    "back": "Back to the clients",
+    "binEmpty": "The bin is empty.",
+    "restore": "Restore",
+    "purge": "Delete for good",
+    "purgeAsk": "Delete {{name}} for good? This cannot be undone.",
+    "count_one": "{{count}} client",
+    "count_other": "{{count}} clients"
+  },
+  "client": {
+    "new": "New client",
+    "newShortcut": "New client (Alt N)",
+    "newIn": "New client in {{space}}",
+    "favorite": "Favourite",
+    "versionLabel": "Version {{label}}",
+    "onlyDraft": "draft only",
+    "projects_one": "{{count}} project",
+    "projects_other": "{{count}} projects",
+    "drafts_one": "{{count}} draft",
+    "drafts_other": "{{count}} drafts",
+    "missing": "This client does not exist, or you may not see it.",
+    "edit": "Edit",
+    "export": "As code",
+    "timeline": "Versions",
+    "asOf": "As of",
+    "threeYears": "3 years ago",
+    "noneThen": "There was no published version back then.",
+    "newVersion": "New version",
+    "current": "current",
+    "draft": "Draft",
+    "since": "since {{date}}",
+    "from": "from {{date}}",
+    "draftBanner": "Draft by {{author}}.",
+    "draftHolds": "It holds once published; until then {{label}} holds.",
+    "draftOnly": "There is no published version yet; projects build on this draft meanwhile.",
+    "editDraft": "Edit",
+    "compareWith": "Compare with {{label}}",
+    "toClient": "Put before the client",
+    "publish": "Publish",
+    "saveFirst": "Save first",
+    "olderUntil": "You see version {{label}}, valid from {{from}} to {{until}}. The current one is {{current}}.",
+    "older": "You see version {{label}}.",
+    "toCurrent": "To the current one",
+    "inReview": "This draft is before the client for a review.",
+    "seeReview": "See the review",
+    "unsaved": "Unsaved changes",
+    "allSaved": "Everything saved",
+    "doneEditing": "Done",
+    "saved": "Saved.",
+    "tabProjects": "Projects {{count}}",
+    "tabHistory": "History",
+    "tabPages": "Public pages",
+    "tabReviews": "Review",
+    "trash": "Move to the bin",
+    "trashText": "{{name}} goes into the bin with all versions and projects. It stays there for 30 days.",
+    "deleteDraft": "Delete draft",
+    "deleteDraftText": "Delete the draft {{label}}? Published versions stay.",
+    "leaveText": "There are unsaved changes. Close anyway?",
+    "name": "Name",
+    "sector": "Sector",
+    "contact": "Contact or address",
+    "note": "Note",
+    "newVersionText": "A new version starts as a draft, usually a copy of an existing one. The old one stays as it was.",
+    "versionName": "Name of the version",
+    "versionNameHint": "e.g. 2027 or Relaunch",
+    "startFrom": "Starts with",
+    "empty": "empty",
+    "makeDraft": "Make draft",
+    "publishText": "Once published, the version never changes again. Projects on older versions stay where they are until somebody lifts them.",
+    "validFrom": "Holds from",
+    "validFromHint": "For an old CI you record afterwards, take the date it held from.",
+    "publishNow": "Publish now"
+  },
+  "projects": {
+    "text": "A project builds on a version and stays there until somebody lifts it. Its own colours hold in the project only.",
+    "new": "New project",
+    "none": "No projects yet.",
+    "onDraft": "on a draft",
+    "on": "on {{label}}",
+    "upToDate": "current",
+    "builds": "Builds on {{label}}.",
+    "own_one": "{{count}} colour of its own.",
+    "own_other": "{{count}} colours of its own.",
+    "noOwn": "No change.",
+    "name": "Project name",
+    "nameHint": "e.g. Website relaunch",
+    "version": "Builds on",
+    "make": "Create",
+    "missing": "This project does not exist any more.",
+    "pageText": "Builds on version {{label}}. Its own colours hold here only; everything else comes from the version.",
+    "rename": "Rename",
+    "note": "Note",
+    "ownColors": "Own colours",
+    "behind": "This project is on {{label}}, the current version is {{current}}. That is on purpose until somebody lifts it: a reprint looks like the first print.",
+    "whatChanges": "What changes?",
+    "onDraftText": "Builds on the draft {{label}}: the project sees changes to it at once.",
+    "liftTitle": "From {{from}} to {{to}}",
+    "ownStay": "Own colours stay: {{names}}.",
+    "stay": "Keep {{label}}",
+    "lift": "Lift to {{label}}",
+    "ownText": "A colour with the name of one of the version replaces it ({{names}}); others come on top.",
+    "delete": "Delete project",
+    "deleteText": "Delete {{name}}? The client's versions stay."
+  },
+  "set": {
+    "tabsLabel": "Parts of the CI",
+    "tabs": {
+      "colors": "Colours {{count}}",
+      "fonts": "Fonts {{count}}",
+      "logos": "Logos {{count}}",
+      "samples": "Examples",
+      "rules": "Rules",
+      "checks": "Checks",
+      "checksCount": "Checks · {{count}}"
+    },
+    "noColors": "No colours yet.",
+    "noFonts": "No fonts yet.",
+    "noLogos": "No logos yet.",
+    "noSamples": "No example files yet.",
+    "noRules": "No rules yet.",
+    "whiteOn": "White on it {{ratio}}",
+    "darkOn": "Dark on it {{ratio}}",
+    "cmykComputed": "CMYK, computed",
+    "cmykGiven": "CMYK, given",
+    "token": "Token",
+    "from": {
+      "inherited": "inherited",
+      "replaced": "replaced in the project",
+      "own": "project only"
+    },
+    "license": {
+      "free": "Free, may be passed on",
+      "internal": "In-house only",
+      "system": "System font"
+    },
+    "shipped": "ships with nexbrand",
+    "pangram": "Freshly made, clearly said, well designed.",
+    "file": "File",
+    "scale": "Type sizes",
+    "scaleSample": "Clear words, good form",
+    "use": {
+      "h1": "Heading 1",
+      "h2": "Heading 2",
+      "h3": "Heading 3",
+      "h4": "Heading 4",
+      "lead": "Lead",
+      "body": "Body text",
+      "small": "Small",
+      "caption": "Caption",
+      "label": "Label"
+    },
+    "clearSpace": "Show the clear space",
+    "wordmark": "Word mark",
+    "logoLow": "below 3:1",
+    "logoOk": "contrast fine",
+    "ground": "Ground {{hex}}",
+    "minWidth": "Minimum width {{value}}",
+    "clearSpaceIs": "Clear space {{value}}",
+    "rule": {
+      "do": "Do",
+      "dont": "Don't"
+    }
+  },
+  "checks": {
+    "none": "Nothing found: every pair, logo and size passes.",
+    "better": "{{better}} works on it ({{betterRatio}}).",
+    "ground_large_only": {
+      "title": "On {{a}}, large text only",
+      "text": "No colour of the palette reaches 4.5:1. Body text on {{a}} lacks a text colour."
+    },
+    "ground_unreadable": {
+      "title": "Nothing reads on {{a}}",
+      "text": "No colour of the palette reaches even 3:1 on {{a}}. Not a ground for text."
+    },
+    "white_on": {
+      "title": "White on {{a}}: {{ratio}}",
+      "text": "Body text needs 4.5:1, large text 3:1."
+    },
+    "primary_as_text": {
+      "title": "{{a}} as text on {{b}}: {{ratio}}",
+      "text": "Links and small labels in {{a}} are too pale on {{b}}. From 24 px, or bold from 18.7 px, it is enough."
+    },
+    "nearly_same": {
+      "title": "{{a}} and {{b}} are nearly the same",
+      "text": "Colour distance ΔE {{delta}}. Below 5 hardly anybody sees a difference; one of them is probably redundant or a slip."
+    },
+    "vision_deutan": {
+      "title": "{{a}} and {{b}} with green blindness",
+      "text": "Only ΔE {{delta}} apart. Never tell things apart by these two colours alone; add a sign or a word."
+    },
+    "vision_protan": {
+      "title": "{{a}} and {{b}} with red blindness",
+      "text": "Only ΔE {{delta}} apart. Never tell things apart by these two colours alone; add a sign or a word."
+    },
+    "logo_mark": {
+      "title": "Logo “{{logo}}”: mark only {{ratio}}",
+      "text": "Graphic parts need 3:1 to their ground (WCAG 1.4.11)."
+    },
+    "logo_word": {
+      "title": "Logo “{{logo}}”: lettering only {{ratio}}",
+      "text": "Graphic parts need 3:1 to their ground (WCAG 1.4.11)."
+    },
+    "body_small": {
+      "title": "Body text {{size}} px",
+      "text": "Below 16 px, body text tires on a screen."
+    },
+    "font_internal": {
+      "title": "{{font}}: in-house only",
+      "text": "Public pages and programs see it by name only; the file stays here."
+    },
+    "font_system": {
+      "title": "{{font}} is a system font",
+      "text": "Some devices lack it. Set a fallback."
+    },
+    "matrixTitle": "Contrast of every pair",
+    "matrixText": "The row is the text, the column the ground. Click a cell for a sample.",
+    "matrixEmpty": "A table needs at least two colours.",
+    "large": "Large text (from 24 px)",
+    "axis": "Text ↓ / Ground →",
+    "cellLabel": "{{text}} on {{ground}}: {{ratio}}",
+    "grade": {
+      "AAA": "AAA",
+      "AA": "AA",
+      "AA large": "large only",
+      "fail": "fails"
+    },
+    "sampleTitle": "Clear and readable",
+    "sampleText": "{{text}} on {{ground}}. This is how body text reads in this pair, on a phone in the sun too.",
+    "sampleSmall": "Small print, 12 px",
+    "pass": {
+      "textAA": "Body text AA, 4.5:1",
+      "textAAA": "Body text AAA, 7:1",
+      "largeAA": "Large text AA, 3:1",
+      "largeAAA": "Large text AAA, 4.5:1",
+      "graphics": "Graphics and symbols, 3:1"
+    }
+  },
+  "vision": {
+    "title": "How others see the palette",
+    "meant": "As meant",
+    "normal": "Typical vision",
+    "normalHint": "The palette as it is meant.",
+    "deutan": "Green blind",
+    "deutanHint": "Deuteranopia, the most common form; about one man in sixteen has a green weakness.",
+    "protan": "Red blind",
+    "protanHint": "Protanopia: red looks dark and brownish.",
+    "tritan": "Blue blind",
+    "tritanHint": "Tritanopia, rare.",
+    "achromat": "Greyscale",
+    "achromatHint": "No colour, only lightness; black and white print too.",
+    "clash": "{{pairs}}: hard to tell apart. Never tell things apart by colour alone."
+  },
+  "diff": {
+    "nothing": "No differences in colours, fonts and logos.",
+    "changed": "changed",
+    "added": "new",
+    "removed": "gone",
+    "fontAdded": "font added",
+    "fontRemoved": "font gone",
+    "logos": "logos changed",
+    "checks": "Checks",
+    "fixed": "fixed",
+    "from": "From",
+    "to": "To"
+  },
+  "export": {
+    "title": "{{name}} as code",
+    "css": "CSS variables",
+    "json": "Design tokens (JSON)",
+    "code": "Code",
+    "download": "Download",
+    "note": "With steps 50 to 950 for every colour with a job. The JSON follows the W3C design tokens format; Figma, Style Dictionary and Tokens Studio read it."
+  },
+  "shares": {
+    "text": "A link for a printer, a photographer or the client: read only, no account. Fonts kept in-house show by name only, the checks never.",
+    "new": "New public page",
+    "off": "The operator has not allowed public pages (Settings, Server, Public pages).",
+    "needPublished": "Only a published version can be shared.",
+    "unnamed": "Unnamed",
+    "fixed": "fixed on {{label}}",
+    "current": "always the current version",
+    "until": "until {{date}}",
+    "forever": "no end",
+    "views_one": "{{count}} view",
+    "views_other": "{{count}} views",
+    "guarded": "with password",
+    "look": "Look",
+    "remove": "End the page",
+    "link": "Link of the page",
+    "for": "For whom",
+    "forHint": "e.g. Printer, autumn flyer",
+    "which": "Which version",
+    "alwaysCurrent": "Always the current one",
+    "fixedOn": "Fixed on {{label}}",
+    "runs": "Runs",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "password": "Password (empty: none)",
+    "passwordHint": "Whoever has the link needs the password as well.",
+    "internalHidden": "Fonts kept in-house show by name only, never as a file.",
+    "make": "Create"
+  },
+  "reviews": {
+    "none": "No review yet. A draft goes to the client with “Put before the client”.",
+    "status": {
+      "open": "waiting for the client",
+      "chosen": "chosen",
+      "closed": "withdrawn"
+    },
+    "asClient": "See as the client",
+    "withdraw": "Withdraw",
+    "withdrawAsk": "Withdraw the review? The link stops working.",
+    "link": "Link of the review",
+    "chosen": "{{who}} chose “{{label}}”; it became the published version.",
+    "theClient": "The client",
+    "answer": "Answer …",
+    "answerOn": "Answer on {{label}}",
+    "new": "Put before the client",
+    "newText": "The client sees each direction on a sample page, comments and chooses one. The choice is published without anybody here clicking again.",
+    "label": "Name once chosen",
+    "labelHint": "The version's name once the client chose.",
+    "sender": "Sender, as the client sees it",
+    "message": "A few words to the client",
+    "messageHint": "e.g. Here are two directions for your new look.",
+    "directions": "Directions",
+    "why": "Why this direction (for the client)",
+    "onlyOne": "Other drafts of this client can go along as alternatives.",
+    "runs": "Link runs",
+    "make": "Put before the client"
+  },
+  "preview": {
+    "label": "Sample page in this CI",
+    "nav1": "Services",
+    "nav2": "About",
+    "nav3": "Contact",
+    "badge": "New",
+    "name": "Your name",
+    "headline": "{{name}}: well made, close by.",
+    "text": "This is how body text reads in this CI. Long enough to tell whether the font carries and the colour holds on its ground.",
+    "button": "Book a visit",
+    "link": "Learn more",
+    "card1": "Advice",
+    "card2": "Workshop",
+    "card3": "Service",
+    "cardText": "A short text below.",
+    "footer": "Imprint · Privacy"
+  },
+  "editor": {
+    "live": "Checks, live",
+    "hints_one": "{{count}} hint",
+    "hints_other": "{{count}} hints",
+    "allGood": "all good",
+    "up": "Move {{name}} up",
+    "down": "Move {{name}} down",
+    "remove": "Remove {{name}}",
+    "colorValue": "Value of {{name}}",
+    "name": "Name",
+    "role": "Role",
+    "cmykGiven": "CMYK given",
+    "onWhite": "on white {{ratio}}",
+    "badHex": "#RRGGBB",
+    "scale": "Steps",
+    "note": "Note, e.g. what the colour is for",
+    "noColors": "No colours yet. Add one, or start with the workbench.",
+    "newColor": "New colour",
+    "addColor": "Colour",
+    "neutrals": "Neutrals with a touch of the main colour",
+    "fits": "Goes with it",
+    "fitsText": "Computed from the main colour. A click takes the colour in.",
+    "take": "Take {{hex}}",
+    "takeStep": "Take {{name}} {{step}}",
+    "harmony": {
+      "complement": "Complement",
+      "complementText": "Opposite on the colour wheel. The greatest distance, for a single accent.",
+      "neighbours": "Neighbours",
+      "neighboursText": "Left and right of it. Calm, belonging together.",
+      "triad": "Triad",
+      "triadText": "Three evenly spaced hues. Lively, needs plenty of neutrals.",
+      "split": "Split complement",
+      "splitText": "Two hues beside the complement. Contrast, but softer."
+    },
+    "stepText": "text on white",
+    "stepGround": "ground for text",
+    "stepArea": "area only",
+    "scaleNote": "The steps go into the export (e.g. --color-main-600) without an entry of their own. A click takes a step in as a colour of its own.",
+    "family": "Font family",
+    "fontRole": "For what, e.g. headings",
+    "license": "Licence",
+    "weights": "Weights, e.g. 400, 700",
+    "italic": "italic",
+    "fallback": "Fallback",
+    "licenseNote": "Licence note",
+    "removeFile": "Remove file",
+    "addFontFiles": "Add files",
+    "noFonts": "No fonts yet.",
+    "fromCatalog": "Choose from nexbrand …",
+    "addShipped": "Add",
+    "uploadFont": "Upload a font",
+    "roleHead": "Headings",
+    "roleBody": "Body text",
+    "uploaded": "Uploaded",
+    "fontLicenseNote": "“In-house only” keeps the file in the house: public pages and programs see the name only. System fonts are recorded by name only.",
+    "wordmarkText": "Word mark text",
+    "wordmarkFont": "Word mark font",
+    "textColor": "Lettering",
+    "markColor": "Mark",
+    "compact": "Monogram",
+    "ground": "Ground",
+    "ownValue": "own value",
+    "transparent": "any (transparent)",
+    "minWidth": "Minimum width",
+    "clearSpace": "Clear space",
+    "moreFormats": "More formats (EPS, PDF …)",
+    "noLogos": "No logos yet.",
+    "uploadLogo": "Upload a logo",
+    "addWordmarks": "Word marks as stand-ins",
+    "logoNote": "Logos are drawn in Figma or Illustrator and uploaded here. Until then word marks from the name, font and main colour stand in.",
+    "base": "Body text: {{size}} px",
+    "ratio": "Ratio",
+    "ratios": {
+      "1_125": "Major second, 1.125: dense",
+      "1_2": "Minor third, 1.2: balanced",
+      "1_25": "Major third, 1.25: clear steps",
+      "1_333": "Fourth, 1.333: airy",
+      "1_5": "Fifth, 1.5: bold"
+    },
+    "headFont": "Headings",
+    "bodyFont": "Body text",
+    "computeScale": "Compute sizes",
+    "use": "For",
+    "noUse": "unassigned",
+    "size": "Size",
+    "weight": "Weight",
+    "font": "Font",
+    "lineHeight": "Line height",
+    "newStep": "New step",
+    "addStep": "Step",
+    "ruleKind": "Kind of rule",
+    "ruleText": "Rule",
+    "noRules": "No rules yet.",
+    "addDo": "Do",
+    "addDont": "Don't",
+    "suggestRules": "Suggestions from the checks",
+    "noSamples": "No example files yet.",
+    "uploadSamples": "Upload examples",
+    "tabScale": "Sizes"
+  },
+  "gen": {
+    "primary": "Main colour",
+    "accent": "Accent",
+    "second": "Second colour",
+    "paper": "Paper",
+    "stone": "Stone",
+    "ink": "Ink",
+    "white": "White",
+    "light": "Light",
+    "dark": "Dark",
+    "h1": "Heading 1",
+    "h2": "Heading 2",
+    "h3": "Heading 3",
+    "lead": "Lead",
+    "body": "Body text",
+    "small": "Small",
+    "roleHead": "Headings",
+    "roleBody": "Body text",
+    "roleBoth": "Headings and body text",
+    "wordPositive": "Word mark positive",
+    "wordNegative": "Word mark negative",
+    "monogram": "Monogram",
+    "logo": "Logo",
+    "standIn": "stand-in",
+    "whiteOk": "{{name}} carries white text ({{ratio}}), good for buttons.",
+    "whiteBad": "No white text on {{name}} ({{ratio}}). Use dark text.",
+    "clear": "Keep at least the height of the capital letter free around the logo.",
+    "distort": "Do not stretch, turn or recolour the logo."
+  },
+  "fonts": {
+    "kind": {
+      "serif": "Serif",
+      "sans": "Sans",
+      "grotesk": "Grotesque",
+      "rounded": "Rounded"
+    },
+    "pairs": {
+      "fraunces-inter": "A soft serif with character over a neutral text face: crafted without looking old-fashioned.",
+      "playfair-dmsans": "Strong contrast in the headings, plain body text: fine, and still easy to read.",
+      "spacegrotesk-inter": "Technical and clear, good for software and anything that wants to move ahead.",
+      "outfit-sourceserif": "Geometric headings, a serif in the text: modern and pleasant for long reads.",
+      "nunito-nunito": "Round shapes, friendly; one family for everything, the weights tell apart.",
+      "lora-dmsans": "A calm book serif with a clear sans: trustworthy, e.g. for a practice or a law firm."
+    }
+  },
+  "wizard": {
+    "title": "New client",
+    "text": "For a client without a CI: design it in the workbench, checked while you build, agreed with the client. For a client with a CI: start empty and record it.",
+    "steps": "Steps",
+    "step": {
+      "who": "Client",
+      "start": "Start",
+      "colors": "Colours",
+      "fonts": "Fonts",
+      "sizes": "Sizes and logo",
+      "finish": "Finish"
+    },
+    "noSpace": "You may not write in any space. A manager of a space can give you the right.",
+    "whoTitle": "Who is the client?",
+    "nameHint": "e.g. Greenfinch Garden Centre",
+    "sectorHint": "e.g. Garden centre and florist",
+    "space": "Space",
+    "project": "First project (may stay empty)",
+    "projectHint": "e.g. Website relaunch",
+    "brief": "How should the brand feel? (for the suggestions, may stay empty)",
+    "briefHint": "A few words are enough: trade, mood, audience.",
+    "ex1": "Garden centre, fresh, natural, sustainable",
+    "ex2": "Tax advisers, serious, trustworthy, calm",
+    "ex3": "Nursery, playful, cheerful, colourful",
+    "ex4": "Wine merchant, fine, premium, warm",
+    "startTitle": "Where do we start?",
+    "startText": "Four ways to a first palette. Everything after can be changed.",
+    "mode": {
+      "words": "From the description",
+      "picture": "From a picture",
+      "color": "From one colour",
+      "empty": "Empty, record a CI"
+    },
+    "noBrief": "no description",
+    "propose": "Suggest three directions",
+    "proposeNote": "The directions come from the keywords of the description. Then nexbrand checks the numbers and darkens the main colour until a button with white text and a link on a light ground reach 4.5:1.",
+    "dir": {
+      "a": {
+        "label": "Direction A, close to the description",
+        "why": "The hue sits where “{{mood}}” is at home; a neighbouring hue as accent, neutrals with a touch of the main colour."
+      },
+      "b": {
+        "label": "Direction B, with a counterpoint",
+        "why": "The same hue, stronger, with the complement as accent; takes “{{second}}” along as well."
+      },
+      "c": {
+        "label": "Direction C, reserved",
+        "why": "Little colour, much calm. The brand lives on type and space here, not on signal colours."
+      }
+    },
+    "mood": {
+      "warm": "warm",
+      "fresh": "fresh",
+      "serious": "serious",
+      "playful": "playful",
+      "fine": "fine",
+      "bold": "bold",
+      "calm": "calm"
+    },
+    "takeThis": "Go on with this",
+    "pictureText": "A mood picture, a photo of the shop, an old poster. nexbrand counts the colours in it and suggests roles; the picture stays in your browser.",
+    "pickPicture": "Choose a picture",
+    "picture": "Chosen picture",
+    "takeColors": "Take these colours",
+    "colorText": "A colour the client brings. Fitting neutrals come along; the next step suggests accents.",
+    "startColor": "Start colour",
+    "emptyText": "For a client that has a CI already: start empty and record colours, fonts and logos from the style guide.",
+    "startEmpty": "Start empty",
+    "colorsTitle": "Colours",
+    "colorsText": "Name, role, value. Every change runs the checks on the right again.",
+    "fontsTitle": "Fonts",
+    "fontsText": "Pairs that work together, all under free licences and shipped with nexbrand.",
+    "bodySample": "Body text in {{font}}: easy to read, in long paragraphs too.",
+    "headFree": "Headings, free choice",
+    "bodyFree": "Body text, free choice",
+    "fontsLater": "Fonts of your own, with files and licence notes, come after creating, under Edit.",
+    "sizesTitle": "Type sizes",
+    "sizesText": "A base size and a ratio; every step follows from them.",
+    "logoTitle": "Logo",
+    "logoText": "The logo is drawn in Figma or Illustrator. Until it is there, word marks from the name, heading font and main colour stand in, so developers can start building.",
+    "uploadLogo": "Upload a logo (SVG, PNG)",
+    "removeLogo": "Remove",
+    "logoUploaded": "Uploaded; the word marks stay as stand-ins.",
+    "noLogoYet": "No logo yet: the word mark stands in.",
+    "finishTitle": "Create",
+    "finishText": "The client starts with the draft 1.0. With a review the client sees the directions on a sample page, comments and chooses one; the choice is published.",
+    "worked": "Worked out",
+    "workedWhy": "The version from the workbench. Always included.",
+    "alongText": "Send along unchanged, for comparison.",
+    "stillHints_one": "The checks still have {{count}} hint. Creating works anyway; the client does not see it.",
+    "stillHints_other": "The checks still have {{count}} hints. Creating works anyway; the client does not see them.",
+    "noReview": "A review needs the right to manage the space, and public pages allowed by the operator.",
+    "onlyDraft": "Create as a draft only",
+    "withReview": "Create and put before the client",
+    "back": "Back",
+    "next": "Next",
+    "yourName": "Your name",
+    "allPairs": "Every pair",
+    "asideEmpty": "Once there are colours, a sample page in the CI shows here, with the checks running again on every change."
+  },
+  "contrast": {
+    "title": "Contrast checker",
+    "text": "Two colours, every check at once. Suggests the nearest colour of the same hue that passes.",
+    "text_": "Text",
+    "ground": "Ground",
+    "swap": "Swap",
+    "big": "Large heading",
+    "body": "Body text at 16 px. Is it comfortable to read, on a phone in the sun too?",
+    "small": "Small print at 12 px, e.g. for footnotes and prices.",
+    "better": "Nearest text colour with 4.5:1 on this ground: {{hex}} ({{ratio}}), same hue {{hue}}°.",
+    "take": "Take it",
+    "vision": "With colour vision deficiencies",
+    "sample": "Clear words"
+  },
+  "review": {
+    "from": "{{sender}} asks for your opinion",
+    "title": "Your new look, {{name}}",
+    "textMany": "Here are {{count}} directions, each shown on a sample page. Say what you like and what you don't. When one fits, choose it; it becomes your binding CI.",
+    "textOne": "Here is the draft, shown on a sample page. Say what you like and what you don't. When it fits, choose it; it becomes your binding CI.",
+    "thanks": "Thank you! You chose “{{label}}”. This is your CI now; the agency works on with it.",
+    "yourName": "Your name, for the comments",
+    "say": "What strikes you?",
+    "sayOn": "Comment on {{label}}",
+    "send": "Send",
+    "choose": "Choose this direction",
+    "chooseTitle": "Choose this direction for good?",
+    "chooseText": "It becomes your CI. Later changes the agency makes as a new version; this one stays on record.",
+    "notYet": "Not yet",
+    "yes": "Yes, this is it"
+  },
+  "space": {
+    "name": "Name",
+    "placeholder": "Family, Homelab, Holidays …",
+    "color": "Colour",
+    "hint": "You manage the space and invite others into it.",
+    "create": "Create space"
   }
 }

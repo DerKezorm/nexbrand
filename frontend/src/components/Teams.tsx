@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 
 import { directoryApi, spacesApi, type Directory, type Person, type Role, type Team } from '../api/client'
-import { useBoards, type Space } from '../board/store'
+import { useBrands, type Space } from '../state/brands'
 import { Button, Card, Feedback, useAction } from '../pages/settings/ui'
 import { useAuth } from '../state/auth'
 import { Managed } from './Suite'
@@ -229,16 +229,16 @@ function TeamDialog({ team, operator, people, onClose, onSaved }: { team: Team |
 /** Which team has which right in a space; only its managers change it. */
 export function TeamRightsDialog({ space, onClose }: { space: Space; onClose: () => void }) {
   const { t } = useTranslation()
-  const boards = useBoards()
+  const brands = useBrands()
   const { directory } = useDirectory()
   const action = useAction()
-  const current = boards.space(space.id) ?? space
+  const current = brands.space(space.id) ?? space
   const manages = current.role === 'manage'
   const teams = directory?.teams ?? []
   const change = (team: Team, role: Role | null) =>
     void action.run(async () => {
       const answer = await spacesApi.teamRight(space.id, team.id, role)
-      await boards.refresh()
+      await brands.refresh()
       if ('gone' in answer) onClose()
     })
   return (

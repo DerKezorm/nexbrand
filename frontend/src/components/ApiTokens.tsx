@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 
 import { ApiError, apiTokensApi, type ApiToken } from '../api/client'
-import { useBoards } from '../board/store'
+import { useBrands } from '../state/brands'
 import { errorText } from '../lib/errors'
 import { useAuth } from '../state/auth'
 import { copyText } from '../lib/copy'
@@ -22,7 +22,7 @@ import { copyText } from '../lib/copy'
 const LIFETIMES: (number | null)[] = [30, 90, 365, null]
 const WEEK = 7 * 24 * 60 * 60 * 1000
 /** What the API offers; the whole description is `docs/api.md`. */
-const ROUTES = ['/api/v1/me', '/api/v1/spaces', '/api/v1/boards', '/api/v1/boards/{id}', '/api/v1/boards/{id}/picture.svg', '/api/v1/dashboard']
+const ROUTES = ['/api/v1/me', '/api/v1/spaces', '/api/v1/clients', '/api/v1/clients/{client}', '/api/v1/clients/{client}/code', '/api/v1/clients/{client}/audit', '/api/v1/contrast', 'POST /api/mcp']
 
 function code(error: unknown): string {
   return error instanceof ApiError ? error.code : 'internal_error'
@@ -47,13 +47,14 @@ function Line({ label, text, copied, onCopy }: { label: string; text: string; co
 export function ApiTokens() {
   const { t, i18n } = useTranslation()
   const { me } = useAuth()
-  const boards = useBoards()
+  const brands = useBrands()
   const [state, setState] = useState<{ allowed: boolean; tokens: ApiToken[] } | null>(null)
   const [making, setMaking] = useState(false)
   const [name, setName] = useState('')
   // null: every space the account may read, later ones too; otherwise the ids chosen.
   const [chosen, setChosen] = useState<number[] | null>(null)
   const [days, setDays] = useState<number | null>(null)
+  const [level, setLevel] = useState<'read' | 'draft'>('read')
   const [shown, setShown] = useState<{ name: string; secret: string } | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
@@ -105,13 +106,14 @@ export function ApiTokens() {
   const make = async () => {
     setProblem(null)
     try {
-      const made = await apiTokensApi.make(name.trim(), chosen, days)
+      const made = await apiTokensApi.make(name.trim(), chosen, days, level)
       setShown({ name: made.token.name, secret: made.secret })
       setCopied(null)
       setMaking(false)
       setName('')
       setChosen(null)
       setDays(null)
+      setLevel('read')
       await load()
     } catch (error) {
       setProblem(errorText(code(error)))
@@ -123,7 +125,7 @@ export function ApiTokens() {
     if (at <= now) return { text: t('apiTokens.ranOut', { day: day(token.expires_at) }), soon: true }
     return { text: t('apiTokens.runsOut', { day: day(token.expires_at) }), soon: at - now <= WEEK }
   }
-  const readable = boards.spaces
+  const readable = brands.spaces
 
   return (
     <section id="api-tokens" className="rounded-2xl border border-ink-700 bg-ink-900 p-5" aria-labelledby="api-tokens-title">
@@ -226,7 +228,18 @@ export function ApiTokens() {
               className="mt-1 block h-9 w-full rounded-lg border border-ink-700 bg-ink-950 px-2 text-mist-100 outline-none focus:border-accent-500"
             />
           </label>
-          <p className="text-xs text-mist-500">{t('apiTokens.readOnly')}</p>
+          <fieldset className="space-y-2">
+            <legend className="text-sm text-mist-300">{t('apiTokens.level')}</legend>
+            {(['read', 'draft'] as const).map((value) => (
+              <label key={value} className="flex cursor-pointer items-start gap-2 text-sm text-mist-100">
+                <input type="radio" name="api-level" checked={level === value} onChange={() => setLevel(value)} className="mt-1" />
+                <span>
+                  {t(`apiTokens.levels.${value}`)}
+                  <span className="block text-xs text-mist-500">{t(`apiTokens.levels.${value}Hint`)}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
           <fieldset className="space-y-2">
             <legend className="text-sm text-mist-300">{t('apiTokens.where')}</legend>
             <label className="flex cursor-pointer items-center gap-2 text-sm text-mist-100">

@@ -29,7 +29,7 @@ TeamId = Annotated[int, PathParam(ge=1)]
 
 class TeamIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
-    color: str = Field(default="#ff8a70", max_length=16)
+    color: str = Field(default="#2f7bff", max_length=16)
     members: list[int] = Field(default_factory=list, max_length=1000)
     lead: int | None = None
 

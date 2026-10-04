@@ -3,8 +3,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { api, ApiError, spacesApi, type Invite, type Role } from '../api/client'
-import type { Space } from '../board/store'
-import { useBoards } from '../board/store'
+import type { Space } from '../state/brands'
+import { useBrands } from '../state/brands'
 import { errorText } from '../lib/errors'
 import { Button, CopyLink, Input, Select } from '../pages/settings/ui'
 import { useAuth } from '../state/auth'
@@ -26,7 +26,7 @@ const DAYS = ['1', '7', '30'] as const
 export function MembersDialog({ space, onClose }: { space: Space; onClose: () => void }) {
   const { t, i18n } = useTranslation()
   const { me } = useAuth()
-  const boards = useBoards()
+  const brands = useBrands()
   const [data, setData] = useState<Listing | null>(null)
   const [person, setPerson] = useState('')
   const [personRole, setPersonRole] = useState<Role>('read')
@@ -75,7 +75,7 @@ export function MembersDialog({ space, onClose }: { space: Space; onClose: () =>
       else await spacesApi.setMember(space.id, me?.name ?? '', role)
       // Without the right to manage the list is not readable any more: close instead of showing an error.
       if (role === null || (role !== 'manage' && me?.role !== 'operator')) {
-        await boards.refresh()
+        await brands.refresh()
         onClose()
       } else await load()
     })
@@ -119,7 +119,7 @@ export function MembersDialog({ space, onClose }: { space: Space; onClose: () =>
                   void run(async () => {
                     await spacesApi.setMember(space.id, member.name, role)
                     await load()
-                    void boards.refresh()
+                    void brands.refresh()
                   })
                 }}
                 className="rounded-md border border-ink-700 bg-ink-850 px-2 py-1 text-xs text-mist-200"

@@ -14,11 +14,9 @@ import {
   House,
   Info,
   KeyRound,
-  MousePointer2,
   Palette,
   Plug,
   RotateCcw,
-  Shapes,
   Shield,
   ShieldCheck,
   Users,
@@ -29,25 +27,23 @@ import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 
 import { api, authApi, type Me, type Preferences } from '../api/client'
-import { useBoards, type Space } from '../board/store'
+import { useBrands, type Space } from '../state/brands'
 import { Avatar } from '../components/Avatar'
-import { Dialog } from '../components/Dialog'
 import { MembersDialog } from '../components/MembersDialog'
-import { PackageList } from '../components/ShapePackages'
 import { ManagedCard, SuiteCard, useSuiteConnected } from '../components/Suite'
 import { TeamBadge, TeamRightsDialog, TeamsCard } from '../components/Teams'
 import { changeLanguage, languageOptions, templateFile, type LanguageOption } from '../i18n'
 import { applyMode, storedMode, type Mode } from '../lib/theme'
 import { useAuth } from '../state/auth'
 import { AccountsCard, AllSpacesCard, ApiTokensCard, BackupsCard, FilesCard, LanguagesCard, LogCard, MailCard, SharesCard, SignInCard, useServerSettings } from './settings/ServerCards'
-import { Button, Card, Feedback, saveAsFile, TabRow, Toggle, useAction, type Tab } from './settings/ui'
+import { Button, Card, Feedback, saveAsFile, TabRow, useAction, type Tab } from './settings/ui'
 
 type Top = 'general' | 'looks' | 'spaces' | 'teams' | 'server'
-type Part = 'accounts' | 'signin' | 'suite' | 'shares' | 'api' | 'files' | 'shapes' | 'backups' | 'languages' | 'log'
+type Part = 'accounts' | 'signin' | 'suite' | 'shares' | 'api' | 'files' | 'backups' | 'languages' | 'log'
 const TOPS: Top[] = ['general', 'looks', 'spaces', 'teams', 'server']
-const PARTS: Part[] = ['accounts', 'signin', 'suite', 'shares', 'api', 'files', 'shapes', 'backups', 'languages', 'log']
+const PARTS: Part[] = ['accounts', 'signin', 'suite', 'shares', 'api', 'files', 'backups', 'languages', 'log']
 const TOP_ICON = { general: Globe, looks: Eye, spaces: Box, teams: UsersRound, server: ShieldCheck }
-const PART_ICON = { accounts: Users, signin: KeyRound, suite: Shield, shares: Globe, api: Plug, files: Files, shapes: Shapes, backups: History, languages: Globe, log: Info }
+const PART_ICON = { accounts: Users, signin: KeyRound, suite: Shield, shares: Globe, api: Plug, files: Files, backups: History, languages: Globe, log: Info }
 
 export function SettingsPage() {
   const { t } = useTranslation()
@@ -106,12 +102,6 @@ function ServerPart({ part }: { part: Part }) {
       return <ApiTokensCard server={server} />
     case 'files':
       return <FilesCard server={server} />
-    case 'shapes':
-      return (
-        <Card id="shape-packages" icon={Shapes} title={t('packages.serverTitle')} text={t('packages.serverText')}>
-          <PackageList space={null} canChange />
-        </Card>
-      )
     case 'backups':
       return <BackupsCard server={server} />
     case 'languages':
@@ -144,8 +134,8 @@ function General() {
         <div className="grid gap-2" role="radiogroup" aria-label={t('settings.startPage')}>
           {(
             [
-              ['boards', t('boards.all')],
-              ['last', t('settings.lastBoard')],
+              ['clients', t('clients.all')],
+              ['last', t('settings.lastClient')],
             ] as const
           ).map(([start, label]) => (
             <label key={start} className="flex items-center gap-3 rounded-xl border border-ink-700 bg-ink-850 px-4 py-2.5 text-sm text-mist-100">
@@ -154,11 +144,6 @@ function General() {
             </label>
           ))}
         </div>
-        <Feedback problem={action.problem} />
-      </Card>
-      <Card icon={MousePointer2} title={t('settings.board.title')} text={t('settings.board.text')}>
-        <Toggle label={t('settings.snap')} hint={t('settings.snapHint')} checked={preferences.snap} onChange={(snap) => change({ snap })} />
-        <Toggle label={t('settings.toolBack')} hint={t('settings.toolBackHint')} checked={preferences.tool_back} onChange={(tool_back) => change({ tool_back })} />
         <Feedback problem={action.problem} />
       </Card>
     </>
@@ -217,10 +202,10 @@ function LanguageCard() {
   )
 }
 
-/** Light or dark (kept in this browser, as the switch in the header), and how the board looks. */
+/** Light or dark, kept in this browser, as the switch in the header. */
 function Looks() {
   const { t } = useTranslation()
-  const { preferences, change, action } = usePreferences()
+  const { preferences } = usePreferences()
   const [mode, setMode] = useState<Mode>(storedMode())
   if (!preferences) return null
   return (
@@ -247,22 +232,15 @@ function Looks() {
           ))}
         </div>
       </Card>
-      <Card icon={Eye} title={t('settings.looks.board')} text={t('settings.looks.boardText')}>
-        <Toggle label={t('settings.grid')} hint={t('settings.gridHint')} checked={preferences.dots} onChange={(dots) => change({ dots })} />
-        <Feedback problem={action.problem} />
-      </Card>
     </>
   )
 }
 
 function Spaces() {
   const { t } = useTranslation()
-  const boards = useBoards()
+  const brands = useBrands()
   const [members, setMembers] = useState<Space | null>(null)
   const [teamsOf, setTeamsOf] = useState<Space | null>(null)
-  const [params, setParams] = useSearchParams()
-  const asked = Number(params.get('packages')) || null
-  const packagesOf = boards.spaces.find((s) => s.id === asked) ?? null
   const [bin, setBin] = useState<{ id: number; name: string; color: string; deleted_at: string }[]>([])
   const action = useAction()
   useEffect(() => {
@@ -272,12 +250,12 @@ function Spaces() {
     <>
       <Card icon={Box} title={t('settings.spacesMine')} text={t('settings.spacesHint')}>
         <ul className="divide-y divide-ink-700 rounded-xl border border-ink-700">
-          {boards.spaces.map((s) => (
+          {brands.spaces.map((s) => (
             <li key={s.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
               <span className="h-2.5 w-2.5 rounded-full" style={{ background: s.color }} />
               <span className="min-w-0 flex-1 truncate font-medium text-mist-100">{s.name}</span>
               <span className="text-xs text-mist-500">
-                {t(`roles.${s.role}`)} · {t('boards.count', { count: s.boards })}
+                {t(`roles.${s.role}`)} · {t('clients.count', { count: s.clients })}
               </span>
               <span className="flex -space-x-1.5">
                 {s.members.slice(0, 5).map((m) => (
@@ -287,12 +265,6 @@ function Spaces() {
                   <TeamBadge key={`t${grant.id}`} team={grant} className="h-6 w-6 text-[11px] ring-2 ring-ink-950" />
                 ))}
               </span>
-              {s.role === 'manage' && (
-                <Button small onClick={() => setParams({ tab: 'spaces', packages: String(s.id) }, { replace: true })}>
-                  <Shapes className="h-3.5 w-3.5" strokeWidth={1.8} />
-                  {t('packages.title')}
-                </Button>
-              )}
               {s.managed ? (
                 <span className="rounded-full border border-accent-500/40 px-2 py-0.5 text-[11px] font-medium text-accent-400">{t('suite.fromSuite')}</span>
               ) : (
@@ -325,7 +297,7 @@ function Spaces() {
                     void action.run(async () => {
                       await api(`/api/spaces/${s.id}/restore`, { method: 'POST' })
                       setBin((list) => list.filter((x) => x.id !== s.id))
-                      await boards.refresh()
+                      await brands.refresh()
                     })
                   }
                 >
@@ -340,12 +312,6 @@ function Spaces() {
       )}
       {members && <MembersDialog space={members} onClose={() => setMembers(null)} />}
       {teamsOf && <TeamRightsDialog space={teamsOf} onClose={() => setTeamsOf(null)} />}
-      {packagesOf && (
-        <Dialog title={t('packages.spaceTitle', { space: packagesOf.name })} onClose={() => setParams({ tab: 'spaces' }, { replace: true })} wide>
-          <p className="mb-3 text-sm text-mist-500">{t('packages.spaceText')}</p>
-          <PackageList space={packagesOf.id} canChange={packagesOf.role === 'manage'} />
-        </Dialog>
-      )}
     </>
   )
 }

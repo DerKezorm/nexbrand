@@ -11,10 +11,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         // Libraries change rarely. In their own file, they stay cached in the browser after an update.
-        // pdf.js and the picture export load only when a PDF lies on the board or someone exports.
         manualChunks(id) {
-          if (id.includes('node_modules/pdfjs-dist')) return 'pdfjs'
-          if (id.includes('node_modules/html-to-image')) return 'export'
           if (id.includes('node_modules')) return 'vendor'
           return undefined
         },
@@ -32,8 +29,7 @@ export default defineConfig({
     port: 5540,
     strictPort: true,
     proxy: {
-      // ws: the live connection of a board runs through the same address.
-      '/api': { target: apiTarget, changeOrigin: false, ws: true },
+      '/api': { target: apiTarget, changeOrigin: false },
     },
   },
   preview: {

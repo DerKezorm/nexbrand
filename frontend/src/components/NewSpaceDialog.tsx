@@ -7,7 +7,7 @@ import { Dialog } from './Dialog'
 
 /** The colours a space may have; the server takes these and no others. */
 // eslint-disable-next-line react-refresh/only-export-components
-export const SPACE_COLORS = ['#ff8a70', '#fbbf24', '#4ade80', '#2dd4bf', '#60a5fa', '#a78bfa', '#f472b6', '#a1a1aa']
+export const SPACE_COLORS = ['#2f7bff', '#fbbf24', '#4ade80', '#2dd4bf', '#ff8a70', '#a78bfa', '#f472b6', '#a1a1aa']
 
 /** A new space: a name and a colour. The account that makes it manages it and invites others. */
 export function NewSpaceDialog({ onClose, onCreate, initial }: {

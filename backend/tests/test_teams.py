@@ -67,7 +67,7 @@ def test_a_team_right_opens_the_space_and_its_clients_and_taking_it_closes_them(
         assert client.put(f"/api/spaces/{space}/teams/{team['id']}", json={"role": "read"}).status_code == 200
         seen = browser.get("/api/spaces").json()
         assert [s["id"] for s in seen] == [space] and seen[0]["role"] == "read"
-        assert seen[0]["teams"] == [{"id": team["id"], "name": "Design", "color": "#ff8a70", "role": "read"}]
+        assert seen[0]["teams"] == [{"id": team["id"], "name": "Design", "color": "#2f7bff", "role": "read"}]
         assert browser.get(f"/api/clients/{made}").status_code == 200
         assert browser.patch(f"/api/clients/{made}", json={"name": "Mine"}).status_code == 403
         assert client.delete(f"/api/spaces/{space}/teams/{team['id']}").status_code == 200

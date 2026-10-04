@@ -1,22 +1,22 @@
 import { useEffect, type ReactNode } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 
-import { BoardsProvider, useBoards } from './board/store'
 import { AppShell } from './components/AppShell'
-import { InvitePage, LoginPage, SetupPage } from './pages/AuthPages'
-import { BoardPage } from './pages/BoardPage'
-import { BoardsPage } from './pages/BoardsPage'
-import { FilesPage } from './pages/FilesPage'
-import { PublicPage } from './pages/PublicPage'
 import { AboutPage } from './pages/AboutPage'
 import { AccountPage } from './pages/AccountPage'
+import { InvitePage, LoginPage, SetupPage } from './pages/AuthPages'
+import { ClientPage } from './pages/ClientPage'
+import { ClientsPage } from './pages/ClientsPage'
+import { ContrastPage } from './pages/ContrastPage'
+import { NewClientPage } from './pages/NewClientPage'
+import { ProjectPage } from './pages/ProjectPage'
+import { PublicPage, ReviewPage } from './pages/PublicPages'
 import { SettingsPage } from './pages/SettingsPage'
-import { TemplatesPage } from './pages/TemplatesPage'
 import { useAuth } from './state/auth'
+import { BrandsProvider, useBrands } from './state/brands'
 
 /** Everything behind the sign-in: without an account the page goes to the sign-in, and comes back after. An account
- * that still has to set up its second factor (the operator requires one) reaches its own account page only; before,
- * it saw an empty app with no way on (Prüfgang 04.10.2026, F1). */
+ * that still has to set up its second factor (the operator requires one) reaches its own account page only. */
 function SignedIn({ children }: { children: ReactNode }) {
   const { status, me } = useAuth()
   const location = useLocation()
@@ -25,27 +25,27 @@ function SignedIn({ children }: { children: ReactNode }) {
   if (status === 'signedOut') return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />
   if (me?.second_factor_setup_required && location.pathname !== '/account') return <Navigate to="/account?tab=security" replace />
   return (
-    <BoardsProvider>
+    <BrandsProvider>
       <StartAtLast />
       {children}
-    </BoardsProvider>
+    </BrandsProvider>
   )
 }
 
-/** Once per visit: whoever chose "the board open last" as their start page lands there instead of the overview. */
+/** Once per visit: whoever chose "the client opened last" as their start page lands there instead of the overview. */
 let started = false
 function StartAtLast() {
   const { me } = useAuth()
-  const { loaded, boards } = useBoards()
+  const { loaded, clients } = useBrands()
   const location = useLocation()
   const navigate = useNavigate()
   useEffect(() => {
     if (started || !loaded) return
     started = true
     if (location.pathname !== '/' || location.search || me?.preferences?.start !== 'last') return
-    const last = boards.filter((b) => b.opened > 0).sort((a, b) => b.opened - a.opened)[0]
-    if (last) navigate(`/b/${last.id}`, { replace: true })
-  }, [loaded, boards, me, location, navigate])
+    const last = clients.filter((c) => c.opened_at).sort((a, b) => Date.parse(b.opened_at!) - Date.parse(a.opened_at!))[0]
+    if (last) navigate(`/c/${last.id}`, { replace: true })
+  }, [loaded, clients, me, location, navigate])
   return null
 }
 
@@ -57,6 +57,7 @@ export default function App() {
       <Route path="notzugang" element={<LoginPage emergency />} />
       <Route path="invite/:token" element={<InvitePage />} />
       <Route path="s/:token" element={<PublicPage />} />
+      <Route path="r/:token" element={<ReviewPage />} />
       <Route
         element={
           <SignedIn>
@@ -64,10 +65,11 @@ export default function App() {
           </SignedIn>
         }
       >
-        <Route index element={<BoardsPage />} />
-        <Route path="b/:id" element={<BoardPage />} />
-        <Route path="templates" element={<TemplatesPage />} />
-        <Route path="files" element={<FilesPage />} />
+        <Route index element={<ClientsPage />} />
+        <Route path="c/:id" element={<ClientPage />} />
+        <Route path="c/:id/p/:pid" element={<ProjectPage />} />
+        <Route path="new" element={<NewClientPage />} />
+        <Route path="contrast" element={<ContrastPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="account" element={<AccountPage />} />
         <Route path="about" element={<AboutPage />} />

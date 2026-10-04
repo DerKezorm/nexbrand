@@ -1,5 +1,5 @@
 import { avatarUrl } from '../api/client'
-import { personColor } from '../board/canvas/Peers'
+import { personColor } from '../lib/person'
 
 /** A person as their picture, or a round letter in their colour, as nexlore shows accounts. */
 export function Avatar({
