@@ -252,20 +252,28 @@ def _svg_bytes(path: Path) -> bytes:
     return data
 
 
+def _markup_or_blank(text: str) -> bool:
+    """A wide head read as text: markup ("<" after blanks), or nothing but blanks, which could hide markup further
+    on than the head reaches. Empty (nothing read in that encoding) is neither."""
+    rest = text.lstrip()
+    return bool(text) and (not rest or rest.startswith("<"))
+
+
 def wide_markup(head: bytes) -> bool:
-    """Whether a file starts as markup written in UTF-16 or UTF-32 (with a byte order mark or without, blanks
-    allowed before it): such an SVG, stored as a plain file, would still open as one elsewhere and its script would
-    run, while the byte checks here read past it. Only the first bytes are looked at (``head``, at most ``WIDE_HEAD``
-    of them): an archive or a font with zero bytes in it is never read further for this (A12)."""
-    head = head[:WIDE_HEAD]
+    """Whether a file starts as markup written in UTF-16 or UTF-32 (with a byte order mark or without, ASCII blanks
+    allowed before it), or as nothing but blanks in such an encoding: such an SVG, stored as a plain file, would still
+    open as one elsewhere and its script would run, while the byte checks here read past it. Blanks to the end of the
+    head count as markup: the head is all that is read (``WIDE_HEAD``), and an archive or a font with zero bytes in it
+    is never read further for this (A12)."""
+    head = head[:WIDE_HEAD].lstrip(b" \t\r\n")
     for encoding, mark in WIDE_MARKS:
         if head.startswith(mark):
-            return head[len(mark):].decode(encoding, errors="ignore").lstrip(" \t\r\n").startswith("<")
+            return _markup_or_blank(head[len(mark):].decode(encoding, errors="ignore"))
     if b"\x00" not in head[:8]:
         return False
-    # Without a mark: the first character that is not a blank, read in each wide encoding, is "<".
-    return any(head[: len(head) - len(head) % 4].decode(encoding, errors="ignore").lstrip(" \t\r\n").startswith("<")
-               for encoding in WIDE_ENCODINGS)
+    # Without a mark: read in each wide encoding, the first character that is not a blank is "<", or there is none.
+    whole = head[: len(head) - len(head) % 4]
+    return any(_markup_or_blank(whole.decode(encoding, errors="ignore")) for encoding in WIDE_ENCODINGS)
 
 
 def finish(db: Session, account: Account, space_id: int, received: Path, name: str) -> Stored:

@@ -542,6 +542,35 @@ def test_a12_wide_markup_is_told_by_its_beginning(encoding: str) -> None:
     assert not media_store.wide_markup(svg.encode("utf-8"))
 
 
+HIDDEN = "<svg xmlns='http://www.w3.org/2000/svg'><script>alert(1)</script></svg>"
+
+
+@pytest.mark.parametrize("body", [
+    (" " * 3000 + HIDDEN).encode("utf-16"),
+    (" " * 3000 + HIDDEN).encode("utf-16-le"),
+    (" " * 3000 + HIDDEN).encode("utf-16-be"),
+    ("\n" * 3000 + HIDDEN).encode("utf-32"),
+    (" " * 3000 + HIDDEN).encode("utf-32-be"),
+    b"   " + (" " * 3000 + HIDDEN).encode("utf-16-le"),
+    b"  \n " + HIDDEN.encode("utf-16-le"),
+    b" " + (" " * 10 + HIDDEN).encode("utf-16-be"),
+], ids=["utf16-bom", "utf16-le", "utf16-be", "utf32-bom", "utf32-be", "ascii-then-utf16-blanks", "ascii-then-utf16",
+        "ascii-odd-then-utf16-be"])
+def test_a12_blanks_beyond_the_head_hide_no_wide_svg(client: TestClient, operator: Account, space: int,
+                                                     body: bytes) -> None:
+    """Blanks in a wide encoding up to the end of what is read are refused: markup may follow beyond it."""
+    for name in ("download.bin", "logo.svg"):
+        answer = client.post(f"/api/media?space={space}&name={name}", content=body)
+        assert answer.status_code == 422 and answer.json()["detail"]["code"] == "svg_encoding", (name, answer.text)
+
+
+def test_a12_binaries_and_plain_text_are_not_taken_for_wide_blanks(client: TestClient, operator: Account,
+                                                                   space: int) -> None:
+    for body in (b"\x00" + bytes([255]) * 5000, b"    " + b"plain text " * 500, bytes(5000)):
+        answer = client.post(f"/api/media?space={space}&name=data.bin", content=body)
+        assert answer.status_code == 201 and answer.json()["kind"] == "file", answer.text
+
+
 # --- A4: once kept in the house, a file stays so ------------------------------------------------------------------
 
 
@@ -561,6 +590,45 @@ def test_a4_a_file_once_kept_in_the_house_stays_so_after_its_draft_is_gone(
     # Whoever wants to share it uploads it anew: the same bytes come as a file of their own.
     again = upload(client, space, "house.woff2", WOFF2)
     assert again != house
+
+
+def _shared_example(client: TestClient, cid: str, media: str) -> str:
+    """A published version showing ``media`` as an example, on a public page; the page's token."""
+    _publish(client, cid, {**SET, "samples": [{"name": "Font sheet", "media": media}]}, "2026")
+    return _token(client.post(f"/api/clients/{cid}/shares", json={"label": "Printer"}).json()["link"])
+
+
+def test_a4_a_draft_changed_to_internal_marks_the_file_before_it_is_deleted(
+    client: TestClient, operator: Account, space: int
+) -> None:
+    """Saved with a free font first, then changed to internal: the change marks the file as well."""
+    _open_pages()
+    house = upload(client, space, "house.woff2", WOFF2)
+    cid, _ = _draft(client, space)
+    draft = client.post(f"/api/clients/{cid}/versions", json={"label": "Free", "data": {
+        **SET, "fonts": [_font(house, "free")]}}).json()["id"]
+    saved = client.put(f"/api/clients/{cid}/versions/{draft}", json={"data": {**SET, "fonts": [_font(house)]}})
+    assert saved.status_code == 200, saved.text
+    assert client.delete(f"/api/clients/{cid}/versions/{draft}").status_code == 204
+    token = _shared_example(client, cid, house)
+    with new_client() as visitor:
+        assert visitor.get(f"/api/public/{token}/media/{house}").status_code == 404
+
+
+def test_a4_a_review_direction_marks_the_file_before_draft_and_review_go(
+    client: TestClient, operator: Account, space: int
+) -> None:
+    """The internal font only in a direction of a review; the draft goes, its review with it."""
+    _open_pages()
+    house = upload(client, space, "house.woff2", WOFF2)
+    cid, _ = _draft(client, space)
+    draft = client.post(f"/api/clients/{cid}/versions", json={"label": "B", "data": SET}).json()["id"]
+    made = _review(client, cid, draft, variants=[{"id": "a", "label": "A", "data": {**SET, "fonts": [_font(house)]}}])
+    assert made.status_code == 201, made.text
+    assert client.delete(f"/api/clients/{cid}/versions/{draft}?with_review=true").status_code == 204
+    token = _shared_example(client, cid, house)
+    with new_client() as visitor:
+        assert visitor.get(f"/api/public/{token}/media/{house}").status_code == 404
 
 
 def test_a4_files_named_before_the_mark_get_it_at_start(client: TestClient, operator: Account, space: int) -> None:
