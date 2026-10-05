@@ -23,6 +23,11 @@ export default defineConfig({
     globals: true,
     css: false,
     exclude: ['node_modules/**', 'dist/**'],
+    // A cold run (CI, no cache) translates each page on its first dynamic import inside a test, and a busy machine
+    // stretches that past vitest's 5 s: 25 tests timed out on a fresh copy (05.10.2026). Waiting is no clock here,
+    // the tests wait for answers; this only gives the first translation room.
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
   },
   server: {
     // Fixed port: if it is taken, Vite aborts instead of silently falling back to another one.

@@ -88,7 +88,8 @@ describe('a new client starts without hints about what nexbrand made itself (F24
           starts++
         }
     expect(starts).toBe(72 * 7 * 8)
-  })
+    // 4032 starting colours, each checked twice: 0.8 s alone, over 5 s beside a test run of the server.
+  }, 120_000)
 
   it('keeps the colour as it is wherever an off-white exists that it reads on', () => {
     let kept = 0
