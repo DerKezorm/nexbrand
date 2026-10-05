@@ -673,6 +673,47 @@ def test_a_person_renamed_in_nexsuite_keeps_its_blocked_account_from_before(
     assert _row("erik").id == erik.id and _row("erik").oidc_subject == "3" and _row("erik").suite_person == "3"
 
 
+def test_the_operators_choice_when_connecting_goes_before_the_name(
+        client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
+    # The checker's case (connected under c485f67): person 2 ("anna") was given to the account ben, the account anna
+    # was left out and keeps her own subject "2" of another provider (blocked, unmarked). ben stays anna's person.
+    connect(client, world, operator)
+    with SessionLocal() as db:
+        anna = db.get(Account, world["anna"].id)
+        ben = db.get(Account, world["ben"].id)
+        assert anna is not None and ben is not None
+        anna.oidc_subject, anna.suite_person, anna.own_subject, anna.blocked_at = "2", "", "", suite.utcnow()
+        ben.oidc_subject, ben.suite_person, ben.own_subject = "2", "2", ""
+        db.commit()
+    assert client.post("/api/suite/sync").status_code in (200, 204)
+    anna, ben = _row("anna"), _row("ben")
+    assert (ben.oidc_subject, ben.suite_person, ben.blocked_at) == ("2", "2", None)
+    assert ben.email == "anna@example.com", "the person's address stays on the account chosen for it"
+    assert anna.blocked_at is not None and anna.oidc_subject == "" and anna.own_subject == "2"
+    assert client.post("/api/suite/disconnect", json={"current_password": PASSWORD}).status_code == 200
+    assert _row("anna").oidc_subject == "2", "her own link is hers again"
+    assert (_row("ben").oidc_subject, _row("ben").own_subject) == ("", ""), "ben gets no link of anna's"
+
+
+def test_the_persons_sign_in_name_wins_even_blocked_and_younger(
+        client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
+    # Nobody marked (a connection from before): ben, older and not blocked, and erik, blocked, both hold "3". The
+    # sign-in name of person 3 is erik's: erik keeps his account.
+    connect(client, world, operator)
+    with SessionLocal() as db:
+        ben = db.get(Account, world["ben"].id)
+        erik = db.query(Account).filter(Account.name == "erik").one()
+        assert ben is not None and ben.id < erik.id
+        ben.oidc_subject, ben.blocked_at = "3", None
+        erik.blocked_at = suite.utcnow()
+        db.query(Account).update({"suite_person": ""})
+        db.commit()
+    assert client.post("/api/suite/sync").status_code in (200, 204)
+    erik, ben = _row("erik"), _row("ben")
+    assert erik.oidc_subject == "3" and erik.suite_person == "3" and erik.blocked_at is None
+    assert ben.oidc_subject != "3" and ben.blocked_at is not None
+
+
 def test_b8_a_connection_from_before_this_was_kept_is_known_too(client: TestClient, operator: Account, world: dict,
                                                                 fake: FakeSuite) -> None:
     connect(client, world, operator)

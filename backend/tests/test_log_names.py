@@ -36,9 +36,8 @@ def _texts(first: Any, rest: list[Any]) -> list[tuple[str, Any]]:
                 text += "{}"
         return out
     if isinstance(first, ast.BinOp) and isinstance(first.op, ast.Mod) and isinstance(first.left, ast.Constant):
-        text = str(first.left.value)
         values = first.right.elts if isinstance(first.right, ast.Tuple) else [first.right]
-        return [(text[:m.start()], value) for m, value in zip(re.finditer(r"%[sdr]", text), values, strict=False)]
+        return _percent(str(first.left.value), values)
     if (isinstance(first, ast.Call) and isinstance(first.func, ast.Attribute) and first.func.attr == "format"
             and isinstance(first.func.value, ast.Constant)):
         text = str(first.func.value.value)
@@ -57,9 +56,19 @@ def _texts(first: Any, rest: list[Any]) -> list[tuple[str, Any]]:
                 out.append((text[:m.start()], value))
         return out
     if isinstance(first, ast.Constant) and isinstance(first.value, str):
-        text = first.value
-        return [(text[:m.start()], value) for m, value in zip(re.finditer(r"%[sdr]", text), rest, strict=False)]
+        return _percent(first.value, rest)
     return []
+
+
+def _percent(text: str, values: list[Any]) -> list[tuple[str, Any]]:
+    """``%s`` by place, or ``%(key)s`` from one mapping (``{"who": row.name}``)."""
+    spots = list(re.finditer(r"%(?:\((\w+)\))?[sdr]", text))
+    mapping = values[0] if len(values) == 1 and isinstance(values[0], ast.Dict) else None
+    if mapping is not None:
+        named = {key.value: value for key, value in zip(mapping.keys, mapping.values, strict=True)
+                 if isinstance(key, ast.Constant)}
+        return [(text[:m.start()], named[m.group(1)]) for m in spots if m.group(1) in named]
+    return [(text[:m.start()], value) for m, value in zip(spots, values, strict=False)]
 
 
 def _person(value: Any, assigned: dict[str, Any], where: str, depth: int = 0) -> bool:
@@ -77,6 +86,11 @@ def _person(value: Any, assigned: dict[str, Any], where: str, depth: int = 0) ->
     if isinstance(value, ast.Call) and isinstance(value.func, ast.Name) and value.func.id in ("str", "repr") \
             and value.args:
         return _person(value.args[0], assigned, where, depth + 1)
+    if isinstance(value, ast.Call) and isinstance(value.func, ast.Attribute):
+        # A method on the name: ``row.name.strip()``, ``row.display_name.lower()``.
+        return _person(value.func.value, assigned, where, depth + 1)
+    if isinstance(value, ast.Subscript):
+        return _person(value.value, assigned, where, depth + 1)
     if isinstance(value, ast.Name) and value.id in assigned:
         return _person(assigned[value.id], assigned, where, depth + 1)
     return False
@@ -105,19 +119,19 @@ def _is_log_call(node: Any, loggers: set[str]) -> bool:
     return isinstance(receiver, ast.Call) and ast.unparse(receiver.func) == "logging.getLogger"
 
 
-def _wrappers(tree: ast.AST, loggers: set[str]) -> dict[str, list[int]]:
-    """Functions that hand one of their parameters on to a logger: name and the places of those parameters."""
-    found: dict[str, list[int]] = {}
+def _wrappers(tree: ast.AST, loggers: set[str]) -> dict[str, list[tuple[int, str]]]:
+    """Functions that hand one of their parameters on to a logger: name, and place and name of those parameters."""
+    found: dict[str, list[tuple[int, str]]] = {}
     for function in ast.walk(tree):
         if not isinstance(function, ast.FunctionDef | ast.AsyncFunctionDef):
             continue
-        params = [arg.arg for arg in function.args.args]
+        params = [arg.arg for arg in [*function.args.args, *function.args.kwonlyargs]]
         handed = set()
         for node in ast.walk(function):
             if _is_log_call(node, loggers):
                 for arg in node.args:
                     if isinstance(arg, ast.Name) and arg.id in params:
-                        handed.add(params.index(arg.id))
+                        handed.add((params.index(arg.id), arg.id))
         if handed:
             found[function.name] = sorted(handed)
     return found
@@ -141,9 +155,12 @@ def offences(source: str, where: str = "x.py") -> list[str]:
             if _is_log_call(node, loggers) and node.args:
                 messages.append((node.args[0], node.args[1:]))
             elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in wrappers:
-                for place in wrappers[node.func.id]:
+                given = {keyword.arg: keyword.value for keyword in node.keywords}
+                for place, name in wrappers[node.func.id]:
                     if place < len(node.args):
                         messages.append((node.args[place], []))
+                    elif name in given:
+                        messages.append((given[name], []))
             for first, rest in messages:
                 for before, value in _texts(first, rest):
                     if not _person(value, assigned, where):
@@ -181,6 +198,12 @@ def test_the_guard_reads_every_way_of_writing_a_line() -> None:
         'def f(row):\n    who = row.name\n    logger.info("Account %s", who)',
         ('def g(account):\n    def refuse(code, reason):\n        logger.warning("refused (%s)", reason)\n'
          '    refuse("x", f"account {account.name} is blocked")'),
+        'logger.info("Token of %(who)s", {"who": owner.name})',
+        'logger.info("Token of %(who)s" % {"who": owner.name})',
+        'logger.info("Token of %s", owner.name.strip())',
+        'logger.info(f"Token of {owner.display_name.lower()}")',
+        ('def g(account):\n    def refuse(code, reason):\n        logger.warning("refused (%s)", reason)\n'
+         '    refuse("x", reason=f"account {account.name} is blocked")'),
     ]
     for source in bad:
         assert offences(source), source
@@ -189,6 +212,8 @@ def test_the_guard_reads_every_way_of_writing_a_line() -> None:
         'logger.info(f"Signed in by={row.name}")',
         'logger.info("Column %s added", column.name)',
         'logger.info("moved from=%s to=%s", old, holder.name)',
+        'logger.info("Token by=%(who)s", {"who": owner.name})',
+        'logger.info("Token name=%s", owner.name.strip())',
         ('def g(account):\n    def refuse(code, reason):\n        logger.warning("refused (%s)", reason)\n'
          '    refuse("x", f"blocked name={account.name}")'),
     ]

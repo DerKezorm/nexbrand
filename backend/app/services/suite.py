@@ -731,7 +731,8 @@ def _settle_subjects(db: Session, people: dict[str, dict[str, Any]], keeper: int
     knows no owner, and a person blocked in nexsuite must not lose its account to a new one ("erik2") just because
     the old one is blocked. An account whose ``suite_person`` names another person never claims a subject: it goes
     back to its own person. Among the rest, unmarked ones only when not blocked or carrying the person's sign-in name;
-    the first by: the sign-in name is the person's, not blocked, smallest id. Address and display name do not count:
+    the first by: marked for exactly this person (the operator's choice when connecting), the sign-in name is the
+    person's, not blocked, smallest id. Address and display name do not count:
     an old sync may have copied them onto a stranger's account. Every other account lets the subject go: when its
     own link is aside already, the subject came with the connection and is dropped; otherwise nothing tells whether it
     is its own link (a connection from before kept no mark), so it is put aside (``own_subject``, given back on
@@ -747,8 +748,9 @@ def _settle_subjects(db: Session, people: dict[str, dict[str, Any]], keeper: int
         able = [row for row in group if row.suite_person == subject
                 or (not row.suite_person and (row.blocked_at is None or _same_name(row, person)))]
         if able:
-            owner[subject] = min(able, key=lambda row: (not _same_name(row, person), row.blocked_at is not None,
-                                                        row.id))
+            # The operator's choice when connecting comes first: an account marked for exactly this person.
+            owner[subject] = min(able, key=lambda row: (row.suite_person != subject, not _same_name(row, person),
+                                                        row.blocked_at is not None, row.id))
     for row in rows:
         subject = row.oidc_subject
         if owner.get(subject) is row:
