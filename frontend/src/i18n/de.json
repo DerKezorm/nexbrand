@@ -1454,7 +1454,7 @@
     "roleHead": "Überschriften",
     "roleBody": "Fließtext",
     "uploaded": "Hochgeladen",
-    "fontLicenseNote": "„Nur intern“ hält die Datei im Haus: Freigaben und Programme sehen nur den Namen. Systemschriften stehen nur mit Namen hier.",
+    "fontLicenseNote": "„Nur intern“ hält die Datei im Haus: Freigaben und Programme sehen nur den Namen. Systemschriften stehen nur mit Namen hier. Eine Datei, die einmal als intern geführt wurde, bleibt es; wer sie freigeben will, lädt sie neu hoch.",
     "wordmarkText": "Text der Wortmarke",
     "wordmarkFont": "Schrift der Wortmarke",
     "textColor": "Schrift",

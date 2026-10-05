@@ -17,7 +17,7 @@ import secrets
 from datetime import UTC, date, datetime
 from typing import Any
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import event, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from ..models import (
@@ -28,6 +28,7 @@ from ..models import (
     BrandVersion,
     Client,
     Favorite,
+    Media,
     Project,
     Review,
     Space,
@@ -285,12 +286,51 @@ def effective(db: Session, row: BrandVersion) -> dict[str, Any]:
     return inherit.resolve(base.data if base is not None else brandset.empty(), row.data)
 
 
-def kept_in_house(db: Session, space_id: int) -> set[str]:
-    """Every file that any version, draft or review direction of the client (its projects included) names as a font
-    kept in the house. Such a file never goes out over a public page, a review or a token, whatever else names it: an
-    example, a logo download, an older version that called the same font free (A4)."""
-    clients = select(Client.id).where(Client.space_id == space_id)
+def _internal_of(row: object) -> set[str]:
+    if isinstance(row, BrandVersion):
+        return brandset.internal_media(row.data if isinstance(row.data, dict) else None)
+    if isinstance(row, Review):
+        found: set[str] = set()
+        for variant in row.variants or []:
+            found |= brandset.internal_media(variant.get("data") if isinstance(variant, dict) else None)
+        return found
+    return set()
+
+
+@event.listens_for(Session, "after_flush")
+def _mark_kept_in_house(session: Session, _context: object) -> None:
+    """Whatever version, draft, project or review direction is written with a font kept in the house marks its files
+    for good (``Media.kept_in_house``): deleting that draft later does not let them out again."""
     found: set[str] = set()
+    for row in [*session.new, *session.dirty]:
+        found |= _internal_of(row)
+    if found:
+        session.connection().execute(
+            update(Media).where(Media.id.in_(found), Media.kept_in_house.is_(False)).values(kept_in_house=True))
+
+
+def mark_kept_in_house(db: Session) -> int:
+    """At start: the marks for everything written before there were marks. How many files got one."""
+    found: set[str] = set()
+    for data in db.scalars(select(BrandVersion.data)):
+        found |= brandset.internal_media(data if isinstance(data, dict) else None)
+    for variants in db.scalars(select(Review.variants)):
+        for variant in variants or []:
+            found |= brandset.internal_media(variant.get("data") if isinstance(variant, dict) else None)
+    if not found:
+        return 0
+    result = db.execute(update(Media).where(Media.id.in_(found), Media.kept_in_house.is_(False))
+                        .values(kept_in_house=True))
+    db.commit()
+    return int(getattr(result, "rowcount", 0) or 0)
+
+
+def kept_in_house(db: Session, space_id: int) -> set[str]:
+    """Every file of the client that is or ever was the file of a font kept in the house, by any version, draft,
+    project or review direction. Such a file never goes out over a public page, a review or a token, whatever else
+    names it: an example, a logo download, an older version that called the same font free (A4)."""
+    clients = select(Client.id).where(Client.space_id == space_id)
+    found: set[str] = set(db.scalars(select(Media.id).where(Media.space_id == space_id, Media.kept_in_house.is_(True))))
     for data in db.scalars(select(BrandVersion.data).where(BrandVersion.client_id.in_(clients))):
         found |= brandset.internal_media(data)
     for variants in db.scalars(select(Review.variants).where(Review.client_id.in_(clients))):

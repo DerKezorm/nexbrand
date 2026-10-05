@@ -24,7 +24,8 @@ its own tokens under **My account → Connections**:
 
 Fonts with the licence **internal** never leave through a token: the design set names them, their files are not
 handed out. A file that any version of the client keeps as an internal font is left out everywhere else as well: as
-an example, as a logo download, as the file of a font another version calls free.
+an example, as a logo download, as the file of a font another version calls free. It stays so when that version is
+deleted; to share the file, upload it again.
 
 ## Asking
 

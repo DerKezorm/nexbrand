@@ -515,6 +515,73 @@ def test_a12_a_binary_file_with_zero_bytes_still_comes_in(client: TestClient, op
     assert answer.status_code == 201 and answer.json()["kind"] == "file"
 
 
+def test_a12_a_large_archive_is_looked_at_by_its_first_bytes_only(
+    client: TestClient, operator: Account, space: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An archive full of zero bytes (as ZIP, EPS and font packages are) is not read further than its beginning to
+    tell whether it is a wide SVG: before, every such upload read and decoded up to 32 MB four times."""
+    seen: list[int] = []
+    real = media_store.wide_markup
+
+    def counted(head: bytes) -> bool:
+        seen.append(len(head))
+        return real(head)
+
+    monkeypatch.setattr(media_store, "wide_markup", counted)
+    archive = b"PK" + bytes([3, 4]) + bytes(6 * 1024 * 1024)
+    answer = client.post(f"/api/media?space={space}&name=fonts.zip", content=archive)
+    assert answer.status_code == 201 and answer.json()["kind"] == "file", answer.text
+    assert seen and max(seen) <= media_store.WIDE_HEAD
+
+
+@pytest.mark.parametrize("encoding", ["utf-16", "utf-16-le", "utf-16-be", "utf-32", "utf-32-le", "utf-32-be"])
+def test_a12_wide_markup_is_told_by_its_beginning(encoding: str) -> None:
+    svg = "  \n<svg xmlns='http://www.w3.org/2000/svg'/>"
+    assert media_store.wide_markup(svg.encode(encoding))
+    assert not media_store.wide_markup(b"PK" + bytes(4000))
+    assert not media_store.wide_markup(svg.encode("utf-8"))
+
+
+# --- A4: once kept in the house, a file stays so ------------------------------------------------------------------
+
+
+def test_a4_a_file_once_kept_in_the_house_stays_so_after_its_draft_is_gone(
+    client: TestClient, operator: Account, space: int
+) -> None:
+    _open_pages()
+    house = upload(client, space, "house.woff2", WOFF2)
+    cid, _ = _draft(client, space)
+    kept = client.post(f"/api/clients/{cid}/versions", json={"label": "Kept", "data": {**SET, "fonts": [_font(house)]}})
+    assert kept.status_code == 201
+    assert client.delete(f"/api/clients/{cid}/versions/{kept.json()['id']}").status_code == 204
+    _publish(client, cid, {**SET, "samples": [{"name": "Font sheet", "media": house}]}, "2026")
+    token = _token(client.post(f"/api/clients/{cid}/shares", json={"label": "Printer"}).json()["link"])
+    with new_client() as visitor:
+        assert visitor.get(f"/api/public/{token}/media/{house}").status_code == 404
+    # Whoever wants to share it uploads it anew: the same bytes come as a file of their own.
+    again = upload(client, space, "house.woff2", WOFF2)
+    assert again != house
+
+
+def test_a4_files_named_before_the_mark_get_it_at_start(client: TestClient, operator: Account, space: int) -> None:
+    from sqlalchemy import update
+
+    from app.db import init_db
+    from app.models import Media
+
+    house = upload(client, space, "house.woff2", WOFF2)
+    cid, _ = _draft(client, space)
+    assert client.post(f"/api/clients/{cid}/versions", json={"label": "Kept", "data": {
+        **SET, "fonts": [_font(house)]}}).status_code == 201
+    with SessionLocal() as db:
+        assert db.get(Media, house).kept_in_house is True  # type: ignore[union-attr]
+        db.execute(update(Media).values(kept_in_house=False))
+        db.commit()
+    init_db()
+    with SessionLocal() as db:
+        assert db.get(Media, house).kept_in_house is True  # type: ignore[union-attr]
+
+
 # --- A7: every kind of picture is counted -------------------------------------------------------------------------
 
 

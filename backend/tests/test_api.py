@@ -12,7 +12,7 @@ from app.models import Account
 from app.services import apitokens
 
 from .conftest import make_account, new_client
-from .test_brands import SET, WOFF2, make_client, upload
+from .test_brands import SET, SVG, WOFF2, make_client, upload
 
 
 @pytest.fixture(autouse=True)
@@ -85,6 +85,25 @@ def test_an_internal_font_never_leaves_through_a_token(client: TestClient, space
         brand = program.get("/api/v1/clients/Bäckerei Morgenrot", headers=auth).json()
         assert brand["design"]["fonts"][0]["files"] == [] and brand["files"] == {}
         assert program.get(f"/api/v1/files/{internal}", headers=auth).status_code == 404
+
+
+def test_a_file_another_version_keeps_in_the_house_is_not_even_named(client: TestClient, space: int) -> None:
+    """(A4) The published version shows the file only as an example and a logo download; a draft keeps it as an
+    internal font. Neither the brand nor its files, over the API or MCP, name its id."""
+    house = upload(client, space, "house.woff2", WOFF2)
+    logo = upload(client, space, "logo.svg", SVG)
+    shown = {**SET, "samples": [{"name": "Font sheet", "media": house}],
+             "logos": [{"id": "main", "name": "Logo", "media": logo, "files": [house, logo]}]}
+    cid = _published(client, space, shown)
+    assert client.post(f"/api/clients/{cid}/versions", json={"label": "Kept", "data": {
+        **SET, "fonts": [{"family": "House", "license": "internal", "files": [house]}]}}).status_code == 201
+    auth = _token(client)
+    with _program() as program:
+        brand = program.get("/api/v1/clients/Bäckerei Morgenrot", headers=auth)
+        assert brand.status_code == 200 and house not in brand.text and logo in brand.json()["files"]
+        result = _rpc(program, auth, "tools/call", {"name": "get_brand", "arguments": {"client": "Bäckerei Morgenrot"}})
+        assert result["isError"] is False and house not in str(result)
+        assert program.get(f"/api/v1/files/{house}", headers=auth).status_code == 404
 
 
 def test_only_a_draft_token_proposes_and_it_lands_as_a_draft(client: TestClient, space: int) -> None:

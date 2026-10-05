@@ -96,6 +96,8 @@ def init_db() -> None:
         regroup.run(db)
         # Projects from before they had versions of their own get a first one.
         brands.adopt_projects(db)
+        # Files named as internal fonts before files carried that mark keep it from now on (A4).
+        brands.mark_kept_in_house(db)
 
 
 def _sql_literal(value: Any) -> str:

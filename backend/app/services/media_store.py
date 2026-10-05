@@ -176,7 +176,12 @@ MAX_SVG_BYTES = 8 * 1024 * 1024
 PLAIN_ENCODINGS = {"utf-8", "utf8", "us-ascii", "ascii"}
 XML_ENCODING = re.compile(rb"""^\s*<\?xml[^>]*?encoding\s*=\s*["']([^"']*)["']""", re.IGNORECASE)
 BOM_UTF8 = b"\xef\xbb\xbf"
-WIDE_ENCODINGS = ("utf-16-le", "utf-16-be", "utf-32-le", "utf-32-be")
+WIDE_ENCODINGS = ("utf-32-le", "utf-32-be", "utf-16-le", "utf-16-be")
+#: Byte order marks of the wide encodings, the longer ones first (UTF-32 LE starts like UTF-16 LE).
+WIDE_MARKS = (("utf-32-le", b"\xff\xfe\x00\x00"), ("utf-32-be", b"\x00\x00\xfe\xff"), ("utf-16-le", b"\xff\xfe"),
+              ("utf-16-be", b"\xfe\xff"))
+#: How much of a file is read to tell whether it is markup in a wide encoding.
+WIDE_HEAD = 4096
 SVG_REFUSED = {"script", "foreignobject", "iframe", "embed", "object", "handler", "listener"}
 
 
@@ -247,23 +252,29 @@ def _svg_bytes(path: Path) -> bytes:
     return data
 
 
-def _wide_svg(path: Path) -> bool:
-    """A drawing written in UTF-16 or UTF-32 (with a byte order mark or without): stored as a plain file it would
-    still open as an SVG elsewhere, and its script would run, while the byte checks here read past it."""
-    with open(path, "rb") as handle:
-        data = handle.read(MAX_SVG_BYTES * 4 + 4)
-    if b"\x00" not in data[:1024] and not data.startswith((b"\xfe\xff", b"\xff\xfe")):
+def wide_markup(head: bytes) -> bool:
+    """Whether a file starts as markup written in UTF-16 or UTF-32 (with a byte order mark or without, blanks
+    allowed before it): such an SVG, stored as a plain file, would still open as one elsewhere and its script would
+    run, while the byte checks here read past it. Only the first bytes are looked at (``head``, at most ``WIDE_HEAD``
+    of them): an archive or a font with zero bytes in it is never read further for this (A12)."""
+    head = head[:WIDE_HEAD]
+    for encoding, mark in WIDE_MARKS:
+        if head.startswith(mark):
+            return head[len(mark):].decode(encoding, errors="ignore").lstrip(" \t\r\n").startswith("<")
+    if b"\x00" not in head[:8]:
         return False
-    return any("<svg" in data.decode(encoding, errors="ignore").lower() for encoding in WIDE_ENCODINGS)
+    # Without a mark: the first character that is not a blank, read in each wide encoding, is "<".
+    return any(head[: len(head) - len(head) % 4].decode(encoding, errors="ignore").lstrip(" \t\r\n").startswith("<")
+               for encoding in WIDE_ENCODINGS)
 
 
 def finish(db: Session, account: Account, space_id: int, received: Path, name: str) -> Stored:
     """The file at ``received`` (a temporary file in the media folder) becomes a media file, or is found as one.
     ``MediaError`` for a file refused: an SVG that could run something, a picture of too many pixels."""
     with open(received, "rb") as handle:
-        head = handle.read(1024)
-    kind = media.sniff(head[:64]) or ("svg" if is_svg(head) else "file")
-    if kind == "file" and _wide_svg(received):
+        head = handle.read(WIDE_HEAD)
+    kind = media.sniff(head[:64]) or ("svg" if is_svg(head[:1024]) else "file")
+    if kind == "file" and wide_markup(head):
         raise MediaError("svg_encoding", "Save the SVG as UTF-8 and upload it again.", 422)
     # Named an SVG and holding one, but not starting as one (junk in front, packed): checked all the same, it opens as
     # one elsewhere. A text that holds no drawing stays a file.
@@ -292,7 +303,9 @@ def finish(db: Session, account: Account, space_id: int, received: Path, name: s
         else:
             webp.unlink(missing_ok=True)
     digest = _hash(received)
-    existing = db.scalar(select(Media).where(Media.space_id == space_id, Media.sha256 == digest))
+    # A file once kept in the house stays so; the same bytes uploaded anew come as a file of their own, free (A4).
+    existing = db.scalar(select(Media).where(Media.space_id == space_id, Media.sha256 == digest,
+                                             Media.kept_in_house.is_(False)))
     if existing is not None and path_of(existing.id).is_file():
         received.unlink(missing_ok=True)
         return _stored(existing, sorted(removed), known=True)

@@ -353,6 +353,9 @@ class Media(Base):
     width: Mapped[int] = mapped_column(Integer, default=0)
     height: Mapped[int] = mapped_column(Integer, default=0)
     pages: Mapped[int] = mapped_column(Integer, default=0)
+    #: Named once as the file of a font kept in the house (by any version, draft, project or review direction): never
+    #: out over a public way again, even when nothing names it so any more. Freed only by uploading it anew.
+    kept_in_house: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utcnow)
 
 
