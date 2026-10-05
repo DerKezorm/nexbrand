@@ -65,6 +65,13 @@ describe('the shipped texts', () => {
     expect(managed('server.allSpaces.membersNoManager', { count: 1 })).toBe('eine Person mit Zugriff, niemand verwaltet den Kunden')
   })
 
+  it('speak English, not German word for word', () => {
+    // "Angeben" is enter, "anlegen" is create, "enthalten" is contain (WORTLAUTE.md, nexbrand #job-159).
+    const text = (key: string) => String(key.split('.').reduce<unknown>((tree, part) => (tree as Record<string, unknown>)[part], en))
+    const stiff = flat(en).filter((key) => /\bGive (a|the)\b|\bMake a new\b|\bholds\b/i.test(text(key)))
+    expect(stiff).toEqual([])
+  })
+
   it('say "you" when a notice is about the reader', () => {
     for (const tree of [de, en] as unknown as { notices: Record<string, string> }[]) {
       for (const kind of ['operator_added', 'operator_role', 'operator_removed']) {
