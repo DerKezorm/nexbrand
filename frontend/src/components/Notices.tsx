@@ -6,7 +6,8 @@ import { useBrands } from '../state/brands'
 import { errorText } from '../lib/errors'
 import { answerNotice, type Notice } from '../lib/notices'
 
-/** The waiting notices as lines with their buttons, as in nexlore's sidebar: accept or decline, or mark seen. */
+/** The waiting notices as lines with their buttons: accept or decline, or mark seen. A notice about the reader says
+ * "you" (`_self`), never the reader's own name. */
 export function NoticeList({ notices }: { notices: Notice[] }) {
   const { t } = useTranslation()
   const brands = useBrands()
@@ -23,7 +24,7 @@ export function NoticeList({ notices }: { notices: Notice[] }) {
       <ul className="space-y-1">
         {notices.map((notice) => (
           <li key={notice.id} data-notice={notice.kind} className="rounded-lg px-2.5 py-1.5 text-[13px] text-mist-300">
-            <p>{t(`notices.${notice.kind}`, { actor: notice.actor, subject: notice.subject, space: notice.space, role: notice.role ? t(`roles.${notice.role}`) : '' })}</p>
+            <p>{t(`notices.${notice.kind}${notice.mine && notice.kind.startsWith('operator_') ? '_self' : ''}`, { actor: notice.actor, subject: notice.subject, space: notice.space, role: notice.role ? t(`roles.${notice.role}`) : '' })}</p>
             <div className="mt-1 flex gap-1.5">
               {notice.kind === 'invite' ? (
                 <>

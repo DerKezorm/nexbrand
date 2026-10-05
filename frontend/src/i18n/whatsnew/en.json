@@ -1,43 +1,57 @@
 {
   "0.1.0": {
-    "lead": "The first version of nexbrand: your clients' corporate design in one place, with every version, the checks that go with it and the way into code.",
+    "lead": "The first version of nexbrand: your clients' corporate design in one place, with every version, the checks that go with it, each client's projects and the way into code.",
     "sections": [
       {
         "title": "Clients and their design sets",
         "where": "Clients, then open a client",
-        "body": "Colours with roles and print values, fonts with their licence, logos with their ground, type sizes, rules and example files. Each colour shows its scale from 50 to 950 and its contrast with white and dark."
+        "body": "Colours with role and print values, fonts with their licence, logos with their ground, type sizes, rules and example files. Every colour shows its steps from 50 to 950 and its contrast with white and dark."
       },
       {
-        "title": "Versions on a time line",
-        "where": "At the top of a client's page",
-        "body": "Every change is a draft first; publishing gives it the day it holds from, and then it stays as it is. “As of” shows any day, “3 years ago” is one click. Two versions side by side show what changed. Projects keep their version and move only when somebody moves them."
+        "title": "Versions on a timeline",
+        "where": "At the top of a client's page, History tab",
+        "body": "Every change starts as a draft; it is published with the day it is valid from and stays as it is after that. “As of” shows any day, “3 years ago” is one click. Two versions side by side show what changed."
       },
       {
-        "title": "Checks that are computed",
-        "where": "A client's “Checks” tab, and Contrast in the top bar",
-        "body": "Contrast of every pair by WCAG 2.2, logos at 3:1, colour vision deficiencies, colours nearly the same, text too small, fonts that may not leave the house. The contrast calculator proposes the nearest colour of the same hue that passes."
+        "title": "Projects with a CI of their own",
+        "where": "A client's Projects tab, then “New project”",
+        "body": "An app, a product or a campaign gets versions of its own on a version of the client. For each part you decide: as the client, as the client plus its own, or entirely its own. When the client gets a new version, the project stays where it is until you move it with “Move to …”."
       },
       {
-        "title": "Make a new CI and agree on it",
-        "where": "New client, top right",
-        "body": "Start from a few words, a picture, one colour or nothing. The workbench proposes harmonies, neutrals, a font pair and sizes, with a sample page and the checks running next to it. The directions go to the client by link; their choice becomes version 1.0."
+        "title": "Dark mode as part of the CI",
+        "where": "In a draft, Colours tab, “Suggest a dark mode”",
+        "body": "nexbrand suggests ground, surface, text, muted text, main colour and text on it for dark pages from the palette. You adjust the mapping, the checks include it, the export carries it, and preview and review switch between light and dark."
       },
       {
-        "title": "Collect from a website, a repository or a PDF",
+        "title": "Checks and rules that are computed",
+        "where": "A client's Checks and Rules tabs, and Contrast in the top bar",
+        "body": "Contrast of every combination by WCAG 2.2, logos at 3:1, colour vision deficiencies, nearly identical colours, text that is too small, fonts that must not leave the house. Rules for colour pairs, logo grounds and fonts are checked, for programs through the API and MCP too; free rules stay text for people. The contrast calculator suggests the nearest colour of the same hue that is enough."
+      },
+      {
+        "title": "Create a new CI and agree on it",
+        "where": "New client, top right; then the Review tab",
+        "body": "Start from a few words, a picture, a colour or nothing. The workbench suggests colour schemes, neutrals, a font pair and sizes, with a sample page and the checks running alongside. The directions go to the client by link, by mail too if you like. The client pages through your drafts at full size, comments on each picture and chooses; that choice becomes version 1.0. What the client writes is counted on the tab and in the client list until someone of yours opens the review."
+      },
+      {
+        "title": "Collect from a website, repo or PDF",
         "where": "Collect, in the top bar",
-        "body": "Colours, fonts and logos are measured and sorted, by rules or by your own AI. They become a draft, or you check a site against the CI and find the nearly right shades. The operator opens websites and repositories under Settings, Server, Collecting and AI."
+        "body": "Colours, fonts and logos are measured and sorted, by rules or with your own AI. The result becomes a draft, or you check a page against the CI and find the nearly right shades. The operator allows websites and repos under Settings, Server, Collecting and AI."
       },
       {
-        "title": "As code, over the API and MCP",
+        "title": "As code, through the API and MCP",
         "where": "“As code” on a client's page; tokens under My account, Connections",
-        "body": "Every version as CSS variables, a Tailwind 4 theme, SCSS or design tokens. Programs read over /api/v1, an AI in an editor over MCP. A token of the level “draft” writes a redesign back, always as a draft."
+        "body": "Every version as CSS variables, a Tailwind 4 theme, SCSS or design tokens, on the public page for developers without an account too. Programs read through /api/v1, an AI in an editor through MCP. By default a token covers only the clients you choose and lasts 90 days; one of the level “Read and propose drafts” writes a redesign back, always as a draft."
       }
     ],
     "smallTitle": "Also",
     "small": [
-      "Public links show a design set read only, a fixed version or always the current one, with an end date and a password.",
-      "nexbrand runs on its own or as part of the suite with nexsuite (Settings, Server, nexsuite).",
-      "Accounts, second factor, sign-in through OIDC with an authentik button, log, languages and backups as in nexlore."
+      "Public links show a design set read-only, a fixed version or always the current one, with an expiry date and a password. Everyone who may write for a client creates and sees its links.",
+      "nexbrand runs on its own or as part of the suite with nexsuite (Settings, Server, nexsuite). Connected, people, teams, clients and the sign-in come from there.",
+      "Client, project and team names exist only once; nexbrand says so as you create them.",
+      "A blocked account learns at sign-in that it is blocked and whom to ask. The block dialog names the open client links of the person, with a button to withdraw them.",
+      "Team leads change their teams only when the operator allows it (Settings, Teams).",
+      "Notices speak to you directly, numbers come in the right singular and plural, and every message from the server is a whole sentence in your language.",
+      "Accounts, second factor, sign-in through OIDC with the authentik button, log, own languages and backups."
     ]
   }
 }

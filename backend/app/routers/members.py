@@ -277,6 +277,7 @@ class NoticeOut(BaseModel):
     actor: str
     subject: str
     created_at: datetime
+    mine: bool = False
 
 
 @router.get("/notices", response_model=list[NoticeOut], summary="Open invitations and what the operator changed")

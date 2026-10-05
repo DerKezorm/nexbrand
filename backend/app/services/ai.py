@@ -53,6 +53,33 @@ EVENT_DAYS = 14
 MAX_EVENTS = 200
 
 
+#: The English sentence for each code, for whoever uses the API directly; the page builds its own from the code.
+MESSAGES = {
+    "ai_off": "The operator has not allowed AI.",
+    "ai_not_on": "Your AI is switched off.",
+    "ai_incomplete": "Save an address and a model first.",
+    "ai_address_missing": "An address is missing.",
+    "ai_address_invalid": "The address must start with http:// or https://.",
+    "ai_address_not_found": "No AI service answers at this address.",
+    "ai_address_private": "This address is in your own network. The operator has to allow the machine first.",
+    "ai_address_refused": "This address is blocked.",
+    "ai_hosts_invalid": "One of the machines is not a valid name.",
+    "ai_key_refused": "The service refuses the key.",
+    "ai_no_list": "The service names no models. Enter the model by hand.",
+    "ai_no_models": "The service has no models.",
+    "ai_not_json": "The AI did not answer in the format asked for.",
+    "ai_empty": "The AI answered nothing.",
+    "ai_unreadable": "The AI's answer could not be read.",
+    "ai_service_busy": "The service is busy right now. Try again in a moment.",
+    "ai_service_failed": "The service reports an error.",
+    "ai_task_unknown": "There is no such task.",
+    "ai_text_too_long": "Too much material at once (at most {max} characters).",
+    "ai_timeout": "The service did not answer within {seconds} seconds.",
+    "ai_too_often": "Too many requests in one minute.",
+    "ai_unreachable": "The server cannot reach the service.",
+}
+
+
 class AiError(Exception):
     """Something to tell the person in front of the screen; ``code`` names it for the interface."""
 
@@ -61,6 +88,17 @@ class AiError(Exception):
         self.code = code
         self.status = status
         self.values = values
+
+    @property
+    def message(self) -> str:
+        return MESSAGES.get(self.code, "The AI service could not be used.").format_map(_Holes(self.values))
+
+
+class _Holes(dict):
+    """A value the sentence names but the error left out stays as its name instead of failing."""
+
+    def __missing__(self, key: str) -> str:
+        return "{" + key + "}"
 
 
 # --- The access ------------------------------------------------------------------------------------------------------

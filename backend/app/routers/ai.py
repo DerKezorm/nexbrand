@@ -48,7 +48,7 @@ def _row(db: DbSession, account: Account) -> AccountRow:
 
 
 def _fail(exc: ai.AiError) -> Exception:
-    return error(exc.code, exc.code.replace("_", " "), exc.status, **exc.values)
+    return error(exc.code, exc.message, exc.status, **exc.values)
 
 
 @router.get("", summary="The own AI service: allowed by the operator, and the access")

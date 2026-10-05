@@ -338,7 +338,11 @@ export function AllSpacesCard({ server }: { server: Server }) {
           <li key={space.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
             <span className="font-medium text-mist-100">{space.name}</span>
             <span className="text-xs text-mist-500">
-              {space.members === 0 ? t('server.allSpaces.yours') : t('server.allSpaces.members', { count: space.members, managers: space.managers.join(', ') || '–' })}
+              {space.members === 0
+                ? t('server.allSpaces.yours')
+                : space.managers.length
+                  ? t('server.allSpaces.members', { count: space.members, managers: space.managers.join(', ') })
+                  : t('server.allSpaces.membersNoManager', { count: space.members })}
             </span>
             <span className="ml-auto">
               {/* Rights nexsuite keeps are only looked at here (G8). */}
@@ -733,7 +737,7 @@ export function MailCard({ server, managed = false }: { server: Server; managed?
         />
         <Input label={t('server.smtpUser')} value={value.smtp_user} onChange={(smtp_user) => setDraft({ ...draft, smtp_user })} />
         <Input label={t('auth.password')} type="password" autoComplete="new-password" value={draft.smtp_password ?? ''} onChange={(smtp_password) => setDraft({ ...draft, smtp_password })} placeholder={s.smtp_password_set ? t('server.secretKept') : ''} />
-        <Input label={t('server.smtpFrom')} value={value.smtp_from} onChange={(smtp_from) => setDraft({ ...draft, smtp_from })} placeholder="boards@example.com" />
+        <Input label={t('server.smtpFrom')} value={value.smtp_from} onChange={(smtp_from) => setDraft({ ...draft, smtp_from })} placeholder="brand@example.com" />
         <div className="sm:col-span-2">
           <Button type="submit" accent busy={server.busy}>
             {t('common.save')}
@@ -832,7 +836,7 @@ export function BackupsCard({ server }: { server: Server }) {
             <div className="min-w-0 flex-1">
               <div className="text-mist-100">{moment(entry.created, i18n.language)}</div>
               <div className="text-xs text-mist-500">
-                {t(`server.kinds.${entry.kind}`)} · {t('server.backupContent', { clients: entry.clients, files: entry.files })} · {size(entry.size)} · {entry.version}
+                {t(`server.kinds.${entry.kind}`)} · {t('server.backupContent', { clients: t('server.backupClients', { count: entry.clients }), files: t('server.backupFiles', { count: entry.files }) })} · {size(entry.size)} · {entry.version}
               </div>
             </div>
             <button type="button" className={icon} title={t('server.check')} aria-label={t('server.check')} onClick={() => void action.run(async () => setBrief({ ...(await api<Brief>(`/api/backups/${entry.name}/check`, { method: 'POST' })), name: entry.name }))}>
@@ -858,7 +862,7 @@ export function BackupsCard({ server }: { server: Server }) {
       </ul>
       {brief && (
         <div className={'rounded-xl border px-4 py-3 text-sm ' + (brief.usable ? 'border-ok-500/40 bg-ok-500/10 text-mist-200' : 'border-bad-500/40 bg-bad-500/10 text-bad-500')}>
-          {brief.usable ? t('server.checkOk', { clients: brief.clients, files: brief.files, add: brief.would_add, remove: brief.would_remove }) : t('server.checkBad')}
+          {brief.usable ? t('server.checkOk', { clients: t('server.backupClients', { count: brief.clients }), files: t('server.backupFiles', { count: brief.files }), add: t('server.backupFiles', { count: brief.would_add }), remove: t('server.backupFiles', { count: brief.would_remove }) }) : t('server.checkBad')}
         </div>
       )}
       {restarting && <p className="rounded-xl border border-warn-500/40 bg-warn-500/10 px-4 py-3 text-sm text-warn-500">{t('server.restarting')}</p>}

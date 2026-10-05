@@ -1,6 +1,6 @@
 {
   "0.1.0": {
-    "lead": "Die erste Fassung von nexbrand: die CI deiner Kunden an einem Ort, mit allen Fassungen, den Prüfungen dazu und dem Weg in den Code.",
+    "lead": "Die erste Fassung von nexbrand: die CI deiner Kunden an einem Ort, mit allen Fassungen, den Prüfungen dazu, den Projekten jedes Kunden und dem Weg in den Code.",
     "sections": [
       {
         "title": "Kunden und ihre Designsets",
@@ -9,18 +9,28 @@
       },
       {
         "title": "Fassungen auf einer Zeitleiste",
-        "where": "Oben auf der Seite eines Kunden",
-        "body": "Jede Änderung ist zuerst ein Entwurf; veröffentlicht wird sie mit dem Tag, ab dem sie gilt, und bleibt dann, wie sie ist. „Stand am“ zeigt jeden Tag, „vor 3 Jahren“ ist ein Klick. Zwei Fassungen nebeneinander zeigen, was sich geändert hat. Projekte hängen an ihrer Fassung und werden nur bewusst gehoben."
+        "where": "Oben auf der Seite eines Kunden, Reiter „Verlauf“",
+        "body": "Jede Änderung ist zuerst ein Entwurf; veröffentlicht wird sie mit dem Tag, ab dem sie gilt, und bleibt dann, wie sie ist. „Stand am“ zeigt jeden Tag, „vor 3 Jahren“ ist ein Klick. Zwei Fassungen nebeneinander zeigen, was sich geändert hat."
       },
       {
-        "title": "Prüfungen, die gerechnet werden",
-        "where": "Reiter „Prüfung“ eines Kunden, und Kontrast oben in der Leiste",
-        "body": "Kontrast jeder Kombination nach WCAG 2.2, Logos mit 3:1, Farbfehlsichtigkeiten, fast gleiche Farben, zu kleine Schrift, Schriften, die das Haus nicht verlassen dürfen. Der Kontrastrechner schlägt die nächste Farbe im gleichen Ton vor, die reicht."
+        "title": "Projekte mit eigener CI",
+        "where": "Reiter „Projekte“ eines Kunden, dort „Neues Projekt“",
+        "body": "Eine App, ein Produkt oder eine Kampagne bekommt eigene Fassungen auf einer Fassung des Kunden. Für jeden Teil legst du fest: wie beim Kunden, wie beim Kunden plus Eigenes, oder ganz eigen. Erscheint beim Kunden eine neue Fassung, bleibt das Projekt, wo es ist, bis du es mit „Auf … umstellen“ nachziehst."
+      },
+      {
+        "title": "Dunkelmodus als Teil der CI",
+        "where": "Im Entwurf, Reiter „Farben“, „Dunkelmodus vorschlagen“",
+        "body": "nexbrand schlägt aus der Palette Grund, Fläche, Text, gedämpften Text, Hauptfarbe und Text darauf für dunkle Seiten vor. Du passt die Zuordnung an, die Prüfung rechnet sie mit, der Export nimmt sie mit, und Vorschau und Abstimmung schalten zwischen hell und dunkel um."
+      },
+      {
+        "title": "Prüfungen und Regeln, die gerechnet werden",
+        "where": "Reiter „Prüfung“ und „Regeln“ eines Kunden, und Kontrast oben in der Leiste",
+        "body": "Kontrast jeder Kombination nach WCAG 2.2, Logos mit 3:1, Farbfehlsichtigkeiten, fast gleiche Farben, zu kleine Schrift, Schriften, die das Haus nicht verlassen dürfen. Regeln für Farbpaare, Logo-Gründe und Schriften werden geprüft, auch für Programme über API und MCP; freie Regeln bleiben Text für Menschen. Der Kontrastrechner schlägt die nächste Farbe im gleichen Ton vor, die reicht."
       },
       {
         "title": "Eine neue CI anlegen und abstimmen",
-        "where": "Neuer Kunde, oben rechts",
-        "body": "Start aus ein paar Worten, einem Bild, einer Farbe oder leer. Die Werkbank schlägt Farbklänge, Neutraltöne, ein Schriftpaar und Größen vor, Beispielseite und Prüfung laufen daneben mit. Die Richtungen gehen per Link an den Kunden; seine Wahl wird Fassung 1.0."
+        "where": "Neuer Kunde oben rechts; danach Reiter „Abstimmung“",
+        "body": "Start aus ein paar Worten, einem Bild, einer Farbe oder leer. Die Werkbank schlägt Farbklänge, Neutraltöne, ein Schriftpaar und Größen vor, Beispielseite und Prüfung laufen daneben mit. Die Richtungen gehen per Link an den Kunden, auf Wunsch gleich per Mail. Der Kunde blättert durch eure Entwürfe in groß, kommentiert jedes Bild und wählt; seine Wahl wird Fassung 1.0. Was er Neues schreibt, zählt nexbrand am Reiter und in der Kundenliste, bis jemand von euch die Abstimmung öffnet."
       },
       {
         "title": "Sammeln aus Webseite, Repo und PDF",
@@ -29,15 +39,19 @@
       },
       {
         "title": "Als Code, per API und MCP",
-        "where": "„Als Code“ auf der Seite eines Kunden; Schlüssel unter Mein Konto, Verbindungen",
-        "body": "Jede Fassung als CSS-Variablen, Tailwind-4-Theme, SCSS oder Design-Tokens. Programme lesen über /api/v1, eine KI im Editor über MCP. Ein Schlüssel der Stufe „Entwurf“ schreibt ein Redesign zurück, immer als Entwurf."
+        "where": "„Als Code“ auf der Seite eines Kunden; Token unter Mein Konto, Verbindungen",
+        "body": "Jede Fassung als CSS-Variablen, Tailwind-4-Theme, SCSS oder Design-Tokens, auch auf der Freigabeseite für Entwickler ohne Konto. Programme lesen über /api/v1, eine KI im Editor über MCP. Ein Token gilt ab Werk nur für die Kunden, die du wählst, und 90 Tage; eines der Stufe „Lesen und Entwürfe anlegen“ schreibt ein Redesign zurück, immer als Entwurf."
       }
     ],
     "smallTitle": "Außerdem",
     "small": [
-      "Freigabelinks zeigen ein Designset nur zum Lesen, eine feste Fassung oder immer die aktuelle, mit Ablaufdatum und Passwort.",
-      "nexbrand läuft allein oder als Teil der Suite mit nexsuite (Einstellungen, Server, nexsuite).",
-      "Konten, zweiter Faktor, Anmeldung über OIDC mit authentik-Knopf, Log, Sprachen und Sicherung wie in nexlore."
+      "Freigabelinks zeigen ein Designset nur zum Lesen, eine feste Fassung oder immer die aktuelle, mit Ablaufdatum und Passwort. Links anlegen und sehen dürfen alle, die beim Kunden schreiben.",
+      "nexbrand läuft allein oder als Teil der Suite mit nexsuite (Einstellungen, Server, nexsuite). Verbunden kommen Personen, Teams, Kunden und die Anmeldung von dort.",
+      "Kunden-, Projekt- und Teamnamen gibt es nur einmal; nexbrand sagt es gleich beim Anlegen.",
+      "Ein gesperrtes Konto erfährt bei der Anmeldung, dass es gesperrt ist und wen es fragen kann. Offene Kundenlinks einer gesperrten Person nennt der Sperrdialog, mit Knopf zum Zurückziehen.",
+      "Teamleitungen ändern ihre Teams nur, wenn der Betreiber es erlaubt (Einstellungen, Teams).",
+      "Hinweise sprechen dich direkt an, Zahlen stehen in Einzahl und Mehrzahl richtig, und jede Meldung des Servers kommt als ganzer Satz in deiner Sprache.",
+      "Konten, zweiter Faktor, Anmeldung über OIDC mit authentik-Knopf, Log, eigene Sprachen und Sicherung."
     ]
   }
 }

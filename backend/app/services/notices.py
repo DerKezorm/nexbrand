@@ -39,9 +39,12 @@ class NoticeView:
     kind: str
     space: str
     role: str
+    #: Display names (the sign-in name when there is none): the line is read, not matched.
     actor: str
     subject: str
     created_at: datetime
+    #: The notice is about the account reading it: the page says "you" instead of its name (H5).
+    mine: bool = False
 
 
 def invite(db: Session, space: Space, target: Account | None, role: str, by: Account) -> None:
@@ -90,9 +93,22 @@ def open_for(db: Session, account_id: int) -> list[NoticeView]:
         .where(SpaceNotice.account_id == account_id, SpaceNotice.done_at.is_(None), SpaceNotice.created_at > since)
         .order_by(SpaceNotice.created_at.desc(), SpaceNotice.id.desc())
     )
+    rows = list(rows)
+    own = db.get(Account, account_id)
+    names = {row.subject for row in rows if row.subject} | {row.actor for row in rows if row.actor}
+    people = {person.name: person for person in db.scalars(select(Account).where(Account.name.in_(names)))}
+    by_id = {person.id: person for person in db.scalars(
+        select(Account).where(Account.id.in_({row.actor_id for row in rows if row.actor_id is not None})))}
+
+    def shown(name: str, person: Account | None = None) -> str:
+        person = person or people.get(name)
+        return (person.display_name or person.name) if person is not None else name
+
     return [
-        NoticeView(id=row.id, kind=row.kind, space=row.space_name, role=row.role, actor=row.actor,
-                   subject=row.subject, created_at=row.created_at)
+        NoticeView(id=row.id, kind=row.kind, space=row.space_name, role=row.role,
+                   actor=shown(row.actor, by_id.get(row.actor_id) if row.actor_id is not None else None),
+                   subject=shown(row.subject) if row.subject else "", created_at=row.created_at,
+                   mine=own is not None and bool(row.subject) and row.subject == own.name)
         for row in rows
     ]
 

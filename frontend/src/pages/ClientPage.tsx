@@ -650,9 +650,9 @@ function EditClient({ whole, onClose, onSaved }: { whole: ClientWhole; onClose: 
             <dt className="text-mist-500">{t('client.name')}</dt>
             <dd>{whole.name}</dd>
             <dt className="text-mist-500">{t('client.sector')}</dt>
-            <dd>{whole.sector || '–'}</dd>
+            <dd>{whole.sector || t('suite.notSet')}</dd>
             <dt className="text-mist-500">{t('client.contact')}</dt>
-            <dd>{whole.contact || '–'}</dd>
+            <dd>{whole.contact || t('suite.notSet')}</dd>
           </dl>
         ) : (
           <>
