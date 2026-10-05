@@ -27,7 +27,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi import Path as PathParam
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from ..db import SessionLocal
 from ..deps import Account, DbSession, client_ip
@@ -245,9 +245,10 @@ def withdraw(client_id: ClientId, review_id: int, account: Account, db: DbSessio
     client, review = _review(db, account, client_id, review_id, WRITE)
     if review.created_by != account.id and not rights.at_least(_role(db, account, client), MANAGE):
         raise error("forbidden", "Whoever put the draft forward, or a manager of the client, withdraws it.", 403)
-    if review.status == "open":
-        review.status = "closed"
-        db.commit()
+    # Conditional, as the client's choice: a review chosen at the same moment stays chosen.
+    db.execute(update(Review).where(Review.id == review.id, Review.status == "open").values(status="closed")
+               .execution_options(synchronize_session=False))
+    db.commit()
 
 
 def _comment(db: Any, review: Review, variant: str, author: str, text: str, *, agency: bool,
@@ -282,7 +283,8 @@ def _open(db: Any, token: str) -> tuple[Review, Client]:
         or space is None or space.deleted_at is not None
         or review.status == "closed"
         or not settings_service.get(db, "shares_allowed")
-        or (review.expires_at is not None and review.expires_at <= utcnow() and review.status == "open")
+        # Run out is run out, chosen too: withdrawing the links of a blocked person ends a chosen page this way (A15).
+        or (review.expires_at is not None and review.expires_at <= utcnow())
     ):
         raise error("not_found", "Not found.", 404)
     return review, client
@@ -377,11 +379,16 @@ def choose(token: Token, payload: ChooseIn, request: Request) -> dict[str, Any]:
         version.published_by = who or client.name
         version.updated_at = utcnow()
         client.updated_at = utcnow()
-        review.status = "chosen"
-        review.chosen = variant["id"]
-        review.chosen_by = who
-        review.chosen_at = utcnow()
+        # Only while it is still open, decided by the database: a withdrawal at the same moment is never overwritten
+        # with "chosen", and then nothing of the choice is kept (A15).
+        taken = db.execute(update(Review).where(Review.id == review.id, Review.status == "open")
+                           .values(status="chosen", chosen=variant["id"], chosen_by=who, chosen_at=utcnow())
+                           .execution_options(synchronize_session=False))
+        if taken.rowcount != 1:
+            db.rollback()
+            raise error("review_closed", "This review is closed.", 409)
         db.commit()
+        db.refresh(review)
         logger.info("Review chosen client=%s version=%s direction=%s", client.id, version.id, variant["id"])
         return _page(db, review, client)
 

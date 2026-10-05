@@ -221,8 +221,8 @@ export function AccountsCard({ readOnly = false }: { readOnly?: boolean }) {
       <Feedback problem={problem} done={done} />
       {asking && (
         <Confirm
-          title={t(`server.confirm.${asking.kind}.title`, { name: asking.account.name })}
-          text={t(`server.confirm.${asking.kind}.text`, { name: asking.account.name })}
+          title={t(`server.confirm.${asking.kind}.title`, { name: asking.account.display_name || asking.account.name })}
+          text={t(`server.confirm.${asking.kind}.text`, { name: asking.account.display_name || asking.account.name })}
           confirm={t(`server.confirm.${asking.kind}.button`)}
           danger={asking.kind === 'delete' || asking.kind === 'block'}
           password={me?.sign_in === 'password' && asking.kind !== 'signout'}

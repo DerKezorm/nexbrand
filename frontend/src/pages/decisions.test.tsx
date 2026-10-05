@@ -192,6 +192,8 @@ describe('the open links of an account', () => {
     const page = await mount(<AccountsCard />)
     expect(page.textContent).toContain(i18n.t('server.openLinks', { count: 2 }))
     await click(buttons(i18n.t('server.block'))[0])
+    // Title and box name the person alike, by the name others see.
+    expect(document.body.querySelector('[role="dialog"]')?.getAttribute('aria-label')).toBe(i18n.t('server.confirm.block.title', { name: 'Wim' }))
     const note = document.body.querySelector('[data-testid="open-links"]')
     expect(note?.textContent).toContain(i18n.t('server.linksStay', { count: 2, name: 'Wim' }))
     const withdraw = [...(note?.querySelectorAll('button') ?? [])].find((b) => b.textContent?.trim() === i18n.t('server.withdrawLinks'))
@@ -286,5 +288,17 @@ describe('disconnecting', () => {
     await click(buttons(i18n.t('suite.disconnect')).at(-1))
     expect(calls('POST', '/api/suite/disconnect')).toHaveLength(1)
     expect(page.textContent).toContain(i18n.t('suite.operatorsBack', { names: 'anna, fritz' }))
+  })
+
+  it('of a connection from before the roles were kept names who stays an operator', async () => {
+    auth.me = { ...ME, suite: 'connected', suite_emergency: true } as Me
+    server.handler = (_m, path) => {
+      if (path === '/api/suite') return { status: 200, body: { state: 'connected', url: 'https://suite.example.com', last_sync: null, problem: '', emergency_codes: 0, mail: false, operators_from_suite: [], operators_unknown: ['anna'] } }
+    }
+    const { SuiteCard } = await import('../components/Suite')
+    await mount(<SuiteCard />)
+    await click(buttons(i18n.t('suite.disconnect'))[0])
+    expect(document.body.querySelector('[data-testid="leave-operators-unknown"]')?.textContent).toBe(i18n.t('suite.leaveOperatorsUnknown', { names: 'anna' }))
+    expect(document.body.querySelector('[data-testid="leave-operators"]')).toBeNull()
   })
 })

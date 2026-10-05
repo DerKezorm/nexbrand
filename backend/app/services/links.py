@@ -19,11 +19,12 @@ def _share_open(now: datetime) -> ColumnElement[bool]:
 
 
 def _review_open(now: datetime) -> ColumnElement[bool]:
-    return (Review.status == "open") & or_(Review.expires_at.is_(None), Review.expires_at > now)
+    """A review page that still opens: open, or chosen (the client still sees the choice), and not run out."""
+    return Review.status.in_(("open", "chosen")) & or_(Review.expires_at.is_(None), Review.expires_at > now)
 
 
 def open_counts(db: Session) -> dict[int, int]:
-    """Per account id: its public pages not run out and its reviews still open."""
+    """Per account id: its public pages not run out and its review pages that still open."""
     now = utcnow()
     counts: dict[int, int] = {}
     for model, still_open in ((Share, _share_open(now)), (Review, _review_open(now))):
@@ -35,10 +36,15 @@ def open_counts(db: Session) -> dict[int, int]:
 
 
 def withdraw_all(db: Session, account_id: int) -> int:
-    """Takes the account's public pages down and closes its open reviews, in one transaction; how many."""
+    """Takes the account's public pages down, closes its open reviews and lets its chosen ones run out now (the choice
+    stays in the history), in one transaction; how many. Each a conditional update: a choice made at the same moment
+    is either closed with it or not counted, never overwritten."""
     now = utcnow()
     pages = db.execute(delete(Share).where(Share.created_by == account_id, _share_open(now)))
-    reviews = db.execute(update(Review).where(Review.created_by == account_id, _review_open(now))
-                         .values(status="closed"))
+    still_open = or_(Review.expires_at.is_(None), Review.expires_at > now)
+    closed = db.execute(update(Review).where(Review.created_by == account_id, Review.status == "open", still_open)
+                        .values(status="closed"))
+    ended = db.execute(update(Review).where(Review.created_by == account_id, Review.status == "chosen", still_open)
+                       .values(expires_at=now))
     db.commit()
-    return int(pages.rowcount or 0) + int(reviews.rowcount or 0)
+    return int(pages.rowcount or 0) + int(closed.rowcount or 0) + int(ended.rowcount or 0)

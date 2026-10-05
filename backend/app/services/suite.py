@@ -121,6 +121,17 @@ def operators_from_suite(db: Session) -> list[Account]:
             if row.id != keeper and roles.get(str(row.id)) != OPERATOR]
 
 
+def operators_unknown(db: Session) -> list[Account]:
+    """For a connection from before the roles were kept: the operators here besides the emergency account. Nobody
+    knows whether they were operators before, so they stay operators after a disconnect; the dialog names them."""
+    saved = settings_service.get(db, "suite_saved") or {}
+    if not connected(db) or (isinstance(saved, dict) and isinstance(saved.get("roles"), dict)):
+        return []
+    keeper = int(settings_service.get(db, "suite_emergency_account") or 0)
+    return [row for row in db.scalars(select(Account).where(Account.role == OPERATOR).order_by(Account.name))
+            if row.id != keeper]
+
+
 def view(db: Session) -> dict[str, Any]:
     return {
         "state": state(db),

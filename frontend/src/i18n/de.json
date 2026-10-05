@@ -281,7 +281,7 @@
       },
       "links": {
         "title": "Links von {{name}} zurückziehen?",
-        "text": "Freigaben gehen offline, offene Abstimmungen werden geschlossen. Wer einen Link hat, sieht dort danach nichts mehr.",
+        "text": "Freigaben gehen offline, Abstimmungen werden geschlossen, auch entschiedene. Wer einen Link hat, sieht dort danach nichts mehr.",
         "button": "Zurückziehen"
       }
     },
@@ -1002,7 +1002,8 @@
     "someoneElse": "Als jemand anderes anmelden",
     "someoneElseHint": "nexsuite öffnet sich in einem neuen Tab. Melde dich dort ab und nimm dann hier „Anmelden mit nexsuite“.",
     "leaveOperators": "Nur durch nexsuite Betreiber, danach wieder Mitglied: {{names}}.",
-    "operatorsBack": "Wieder Mitglied, Betreiber waren sie nur durch nexsuite: {{names}}."
+    "operatorsBack": "Wieder Mitglied, Betreiber waren sie nur durch nexsuite: {{names}}.",
+    "leaveOperatorsUnknown": "Für diese Verbindung ist nicht bekannt, wer vorher Betreiber war; diese Betreiber bleiben es: {{names}}."
   },
   "origin": {
     "hand": "von Hand",

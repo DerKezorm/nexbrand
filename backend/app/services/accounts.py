@@ -206,24 +206,23 @@ def authenticate(db: Session, name: str, password: str, device: int | None = Non
         logger.warning("Sign-in failed for an unknown account")
         raise AccountError("wrong_credentials", "Name or password is wrong.", 401)
     known_device = device == account.id
-    if account.blocked_at is not None:
-        # The real hash, so that the answer takes as long as any other; a wrong password does not count towards the
-        # lock of an account that cannot sign in anyway, and a locked one says nothing more.
-        right = verify_password(password, account.password_hash or _dummy_hash()) and bool(account.password_hash)
-        if right and not (is_locked(account) and not known_device):
-            logger.warning("Sign-in refused, account blocked name=%s", account.name)
-            raise AccountError("account_blocked", "This account is blocked. Ask the operator to unblock it.", 403)
-        raise AccountError("wrong_credentials", "Name or password is wrong.", 401)
     with _one_check_at_a_time(account.id):
         db.refresh(account)
         if is_locked(account) and not known_device:
             verify_password(password, _dummy_hash())
             logger.warning("Sign-in refused, account locked name=%s", account.name)
             raise AccountError("wrong_credentials", "Name or password is wrong.", 401)
-        if not verify_password(password, account.password_hash):
+        if not verify_password(password, account.password_hash or _dummy_hash()) or not account.password_hash:
+            # Blocked or not: every wrong password counts towards the lock, the one limit across all senders.
+            # Otherwise a blocked account would confirm a guessed password from ever new addresses (A16).
             if not known_device:
                 note_failure(db, account)
             raise AccountError("wrong_credentials", "Name or password is wrong.", 401)
+        if account.blocked_at is not None:
+            # The right password, and the account is not locked: it hears that it is blocked and whom to ask. Its
+            # count of failures is not reset; the caller counts this for the brakes like a failure.
+            logger.warning("Sign-in refused, account blocked name=%s", account.name)
+            raise AccountError("account_blocked", "This account is blocked. Ask the operator to unblock it.", 403)
         if not account.totp_secret_enc:
             # With a second factor, only the code resets the count of failures: otherwise whoever knows the password
             # could guess codes forever, a new password step before each lockout.

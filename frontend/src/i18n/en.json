@@ -281,7 +281,7 @@
       },
       "links": {
         "title": "Withdraw the links of {{name}}?",
-        "text": "Public pages go offline and open reviews close. Whoever has a link sees nothing there any more.",
+        "text": "Public pages go offline and reviews close, decided ones too. Whoever has a link sees nothing there any more.",
         "button": "Withdraw"
       }
     },
@@ -1002,7 +1002,8 @@
     "someoneElse": "Sign in as someone else",
     "someoneElseHint": "nexsuite opens in a new tab. Sign out there, then use “Sign in with nexsuite” here.",
     "leaveOperators": "Operators through nexsuite only, members again afterwards: {{names}}.",
-    "operatorsBack": "Members again, they were operators through nexsuite only: {{names}}."
+    "operatorsBack": "Members again, they were operators through nexsuite only: {{names}}.",
+    "leaveOperatorsUnknown": "For this connection it is not known who was an operator before; these operators stay operators: {{names}}."
   },
   "origin": {
     "hand": "by hand",

@@ -11,6 +11,7 @@ numbers of LISTE.md in brackets).
 
 from __future__ import annotations
 
+from datetime import timedelta
 from email.message import EmailMessage
 from typing import Any
 
@@ -18,17 +19,19 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.db import SessionLocal
-from app.models import Account, Review, Share, TeamMember
+from app.models import Account, Review, Share, TeamMember, utcnow
 from app.security import Brake
 from app.services import mailer, settings_service
 
-from . import test_suite
+from . import test_suite, test_totp
 from .conftest import PASSWORD, join, make_account, new_client
 from .test_brands import SET, make_client
 from .test_suite import FakeSuite, connect
+from .test_totp import code_step, current_code, enrol, password_step
 
 fake = test_suite.fake
 world = test_suite.world
+clock = test_totp.clock
 
 
 def _row(name: str) -> Account:
@@ -133,6 +136,49 @@ def test_a16_the_emergency_way_says_blocked_too(client: TestClient, operator: Ac
         assert answer.status_code == 403 and answer.json()["detail"]["code"] == "account_blocked"
 
 
+def _sender(host: str) -> TestClient:
+    from app.main import app
+
+    return TestClient(app, base_url="http://testserver", headers={"X-Nexbrand-Client": "tab-tests000"},
+                      client=(host, 50000))
+
+
+def test_a16_a_blocked_account_confirms_no_password_past_the_lock(client: TestClient, operator: Account) -> None:
+    """Wrong passwords count towards the lock for a blocked account too: from ever new senders, after ten of them it
+    says nothing more, the right password included (the one limit across all senders)."""
+    make_account("dora")
+    eva = make_account("eva")
+    client.post(f"/api/accounts/{eva.id}/block", json={"current_password": PASSWORD})
+    # Each one from a network of its own: IPv6 senders count per /64.
+    for prefix, name in (("1", "dora"), ("2", "eva")):
+        for i in range(30):
+            with _sender(f"2001:db8:{prefix}{i:02x}::1") as browser:
+                assert _login(browser, name, f"guess {i}").status_code == 401
+        with _sender(f"2001:db8:{prefix}ff::1") as browser:
+            right = _login(browser, name, PASSWORD)
+        assert right.status_code == 401 and right.json()["detail"]["code"] == "wrong_credentials", name
+
+
+def test_a16_blocked_between_password_and_code_gets_no_session(client: TestClient, operator: Account,
+                                                               clock: Any) -> None:
+    secret, _codes = enrol(client)
+    client.post("/api/auth/logout")
+    client.cookies.clear()
+    password_step(client)
+    with SessionLocal() as db:
+        row = db.get(Account, operator.id)
+        assert row is not None
+        row.blocked_at = utcnow()
+        db.commit()
+    clock.advance(30)
+    answer = code_step(client, current_code(secret))
+    assert answer.status_code == 403 and answer.json()["detail"]["code"] == "account_blocked"
+    assert "nexbrand_session" not in answer.headers.get("set-cookie", "")
+    assert client.get("/api/auth/me").status_code == 401
+    # The waiting sign-in is over: the code does not count a second time.
+    assert code_step(client, current_code(secret)).json()["detail"]["code"] == "second_factor_expired"
+
+
 # --- A15: the links of a blocked or deleted person ------------------------------------------------------------------
 
 
@@ -183,20 +229,72 @@ def test_a15_the_links_stay_and_the_operator_withdraws_them_with_the_password(
         assert member.post(f"/api/accounts/{wim.id}/links/withdraw", json={}).status_code == 403
 
 
-def test_a15_deleting_an_account_leaves_its_links_and_only_open_ones_count(
+def test_a15_deleting_an_account_leaves_its_links_and_only_pages_that_open_count(
     client: TestClient, operator: Account, space: int
 ) -> None:
     wim = make_account("wim")
     join(client, space, "wim", "write")
-    _cid, page, _review = _links_of(client, space, wim)
+    _cid, page, review = _links_of(client, space, wim)
+    with new_client() as visitor:
+        assert visitor.post(f"/api/review/{review}/choose", json={"variant": "a", "author": "Client"}).status_code == 200
+        # A chosen review still opens for the client: it is an open link.
+        assert visitor.get(f"/api/review/{review}").status_code == 200
+    assert _open_links(client, "wim") == 2
     with SessionLocal() as db:
-        # A review the client decided on is no open link any more.
-        db.query(Review).update({"status": "chosen"})
+        db.query(Review).update({"expires_at": utcnow() - timedelta(minutes=1)})
         db.commit()
+    with new_client() as visitor:
+        assert visitor.get(f"/api/review/{review}").status_code == 404, "run out is run out, chosen too"
     assert _open_links(client, "wim") == 1
     assert client.request("DELETE", f"/api/accounts/{wim.id}", json={"current_password": PASSWORD}).status_code == 204
     with new_client() as visitor:
         assert visitor.get(f"/api/public/{page}").status_code == 200
+
+
+def test_a15_withdrawing_ends_a_chosen_review_page_and_keeps_the_choice(
+    client: TestClient, operator: Account, space: int
+) -> None:
+    wim = make_account("wim")
+    join(client, space, "wim", "write")
+    _cid, _page, review = _links_of(client, space, wim)
+    with new_client() as visitor:
+        assert visitor.post(f"/api/review/{review}/choose", json={"variant": "a", "author": "Client"}).status_code == 200
+    done = client.post(f"/api/accounts/{wim.id}/links/withdraw", json={"current_password": PASSWORD})
+    assert done.json() == {"withdrawn": 2}
+    with new_client() as visitor:
+        assert visitor.get(f"/api/review/{review}").status_code == 404, "the dialog says nothing is seen there any more"
+    with SessionLocal() as db:
+        row = db.query(Review).one()
+        assert row.status == "chosen" and row.chosen == "a", "the choice stays in the history"
+    assert _open_links(client, "wim") == 0
+
+
+def test_a15_a_choice_never_overwrites_a_withdrawal_made_at_the_same_moment(
+    client: TestClient, operator: Account, space: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.models import BrandVersion
+    from app.routers import reviews
+
+    wim = make_account("wim")
+    join(client, space, "wim", "write")
+    _cid, _page, review = _links_of(client, space, wim)
+    real = reviews._slow_down
+
+    def withdrawn_meanwhile(request: Any, row: Any) -> None:
+        # The client's choice has read the review as open; now the operator withdraws the links.
+        real(request, row)
+        assert client.post(f"/api/accounts/{wim.id}/links/withdraw",
+                           json={"current_password": PASSWORD}).json() == {"withdrawn": 2}
+
+    monkeypatch.setattr(reviews, "_slow_down", withdrawn_meanwhile)
+    with new_client() as visitor:
+        answer = visitor.post(f"/api/review/{review}/choose", json={"variant": "a", "author": "Client"})
+    assert answer.status_code == 409 and answer.json()["detail"]["code"] == "review_closed"
+    with SessionLocal() as db:
+        row = db.query(Review).one()
+        assert row.status == "closed" and row.chosen == ""
+        version = db.get(BrandVersion, row.version_id)
+        assert version is not None and version.status == "draft", "the draft is not published either"
 
 
 def test_a15_connected_the_links_of_a_person_blocked_in_nexsuite_are_withdrawn_here(
@@ -274,9 +372,20 @@ def test_b17_a_connection_from_before_the_roles_were_kept_changes_no_role(
         saved.pop("roles", None)
         settings_service.save(db, {"suite_saved": saved})
         db.commit()
-    assert client.get("/api/suite").json()["operators_from_suite"] == []
-    client.post("/api/suite/disconnect", json={"current_password": PASSWORD})
+    status = client.get("/api/suite").json()
+    assert status["operators_from_suite"] == []
+    assert status["operators_unknown"] == ["anna"], "the dialog names who stays an operator, and why"
+    answer = client.post("/api/suite/disconnect", json={"current_password": PASSWORD})
+    assert answer.json()["operators_back"] == []
     assert _row("anna").role == "operator", "nobody knows what it was before: left as it is"
+
+
+def test_b17_with_the_roles_kept_nobody_is_named_as_unknown(
+    client: TestClient, operator: Account, world: dict, fake: FakeSuite
+) -> None:
+    fake.people["2"]["operator"] = True
+    connect(client, world, operator)
+    assert client.get("/api/suite").json()["operators_unknown"] == []
 
 
 # --- Mail in the language of whoever receives it --------------------------------------------------------------------

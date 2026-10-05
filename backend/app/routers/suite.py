@@ -52,8 +52,10 @@ def status(account: Account, db: DbSession) -> dict[str, Any]:
     view = suite.view(db)
     if account.role != "operator":
         return {"state": view["state"], "url": view["url"]}
-    # Who stops being an operator when disconnecting, for the dialog (B17).
-    return {**view, "operators_from_suite": [row.name for row in suite.operators_from_suite(db)]}
+    # Who stops being an operator when disconnecting, for the dialog (B17); for a connection from before the roles
+    # were kept, who stays one although nobody knows what they were before.
+    return {**view, "operators_from_suite": [row.name for row in suite.operators_from_suite(db)],
+            "operators_unknown": [row.name for row in suite.operators_unknown(db)]}
 
 
 @router.post("/start", summary="Pair with nexsuite using a one-time code; returns what to match (operator)")

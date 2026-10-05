@@ -13,8 +13,9 @@ import { useAuth } from '../state/auth'
 import { Avatar } from './Avatar'
 import { Dialog } from './Dialog'
 
-/** `operators_from_suite` (the operator only): operators through nexsuite alone, members again after a disconnect (B17). */
-type Status = { state: '' | 'connecting' | 'connected'; url: string; last_sync: string | null; problem: string; emergency_codes: number; mail: boolean; operators_from_suite?: string[] }
+/** `operators_from_suite` (the operator only): operators through nexsuite alone, members again after a disconnect (B17).
+ * `operators_unknown`: a connection from before the roles were kept; these stay operators, as nobody knows better. */
+type Status = { state: '' | 'connecting' | 'connected'; url: string; last_sync: string | null; problem: string; emergency_codes: number; mail: boolean; operators_from_suite?: string[]; operators_unknown?: string[] }
 type Left = { without_password: string[]; blocked?: string[]; operators_back?: string[] }
 type SuitePerson = { id: string; name: string; display_name: string; email: string }
 /** `blocked`: blocked here (left out before, blocked or deleted in nexsuite); `from_suite`: nexsuite brought it before a
@@ -172,6 +173,7 @@ export function SuiteCard() {
         <LeaveDialog
           mode={leaving}
           operators={status.operators_from_suite ?? []}
+          unknown={status.operators_unknown ?? []}
           onClose={() => setLeaving(null)}
           onDone={(left) => {
             setLeaving(null)
@@ -186,8 +188,9 @@ export function SuiteCard() {
   )
 }
 
-/** `operators`: who stops being an operator, named before it happens (B17). */
-function LeaveDialog({ mode, operators, onClose, onDone }: { mode: 'password' | 'code'; operators: string[]; onClose: () => void; onDone: (left: Left) => void }) {
+/** `operators`: who stops being an operator, named before it happens (B17); `unknown`: who stays one because the
+ * connection is older than the kept roles. */
+function LeaveDialog({ mode, operators, unknown, onClose, onDone }: { mode: 'password' | 'code'; operators: string[]; unknown: string[]; onClose: () => void; onDone: (left: Left) => void }) {
   const { t } = useTranslation()
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
@@ -218,6 +221,7 @@ function LeaveDialog({ mode, operators, onClose, onDone }: { mode: 'password' | 
           <li>{t('suite.leave2')}</li>
           <li>{mode === 'code' ? t('suite.leaveCode') : t('suite.leave3')}</li>
           {operators.length > 0 && <li className="text-warn-500" data-testid="leave-operators">{t('suite.leaveOperators', { names: operators.join(', ') })}</li>}
+          {unknown.length > 0 && <li className="text-warn-500" data-testid="leave-operators-unknown">{t('suite.leaveOperatorsUnknown', { names: unknown.join(', ') })}</li>}
         </ul>
         {mode === 'code' && (
           <label className="block space-y-1.5">
