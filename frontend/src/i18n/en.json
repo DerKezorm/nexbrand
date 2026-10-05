@@ -143,7 +143,10 @@
     "weekly": "every week",
     "keep": "Keep",
     "backupNow": "Back up now",
-    "restore": "Restore from file",
+    "restore": "Restore",
+    "uploadBackup": "Upload a backup",
+    "uploaded": "uploaded",
+    "uploadedHint": "Uploaded. It is in the list now: check it first, then restore.",
     "download": "Download",
     "languages": "Languages",
     "languagesHint": "German and English are built in. Add more as a JSON file; missing texts fall back to English.",
@@ -236,6 +239,11 @@
         "title": "Delete this backup?",
         "text": "It cannot be brought back.",
         "button": "Delete"
+      },
+      "backup_upload": {
+        "title": "Upload a backup?",
+        "text": "The file joins the list of backups. Nothing is restored until you confirm it there.",
+        "button": "Upload"
       },
       "unblock": {
         "title": "Unblock {{name}}?",

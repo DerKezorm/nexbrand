@@ -122,6 +122,9 @@ Back it up with nexbrand's own backups (Settings, Server, Backup), which copy th
 runs and take every file along. A backup is a plain ZIP; whoever has it has everything, so keep
 downloaded copies as carefully as the data directory itself.
 
+Moving to a new server: download a backup, set up nexbrand there, upload the backup under Settings, Server,
+Backup, check it and restore it. Afterwards the new server has the old accounts, clients, versions and files.
+
 ## Updating
 
 With an image: `docker compose pull && docker compose up -d`. Built from source: pull the new code and run
@@ -164,7 +167,7 @@ Disconnecting brings nexbrand back on its own with everything it got; the operat
 works throughout as the emergency account, and an emergency code disconnects when nexsuite is out of reach (nexsuite
 hears of it once it is back). An operator role that came from nexsuite alone ends with the connection: the dialog
 names those accounts before, and they are members again afterwards. While connected, only the emergency account
-downloads or deletes a backup, since an archive holds its password and second factor; restoring one waits for the
+downloads or deletes a backup, since an archive holds its password and second factor; restoring or uploading one waits for the
 disconnect.
 
 ## For programs and AI tools

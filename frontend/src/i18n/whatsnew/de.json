@@ -51,7 +51,8 @@
       "Ein gesperrtes Konto erfährt bei der Anmeldung, dass es gesperrt ist und wen es fragen kann. Offene Kundenlinks einer gesperrten Person nennt der Sperrdialog, mit Knopf zum Zurückziehen.",
       "Teamleitungen ändern ihre Teams nur, wenn der Betreiber es erlaubt (Einstellungen, Teams).",
       "Hinweise sprechen dich direkt an, Zahlen stehen in Einzahl und Mehrzahl richtig, und jede Meldung des Servers kommt als ganzer Satz in deiner Sprache.",
-      "Konten, zweiter Faktor, Anmeldung über OIDC mit authentik-Knopf, Log, eigene Sprachen und Sicherung."
+      "Konten, zweiter Faktor, Anmeldung über OIDC mit authentik-Knopf, Log, eigene Sprachen und Sicherung.",
+      "Für den Umzug auf einen neuen Server lädst du eine heruntergeladene Sicherung dort wieder hoch (Einstellungen, Server, Sicherung, „Sicherung hochladen“). Sie steht dann in der Liste: erst prüfen, dann wiederherstellen."
     ]
   }
 }

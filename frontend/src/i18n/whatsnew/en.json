@@ -51,7 +51,8 @@
       "A blocked account learns at sign-in that it is blocked and whom to ask. The block dialog names the open client links of the person, with a button to withdraw them.",
       "Team leads change their teams only when the operator allows it (Settings, Teams).",
       "Notices speak to you directly, numbers come in the right singular and plural, and every message from the server is a whole sentence in your language.",
-      "Accounts, second factor, sign-in through OIDC with the authentik button, log, own languages and backups."
+      "Accounts, second factor, sign-in through OIDC with the authentik button, log, own languages and backups.",
+      "For a move to a new server, upload a downloaded backup there (Settings, Server, Backups, “Upload a backup”). It joins the list: check it first, then restore it."
     ]
   }
 }
