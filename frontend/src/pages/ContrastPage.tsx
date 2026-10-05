@@ -4,11 +4,13 @@ import { useTranslation } from 'react-i18next'
 
 import { ColorField } from '../components/brand/SetEditor'
 import { contrast, formatRatio, hsl, parseColor, reach, simulate, VISIONS } from '../lib/color'
+import { useTitle } from '../lib/title'
 
 /** Two colours, every check at once, and the nearest colour of the same hue that passes. Colours count as they are
  * typed, in every form the server reads too (`#000`, `000`, `rgb()`, `hsl()`); one that cannot be read is named. */
 export function ContrastPage() {
   const { t, i18n } = useTranslation()
+  useTitle(t('nav.contrast'))
   const [fgText, setFg] = useState('#C23B2E')
   const [bgText, setBg] = useState('#F3E4C8')
   const fg = parseColor(fgText) ?? ''

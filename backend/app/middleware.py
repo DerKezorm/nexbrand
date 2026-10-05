@@ -48,6 +48,8 @@ SECURITY_HEADERS: tuple[tuple[bytes, bytes], ...] = (
     (b"referrer-policy", b"same-origin"),
     (b"x-frame-options", b"DENY"),
     (b"permissions-policy", b"camera=(), microphone=(), geolocation=()"),
+    # Nothing of nexbrand belongs in a search engine: not the app, not a client's public page or review (F13).
+    (b"x-robots-tag", b"noindex, nofollow"),
 )
 
 

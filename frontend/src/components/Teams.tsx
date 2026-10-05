@@ -5,7 +5,7 @@
  * Everybody on the server sees everybody, as in nextasks.
  */
 import { Mail, Plus, Trash2, UsersRound } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 
@@ -39,8 +39,8 @@ export function TeamBadge({ team, className = 'h-6 w-6 text-[11px]' }: { team: {
   return (
     <span
       title={team.name}
-      className={'grid shrink-0 place-items-center rounded-md font-bold ' + className}
-      style={{ background: `color-mix(in srgb, ${team.color} 22%, var(--color-ink-850))`, color: team.color }}
+      className={'nc-tint grid shrink-0 place-items-center rounded-md font-bold ' + className}
+      style={{ '--tint': team.color } as CSSProperties}
     >
       {team.name.trim()[0]?.toUpperCase()}
     </span>

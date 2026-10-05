@@ -35,7 +35,7 @@ from ..models import (
     Visit,
     utcnow,
 )
-from . import brandset, inherit
+from . import brandset, inherit, names
 
 logger = logging.getLogger("nexbrand.brands")
 
@@ -60,15 +60,20 @@ def new_id() -> str:
 
 
 def _text(value: str | None, most: int, code: str, *, required: bool = False) -> str:
+    if names.has_control(value or ""):
+        # Every control character, DEL and C1 too, also those ``split`` would fold away unseen.
+        raise BrandError("invalid_characters", "The text holds control characters you cannot see.")
     text = " ".join((value or "").split())
-    if any(ord(char) < 32 for char in text) or len(text) > most or (required and not text):
+    if len(text) > most or (required and not text):
         raise BrandError(code, "This value is not valid.")
     return text
 
 
 def _note(value: str | None, most: int) -> str:
     text = (value or "").strip()
-    if len(text) > most or any(ord(char) < 32 and char not in "\n\t" for char in text):
+    if names.has_control(text, "\n\t"):
+        raise BrandError("invalid_characters", "The text holds control characters you cannot see.")
+    if len(text) > most:
         raise BrandError("invalid_note", "This note is too long.")
     return text
 

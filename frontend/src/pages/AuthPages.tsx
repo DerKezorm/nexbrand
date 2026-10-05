@@ -11,9 +11,11 @@ import { Logo } from '../components/Logo'
 import { ThemeSwitcher } from '../components/ThemeSwitcher'
 import i18n from '../i18n'
 import { errorText } from '../lib/errors'
+import { useTitle } from '../lib/title'
 import { safeNext, useAuth } from '../state/auth'
 
 function AuthFrame({ title, text, children }: { title: string; text?: string; children: ReactNode }) {
+  useTitle(title)
   return (
     <div className="nc-scroll flex min-h-dvh flex-col overflow-y-auto">
       <header className="flex items-center justify-between px-5 py-4">
@@ -144,6 +146,9 @@ export function LoginPage({ emergency = false }: { emergency?: boolean }) {
   if (status === 'loading') return null
   if (status === 'setup') return <Navigate to="/setup" replace />
   if (status === 'signedIn') return <Navigate to={next} replace />
+  // Which ways in there are decides what the page shows: before the answer it shows none, so no password form flashes
+  // up where nexsuite signs in, and the emergency page does not first read as the usual one.
+  if (methods === null) return null
 
   const submit = async () => {
     if (step === 'password' && !name.trim()) return setProblem('name_missing')
@@ -298,7 +303,8 @@ export function InvitePage() {
       const code = codeOf(error)
       setInvalid(code === 'invite_expired' ? 'expired' : code === 'invite_suite' ? 'suite' : 'invalid')
     })
-    authApi.methods().then(setMethods, () => undefined)
+    // Without an answer the password stays, the way that needs nothing else.
+    authApi.methods().then(setMethods, () => setMethods({ password: true, oidc: false, oidc_name: '' }))
   }, [token])
 
   if (invalid) {
@@ -309,7 +315,8 @@ export function InvitePage() {
       </AuthFrame>
     )
   }
-  if (!state) return null
+  // Until the ways in are known too: the form would flash up where only the provider's button belongs.
+  if (!state || !methods) return null
   // Who invites, where the server names them (E18 in nextasks); without, as before.
   const role = t(`roles.${state.role}`)
   const text = state.space
@@ -359,13 +366,13 @@ export function InvitePage() {
   return (
     <AuthFrame title={t('auth.invite.title')} text={text}>
       {/* Through the sign-in provider (a1-9, C9): the invitation is the permission for the new account. */}
-      {methods?.oidc && (
+      {methods.oidc && (
         <a href={`/api/oidc/start?invite=${encodeURIComponent(token)}`} className="mb-4 flex h-10 w-full items-center justify-center rounded-full bg-accent-500 text-sm font-semibold text-on-accent hover:bg-accent-400">
           {t('auth.invite.withProvider', { name: methods.oidc_name || 'OpenID Connect' })}
         </a>
       )}
-      {methods && !methods.password && !methods.oidc && <p className="text-sm text-mist-400">{t('auth.invite.noWay')}</p>}
-      {(!methods || methods.password) && (
+      {!methods.password && !methods.oidc && <p className="text-sm text-mist-400">{t('auth.invite.noWay')}</p>}
+      {methods.password && (
         <>
         <form
           className="space-y-4"

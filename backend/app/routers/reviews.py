@@ -31,10 +31,10 @@ from sqlalchemy import func, select, update
 
 from ..db import SessionLocal
 from ..deps import Account, DbSession, client_ip
-from ..errors import detail, error
+from ..errors import detail, error, invalid_characters
 from ..models import DRAFT, MANAGE, READ, WRITE, BrandVersion, Client, Media, Review, ReviewComment, Space, utcnow
 from ..security import Brake
-from ..services import accounts, brands, brandset, mailer, rights, settings_service
+from ..services import accounts, brands, brandset, mailer, names, rights, settings_service
 from .media import deliver
 from .shares import link
 
@@ -108,6 +108,14 @@ def _clean_name(value: str) -> str:
     if any(unicodedata.category(char) in ("Cc", "Cf") for char in value):
         raise error("invalid_name", "A name cannot hold control or invisible characters.", 422)
     return " ".join(value.split())[:80]
+
+
+def _title(value: str, most: int) -> str:
+    """A direction's name, the version's name the client chooses, the sender: no control character (C1 and DEL too)."""
+    try:
+        return names.title(value, most)
+    except ValueError as exc:
+        raise invalid_characters() from exc
 
 
 def _view(db: Any, request: Request, review: Review, account: Any, role: str | None) -> dict[str, Any]:
@@ -193,11 +201,11 @@ def make_review(client_id: ClientId, payload: ReviewIn, request: Request, accoun
             data = brandset.clean(variant.data, db, client.space_id)
         except brandset.SetError as exc:
             raise error("invalid_set", exc.text, 422, where=f"variants.{index}.{exc.where}") from exc
-        variants.append({"id": variant.id, "label": " ".join(variant.label.split()),
+        variants.append({"id": variant.id, "label": _title(variant.label, 80),
                          "why": variant.why.strip(), "data": data})
     review = Review(token=secrets.token_urlsafe(24), client_id=client.id, space_id=client.space_id,
-                    version_id=version.id, variants=variants, label=" ".join(payload.label.split())[:60],
-                    sender=" ".join(payload.sender.split())[:120], message=payload.message.strip()[:1000],
+                    version_id=version.id, variants=variants, label=_title(payload.label, 60),
+                    sender=_title(payload.sender, 120), message=payload.message.strip()[:1000],
                     created_by=account.id, expires_at=utcnow() + timedelta(days=payload.days))
     db.add(review)
     db.commit()

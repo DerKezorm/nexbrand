@@ -31,10 +31,10 @@ from sqlalchemy import select
 from ..config import get_settings
 from ..db import SessionLocal
 from ..deps import Account, DbSession, client_ip
-from ..errors import detail, error
+from ..errors import detail, error, invalid_characters
 from ..models import MANAGE, PUBLISHED, READ, WRITE, BrandVersion, Client, Media, Project, Share, Space, utcnow
 from ..security import Brake, hash_password, verify_password
-from ..services import brands, brandset, rights, settings_service, tokens
+from ..services import brands, brandset, names, rights, settings_service, tokens
 from .media import deliver
 
 logger = logging.getLogger("nexbrand.shares")
@@ -69,6 +69,13 @@ class ShareChange(BaseModel):
     #: A new password replaces the one there is.
     password: str = Field(default="", max_length=200)
     no_password: bool = False
+
+
+def _label(value: str) -> str:
+    try:
+        return names.title(value, 120)
+    except ValueError as exc:
+        raise invalid_characters() from exc
 
 
 class UnlockIn(BaseModel):
@@ -151,9 +158,10 @@ def make_share(client_id: ClientId, payload: ShareIn, request: Request, account:
             raise error("not_found", "Not found.", 404)
     elif (brands.project_current(db, project) if project else brands.current(db, client)) is None:
         raise error("not_published", "This client has no published version yet.", 409)
+    label = _label(payload.label)
     share = Share(token=secrets.token_urlsafe(24), client_id=client.id, space_id=client.space_id,
                   version_id=payload.version_id or None, project_id=project.id if project else None,
-                  label=" ".join(payload.label.split())[:120],
+                  label=label,
                   created_by=account.id,
                   expires_at=utcnow() + timedelta(days=payload.days) if payload.days else None,
                   password_hash=hash_password(payload.password) if payload.password else "")
@@ -169,7 +177,7 @@ def make_share(client_id: ClientId, payload: ShareIn, request: Request, account:
 def change_share(share_id: int, payload: ShareChange, request: Request, account: Account, db: DbSession) -> dict:
     share, role = _share(db, account, share_id)
     if payload.label is not None:
-        share.label = " ".join(payload.label.split())[:120]
+        share.label = _label(payload.label)
     if payload.forever:
         share.expires_at = None
     elif payload.days is not None:

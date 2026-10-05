@@ -6,7 +6,7 @@
  * to GitHub is the one call nexbrand makes by itself. Every account sees the answer; switching and asking now belong
  * to the operator, because the question goes out for the whole installation.
  */
-import { BookOpen, RefreshCw } from 'lucide-react'
+import { BookOpen, ListChecks, Mail, NotebookPen, RefreshCw, Shapes, Shield, Sparkles } from 'lucide-react'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -14,6 +14,8 @@ import { api, ApiError } from '../api/client'
 import { Logo } from '../components/Logo'
 import { WhatsNewWindow } from '../components/WhatsNew'
 import { useWhatsNew } from '../lib/whatsNew'
+import { moment } from '../lib/time'
+import { useTitle } from '../lib/title'
 import { useAuth } from '../state/auth'
 import { Button, Card, Feedback, Toggle } from './settings/ui'
 
@@ -36,6 +38,15 @@ const PARTS = [
   { name: 'Fraunces, Playfair Display, Lora, Source Serif 4, DM Sans, Outfit, Space Grotesk, Nunito', url: 'https://fontsource.org', licence: 'OFL-1.1' },
   { name: 'httpx', url: 'https://www.python-httpx.org', licence: 'BSD-3' },
 ]
+
+/** The other apps of the family, each in its own colour. */
+const FAMILY = [
+  { name: 'nexsuite', Icon: Shield, color: '#f472b6' },
+  { name: 'nexcanvas', Icon: Shapes, color: '#ff8a70' },
+  { name: 'nexlore', Icon: NotebookPen, color: '#2dd4bf' },
+  { name: 'nextasks', Icon: ListChecks, color: '#38a9c4' },
+  { name: 'nexmail', Icon: Mail, color: '#a78bfa' },
+] as const
 
 function Out({ href, children }: { href: string; children: ReactNode }) {
   return (
@@ -69,6 +80,7 @@ export function AboutPage() {
   // The written text of the running version, to read again at any time.
   const { entry } = useWhatsNew(me?.version, i18n.language)
   const [reading, setReading] = useState(false)
+  useTitle(t('about.menu'))
 
   const load = useCallback(() => {
     api<About>('/api/about').then(setAbout, (error: unknown) => setProblem(code(error)))
@@ -146,6 +158,19 @@ export function AboutPage() {
           </dl>
         )}
 
+        {/* The family, as the about pages of nexsuite and nextasks show it (G11). */}
+        <Card icon={Sparkles} title={t('about.family')} text={t('about.familyText')} id="about-family">
+          <ul className="space-y-2">
+            {FAMILY.map(({ name, Icon, color }) => (
+              <li key={name} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-ink-700 bg-ink-850 px-4 py-3 text-sm">
+                <Icon className="h-4 w-4 shrink-0" style={{ color }} aria-hidden />
+                <span className="font-semibold text-mist-100">{name}</span>
+                <span className="text-mist-500">{t(`about.apps.${name}`)}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+
         <Card icon={RefreshCw} title={t('about.updates.title')} text={t('about.updates.text')} id="about-updates">
           {operator && updates && <Toggle label={t('about.updates.daily')} hint={t('about.updates.dailyHint')} checked={updates.update_check} onChange={(on) => void switchCheck(on)} />}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm" aria-live="polite">
@@ -173,7 +198,7 @@ export function AboutPage() {
                 t('about.updates.none')
               )}
             </span>
-            {updates?.checked_at && <span className="text-xs text-mist-500">{t('about.updates.checkedAt', { when: new Date(updates.checked_at).toLocaleString(i18n.language) })}</span>}
+            {updates?.checked_at && <span className="text-xs text-mist-500">{t('about.updates.checkedAt', { when: moment(updates.checked_at, i18n.language) })}</span>}
           </div>
           <p className="text-xs leading-relaxed text-mist-500">{t('about.updates.whatGoesOut')}</p>
         </Card>

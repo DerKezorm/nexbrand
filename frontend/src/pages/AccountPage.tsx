@@ -19,6 +19,7 @@ import { errorText } from '../lib/errors'
 import { useAuth } from '../state/auth'
 import { saveAsFile, TabRow, type Tab } from './settings/ui'
 import { copyText } from '../lib/copy'
+import { useTitle } from '../lib/title'
 
 type Part = 'profile' | 'security' | 'ai' | 'connections'
 const PARTS: Part[] = ['profile', 'security', 'ai', 'connections']
@@ -33,6 +34,7 @@ function code(error: unknown): string {
 
 export function AccountPage() {
   const { t } = useTranslation()
+  useTitle(t('me.title'))
   const { me, setMe, refresh } = useAuth()
   const [shownAs, setShownAs] = useState(me?.display_name ?? '')
   // Whether a sign-in provider is set up at all: without one there is nothing to link.

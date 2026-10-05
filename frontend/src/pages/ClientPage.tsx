@@ -25,6 +25,7 @@ import { INHERIT_PARTS, modesOf, type Modes } from '../lib/inherit'
 import { placeOf, type Place } from '../lib/where'
 import { UiElements } from '../components/brand/UiElements'
 import { Button, Confirm, Feedback, Input, Select, useAction } from './settings/ui'
+import { useTitle } from '../lib/title'
 import { useBrands } from '../state/brands'
 
 /** A value the server refused, with the item and field it is in (F11). */
@@ -54,9 +55,10 @@ export function ClientPage() {
   const [files, setFiles] = useState<FileMap>({})
   const [draft, setDraft] = useState<BrandSet | null>(null)
   const [dirty, setDirty] = useState(false)
-  const [dialog, setDialog] = useState<'edit' | 'version' | 'publish' | 'export' | 'review' | 'trash' | 'deleteDraft' | 'lift' | null>(null)
+  const [dialog, setDialog] = useState<'edit' | 'version' | 'publish' | 'export' | 'review' | 'trash' | 'deleteDraft' | 'lift' | 'leave' | null>(null)
   const save = useAction()
   const [refused, setRefused] = useState<Place | null>(null)
+  useTitle(project ? `${project.name}, ${whole?.name ?? ''}` : whole?.name)
 
   const load = useCallback(async () => {
     try {
@@ -249,7 +251,7 @@ export function ClientPage() {
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">
             {canWrite && (
               <button type="button" className="nc-btn nc-btn-ghost" onClick={() => setDialog('edit')}>
-                <Pencil className="h-4 w-4" /> {project ? t('projects.rename') : t('client.edit')}
+                <Pencil className="h-4 w-4" aria-hidden /> {project ? t('projects.rename') : t('client.edit')}
               </button>
             )}
             {space && !project && <AccessButtons space={space} />}
@@ -440,7 +442,8 @@ export function ClientPage() {
               ) : (
                 <Feedback problem={save.problem} />
               )}
-              <button type="button" className="nc-btn nc-btn-ghost" onClick={() => (!dirty || window.confirm(t('client.leaveText'))) && (setDirty(false), choose(shown.id))}>
+              {/* Unsaved changes: asked with the family's dialog, not the browser's (F6). */}
+              <button type="button" className="nc-btn nc-btn-ghost" onClick={() => (dirty ? setDialog('leave') : choose(shown.id))}>
                 {t('client.doneEditing')}
               </button>
               <Button accent busy={save.busy} disabled={!dirty} onClick={() => void saveDraft()}>
@@ -487,6 +490,20 @@ export function ClientPage() {
       {dialog === 'publish' && <Publish whole={whole} version={shown} onClose={() => setDialog(null)} onDone={() => (setDialog(null), void load().then(() => (brands.refresh(), choose(shown.id))))} />}
       {dialog === 'export' && <ExportDialog source={{ client: whole.id, version: shown.id }} title={`${project ? `${whole.name}, ${project.name}` : whole.name} ${shown.label}`} onClose={() => setDialog(null)} />}
       {dialog === 'review' && <NewReview whole={whole} version={own ?? shown} versions={project ? project.versions : undefined} onClose={() => setDialog(null)} onMade={() => (setDialog(null), void load().then(() => choose(shown.id, { tab: 'reviews' })))} />}
+      {dialog === 'leave' && (
+        <Confirm
+          title={t('client.leaveTitle')}
+          text={t('client.leaveText')}
+          confirm={t('client.leave')}
+          danger
+          onCancel={() => setDialog(null)}
+          onConfirm={async () => {
+            setDialog(null)
+            setDirty(false)
+            choose(shown.id)
+          }}
+        />
+      )}
       {dialog === 'trash' && project && (
         <Confirm title={t('projects.delete')} text={t('projects.deleteText', { name: project.name })} confirm={t('projects.delete')} danger onCancel={() => setDialog(null)} onConfirm={async () => (await clientsApi.deleteProject(whole.id, project.id), navigate(`/c/${whole.id}?tab=projects`))} />
       )}

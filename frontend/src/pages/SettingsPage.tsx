@@ -33,6 +33,7 @@ import { ManagedCard, SuiteCard, useSuiteConnected } from '../components/Suite'
 import { TeamBadge, TeamRightsDialog, TeamsCard } from '../components/Teams'
 import { changeLanguage, languageOptions, templateFile, type LanguageOption } from '../i18n'
 import { applyMode, storedMode, type Mode } from '../lib/theme'
+import { useTitle } from '../lib/title'
 import { useAuth } from '../state/auth'
 import { AccountsCard, AllSpacesCard, ProxyHint, ApiTokensCard, BackupsCard, FilesCard, LanguagesCard, LogCard, MailCard, OutsideCard, SharesCard, SignInCard, useServerSettings } from './settings/ServerCards'
 import { Button, Card, Feedback, saveAsFile, TabRow, useAction, type Tab } from './settings/ui'
@@ -46,6 +47,7 @@ const PART_ICON = { accounts: Users, signin: KeyRound, suite: Shield, shares: Gl
 
 export function SettingsPage() {
   const { t } = useTranslation()
+  useTitle(t('settings.title'))
   const { me } = useAuth()
   const [params, setParams] = useSearchParams()
   const operator = me?.role === 'operator'
@@ -243,6 +245,7 @@ function Looks() {
 function Access() {
   const { t } = useTranslation()
   const brands = useBrands()
+  const { me } = useAuth()
   const [members, setMembers] = useState<Space | null>(null)
   const [teamsOf, setTeamsOf] = useState<Space | null>(null)
   const groups = [...brands.spaces].sort((a, b) => a.name.localeCompare(b.name))
@@ -250,7 +253,11 @@ function Access() {
     <>
       <Card icon={Users} title={t('settings.accessTitle')} text={t('settings.accessHint')}>
         <ul className="divide-y divide-ink-700 rounded-xl border border-ink-700">
-          {groups.length === 0 && <li className="px-4 py-3 text-sm text-mist-500">{t('clients.empty')}</li>}
+          {groups.length === 0 && (
+            <li className="px-4 py-3 text-sm text-mist-500">
+              {t('clients.empty')} {!me?.may_create_clients && t(me?.suite === 'connected' ? 'clients.askSuite' : 'clients.ask')}
+            </li>
+          )}
           {groups.map((s) => (
             <li key={s.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
               <span className="h-2.5 w-2.5 rounded-full" style={{ background: s.color }} />

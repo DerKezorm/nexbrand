@@ -92,7 +92,7 @@ export function Sidebar() {
           <Link to="/" className={row + ' bg-accent-500/12 text-mist-100'}>
             <LayoutDashboard className="h-3.5 w-3.5 shrink-0 opacity-70" />
             <span className="font-semibold">{t('clients.all')}</span>
-            <span className="ml-auto text-[11px] text-mist-600 tabular-nums">{live.length}</span>
+            <span className="ml-auto text-[11px] text-mist-500 tabular-nums">{live.length}</span>
           </Link>
           {[...live].sort((a, b) => a.name.localeCompare(b.name)).map((c) => (
             <Link key={c.id} to={`/c/${c.id}`} className={row}>
@@ -107,7 +107,7 @@ export function Sidebar() {
               )}
             </Link>
           ))}
-          {live.length === 0 && <p className="px-2.5 py-1 text-xs text-mist-600">{t('sidebar.nothingHere')}</p>}
+          {live.length === 0 && <p className="px-2.5 py-1 text-xs text-mist-600">{t('clients.empty')}</p>}
         </div>
       </section>
     </aside>

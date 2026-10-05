@@ -19,6 +19,8 @@ import { textOn } from '../lib/color'
 import { errorText } from '../lib/errors'
 import { fontStack } from '../lib/fonts'
 import { shownAuthor } from '../lib/review'
+import { moment } from '../lib/time'
+import { useTitle } from '../lib/title'
 
 function Footer() {
   const { t } = useTranslation()
@@ -41,6 +43,7 @@ export function PublicPage() {
     sharesApi.page(token).then(setPage).catch(() => setGone(true))
   }, [token])
   const fileUrl = useCallback((id: string) => pageMediaUrl('public', token, id), [token])
+  useTitle(page && !page.password ? page.client : null, true)
   if (gone) return <p className="p-10 text-center text-mist-400">{t('public.gone')}</p>
   if (!page) return <main aria-busy="true" />
   if (page.password)
@@ -128,6 +131,7 @@ export function ReviewPage() {
   const fileUrl = useCallback((id: string) => pageMediaUrl('review', token, id), [token])
   // A review withdrawn or deleted meanwhile: the page says it is gone, not that something failed (F5).
   const fail = (error: unknown) => (error instanceof ApiError && error.status === 404 ? setGone(true) : setProblem(error instanceof ApiError ? error.code : 'internal_error'))
+  useTitle(page?.client, true)
   if (gone) return <p className="p-10 text-center text-mist-400">{t('public.reviewGone')}</p>
   if (!page) return <main aria-busy="true" />
   const chosen = page.variants.find((v) => v.id === page.chosen)
@@ -192,7 +196,7 @@ export function ReviewPage() {
                 <ul className="space-y-2">
                   {comments.map((c, i) => (
                     <li key={i} className={'rounded-xl px-3 py-2 text-sm ' + (c.agency ? 'bg-accent-500/10' : 'bg-ink-850')}>
-                      <span className="text-xs font-semibold text-mist-300">{shownAuthor(c.author, t('review.noName'))}</span> <span className="text-[11px] text-mist-600">{new Date(c.at).toLocaleString(i18n.language)}</span>
+                      <span className="text-xs font-semibold text-mist-300">{shownAuthor(c.author, t('review.noName'))}</span> <span className="text-[11px] text-mist-600">{moment(c.at, i18n.language)}</span>
                       {c.sample && samples.some((x) => x.media === c.sample) && (
                         <button type="button" className="ml-1.5 text-[11px] text-accent-400 hover:underline" onClick={() => setAt({ ...at, [v.id]: samples.findIndex((x) => x.media === c.sample) })}>
                           {t('review.onSample', { name: samples.find((x) => x.media === c.sample)?.name ?? '' })}

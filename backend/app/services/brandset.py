@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import math
 import re
+import unicodedata
 from typing import Any
 
 from sqlalchemy import select
@@ -93,8 +94,9 @@ def _text(value: Any, where: str, most: int, *, required: bool = False) -> str:
     if not isinstance(value, str):
         raise SetError(where)
     text = " ".join(value.split()) if most <= 200 else value.strip()
-    if any(ord(char) < 32 and char not in "\n\t" for char in text):
-        raise SetError(where)
+    # Every control character (DEL and C1 too); line breaks and tabs only where a text may have lines.
+    if any(unicodedata.category(char) == "Cc" and char not in "\n\t" for char in text):
+        raise SetError(where, "No control characters.")
     if len(text) > most:
         raise SetError(where, f"At most {most} characters.")
     if required and not text:

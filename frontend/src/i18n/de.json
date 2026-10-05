@@ -1,6 +1,6 @@
 {
   "app": {
-    "home": "nexbrand Start",
+    "home": "Zur Startseite",
     "mainMenu": "Hauptmenü"
   },
   "nav": {
@@ -11,7 +11,7 @@
   "theme": {
     "dark": "Dunkel",
     "light": "Hell",
-    "group": "Darstellung",
+    "group": "Hell oder dunkel",
     "system": "Wie das System"
   },
   "search": {
@@ -30,7 +30,7 @@
     "done": "Fertig"
   },
   "account": {
-    "menu": "Kontomenü von {{name}}",
+    "menu": "Konto von {{name}}",
     "operator": "Betreiber",
     "mine": "Mein Konto",
     "language": "Sprache",
@@ -77,7 +77,6 @@
     "noFavorites": "Mit dem Stern landet ein Kunde hier.",
     "collapse": "Zuklappen",
     "expand": "Aufklappen",
-    "nothingHere": "Hier gibt es noch keinen Kunden",
     "noRecent": "Noch nichts geöffnet.",
     "clients": "Kunden"
   },
@@ -395,7 +394,9 @@
     "linksStay_other": "{{name}} hat {{count}} offene Links für Kunden (Freigaben und Abstimmungen). Sie bleiben gültig, bis du sie zurückziehst.",
     "withdrawLinks": "Zurückziehen",
     "withdrawLinksRow": "Links zurückziehen",
-    "linksWithdrawn": "Links zurückgezogen."
+    "linksWithdrawn": "Links zurückgezogen.",
+    "allClients": "sieht und verwaltet alle Kunden",
+    "forAccount": "{{name}}: {{action}}"
   },
   "errors": {
     "avatar_not_a_picture": "Das ist kein Bild, das nexbrand annimmt (JPEG, PNG, WebP, GIF, HEIC oder AVIF).",
@@ -609,7 +610,11 @@
     "client_name_in_bin": "Ein Kunde mit diesem Namen liegt im Papierkorb. Hol ihn zurück oder wähle einen anderen Namen.",
     "project_name_taken": "Dieser Kunde hat schon ein Projekt mit diesem Namen. Wähle einen anderen Namen.",
     "team_name_taken": "Ein Team mit diesem Namen gibt es schon. Wähle einen anderen Namen.",
-    "team_leads_off": "Der Betreiber hat Teamleitungen nicht erlaubt, ihre Teams zu ändern."
+    "team_leads_off": "Der Betreiber hat Teamleitungen nicht erlaubt, ihre Teams zu ändern.",
+    "password_unchanged": "Das neue Passwort ist dasselbe wie das bisherige. Nimm ein anderes.",
+    "invalid_characters": "Der Text enthält Steuerzeichen, die man nicht sieht. Tipp ihn neu ein, statt ihn einzufügen.",
+    "app_still_connected": "Unter dieser Adresse ist schon eine App mit nexsuite verbunden. Trenne sie zuerst, in der App oder in nexsuite unter Apps.",
+    "app_not_reachable": "nexsuite kennt eine Verbindung mit dieser Adresse und erreicht die App nicht, um nachzufragen. Trenne sie in nexsuite unter Apps und verbinde dann neu."
   },
   "auth": {
     "name": "Name",
@@ -694,30 +699,39 @@
   "about": {
     "menu": "Über nexbrand",
     "subtitle": "Die CI aller Kunden an einem Ort: Farben, Schriften, Logos, in Fassungen.",
-    "version": "Fassung",
+    "version": "Version",
     "whatsNew": "Was ist neu",
-    "newer": "Fassung {{version}} ist erschienen",
+    "newer": "Version {{version}} ist erschienen",
     "licence": "Lizenz",
     "source": "Quelltext",
     "releases": "Veröffentlichungen",
-    "releasesLink": "Alle Fassungen und was sich geändert hat",
+    "releasesLink": "Alle Versionen und was sich geändert hat",
     "project": "Projektseite",
     "report": "Einen Fehler gefunden?",
     "reportLink": "Auf GitHub melden",
     "builtWith": "Gebaut mit",
     "updates": {
       "title": "Aktualisierungen",
-      "text": "Ob es eine neuere Fassung von nexbrand gibt.",
+      "text": "Ob es eine neuere Version von nexbrand gibt.",
       "daily": "Einmal am Tag nachsehen",
       "dailyHint": "Fragt GitHub nach der neuesten Veröffentlichung. Aus: nur, wenn du den Knopf drückst.",
       "now": "Jetzt nachsehen",
-      "current": "Das ist die neueste Fassung.",
+      "current": "Das ist die neueste Version.",
       "none": "Noch keine Veröffentlichung gefunden.",
       "notYet": "Noch nicht nachgesehen.",
       "off": "Das tägliche Nachsehen ist aus.",
       "toRelease": "Was neu ist",
       "checkedAt": "zuletzt nachgesehen {{when}}",
       "whatGoesOut": "Hinaus geht nur die Frage: eine Anfrage an api.github.com nach der neuesten Veröffentlichung von nexbrand, ohne Namen, Kunden oder Einstellungen. Es ist der einzige Ruf, den nexbrand von sich aus macht."
+    },
+    "family": "Teil der nex-Familie",
+    "familyText": "nexbrand gehört mit diesen Apps zusammen. Mit nexsuite verbunden, teilen sie Personen, Teams und Anmeldung, und Kunden kommen von dort.",
+    "apps": {
+      "nexsuite": "Personen, Teams, Kunden und Anmeldung für die ganze Familie",
+      "nexcanvas": "Whiteboards, gemeinsam und live",
+      "nexlore": "Notizen und Wissen eines Teams",
+      "nextasks": "Aufgaben für Teams",
+      "nexmail": "Mail auf dem eigenen Server"
     }
   },
   "notices": {
@@ -1016,7 +1030,7 @@
     "all": "Alle Kunden",
     "text": "Jeder Kunde hat seine CI in Fassungen; Projekte bauen auf einer davon auf.",
     "filter": "Kunden filtern",
-    "empty": "Hier gibt es noch keine Kunden.",
+    "empty": "Noch keine Kunden.",
     "bin": "Papierkorb",
     "binText": "Kunden im Papierkorb bleiben 30 Tage, dann sind sie mit allen Fassungen weg.",
     "binOpen": "Papierkorb",
@@ -1030,7 +1044,11 @@
     "fromSuiteAll": "Kunden kommen aus nexsuite: Dort werden sie angelegt, umbenannt und gelöscht, hier bekommen sie ihre CI.",
     "binSuite": "In nexsuite gelöscht. Zurückholen und endgültig löschen geht dort.",
     "purgeTitle": "{{name}} endgültig löschen?",
-    "purgeText": "Der Kunde geht mit allen Fassungen, Projekten, Dateien und Links. Das lässt sich nicht rückgängig machen."
+    "purgeText": "Der Kunde geht mit allen Fassungen, Projekten, Dateien und Links. Das lässt sich nicht rückgängig machen.",
+    "ask": "Du hast noch auf keinen Kunden Zugriff. Bitte jemanden, der einen Kunden verwaltet, oder den Betreiber, dich einzutragen.",
+    "askSuite": "Du hast noch auf keinen Kunden Zugriff. Zugriff auf Kunden kommt aus nexsuite; bitte dort jemanden, der einen Kunden verwaltet, oder den Betreiber darum.",
+    "restoreThis": "{{name}} zurückholen",
+    "purgeThis": "{{name}} endgültig löschen"
   },
   "client": {
     "new": "Neuer Kunde",
@@ -1043,7 +1061,7 @@
     "drafts_one": "{{count}} Entwurf",
     "drafts_other": "{{count}} Entwürfe",
     "missing": "Diesen Kunden gibt es nicht, oder du darfst ihn nicht sehen.",
-    "edit": "Bearbeiten",
+    "edit": "Kundendaten bearbeiten",
     "export": "Als Code",
     "timeline": "Fassungen",
     "asOf": "Stand am",
@@ -1057,7 +1075,7 @@
     "draftBanner": "Entwurf von {{author}}.",
     "draftHolds": "Gilt erst, wenn er veröffentlicht ist; bis dahin gilt {{label}}.",
     "draftOnly": "Noch gibt es keine veröffentlichte Fassung; Projekte bauen solange auf diesem Entwurf.",
-    "editDraft": "Bearbeiten",
+    "editDraft": "Entwurf bearbeiten",
     "compareWith": "Mit {{label}} vergleichen",
     "toClient": "Dem Kunden vorlegen",
     "publish": "Veröffentlichen",
@@ -1079,7 +1097,7 @@
     "trashText": "{{name}} kommt mit allen Fassungen und Projekten in den Papierkorb. Dort bleibt der Kunde 30 Tage.",
     "deleteDraft": "Entwurf löschen",
     "deleteDraftText": "Den Entwurf {{label}} löschen? Veröffentlichte Fassungen bleiben.",
-    "leaveText": "Es gibt ungespeicherte Änderungen. Trotzdem schließen?",
+    "leaveText": "Was du seit dem letzten Speichern geändert hast, geht verloren.",
     "name": "Name",
     "sector": "Branche",
     "contact": "Ansprechpartner oder Adresse",
@@ -1128,7 +1146,9 @@
     "upcoming": "kommt",
     "upcomingText": "Du siehst die Fassung {{label}}. Sie gilt ab {{from}}, bis dahin gilt {{current}}.",
     "upcomingNone": "Du siehst die Fassung {{label}}. Sie gilt ab {{from}}, bis dahin gilt noch keine.",
-    "threeYearsTitle": "Die Fassung, die am {{date}} galt"
+    "threeYearsTitle": "Die Fassung, die am {{date}} galt",
+    "leaveTitle": "Ungespeicherte Änderungen verwerfen?",
+    "leave": "Verwerfen"
   },
   "projects": {
     "text": "Ein Projekt ist eine App, ein Produkt oder eine Kampagne von {{client}} mit eigener CI. Jeder Teil kommt von {{client}}, von {{client}} plus Eigenem, oder ist ganz eigen.",
@@ -1457,7 +1477,11 @@
     "offYou": "Öffentliche Seiten sind aus, damit auch Freigaben und Abstimmungen.",
     "offWhere": "Einschalten unter Einstellungen → Server → Öffentliche Seiten.",
     "offAsk": "Der Betreiber hat öffentliche Seiten nicht erlaubt, damit gibt es weder Freigaben noch Abstimmungen. Frag ihn, ob er sie unter Einstellungen → Server → Öffentliche Seiten einschaltet.",
-    "linkWriters": "Den Link sehen alle, die bei diesem Kunden schreiben dürfen."
+    "linkWriters": "Den Link sehen alle, die bei diesem Kunden schreiben dürfen.",
+    "removeThis": "Freigabe {{name}} beenden",
+    "removeTitle": "Freigabe {{name}} beenden?",
+    "removeText": "Der Link geht dann nicht mehr; wer ihn hat, sieht dort nichts mehr. Eine neue Freigabe bekommt einen neuen Link.",
+    "guardedHint": "Wer den Link öffnet, braucht dazu das Passwort."
   },
   "reviews": {
     "none": "Noch keine Abstimmung. Ein Entwurf geht mit „Dem Kunden vorlegen“ an den Kunden.",
@@ -1468,7 +1492,6 @@
     },
     "asClient": "Ansehen wie der Kunde",
     "withdraw": "Zurückziehen",
-    "withdrawAsk": "Die Abstimmung zurückziehen? Der Link geht dann nicht mehr.",
     "link": "Link der Abstimmung",
     "chosen": "{{who}} hat „{{label}}“ gewählt; daraus wurde die veröffentlichte Fassung.",
     "theClient": "Der Kunde",
@@ -1500,7 +1523,9 @@
     "mailFailed": "Die Abstimmung steht, aber die Mail ging nicht raus: {{reason}} Kopier den Link im Reiter Abstimmung und schick ihn selbst.",
     "noAddress": "Für die Mail braucht nexbrand seine öffentliche Adresse; bis dahin kopierst du den Link im Reiter Abstimmung.",
     "noAddressWhere": "Eintragen unter Einstellungen → Server → Anmeldung → Öffentliche Adresse.",
-    "noAddressAsk": "Für die Mail braucht nexbrand seine öffentliche Adresse. Frag den Betreiber, ob er sie unter Einstellungen → Server → Anmeldung einträgt; bis dahin kopierst du den Link im Reiter Abstimmung."
+    "noAddressAsk": "Für die Mail braucht nexbrand seine öffentliche Adresse. Frag den Betreiber, ob er sie unter Einstellungen → Server → Anmeldung einträgt; bis dahin kopierst du den Link im Reiter Abstimmung.",
+    "withdrawTitle": "Abstimmung zu {{label}} zurückziehen?",
+    "withdrawText": "Der Link geht dann nicht mehr. Wer ihn hat, sieht dort nur noch, dass die Abstimmung beendet ist."
   },
   "preview": {
     "label": "Beispielseite mit dieser CI",
@@ -1772,7 +1797,10 @@
     "pickTitle": "CI für einen Kunden aus nexsuite",
     "pickText": "Diese Kunden haben noch keine CI. Wähle einen, die Werkbank fängt mit ihm an.",
     "pickNone": "Hier wartet gerade kein Kunde auf seine CI. Neue Kunden legt nexsuite an.",
-    "toClients": "Zu den Kunden"
+    "toClients": "Zu den Kunden",
+    "needName": "Gib zuerst einen Namen ein.",
+    "needColor": "Lege zuerst eine Farbe an.",
+    "keepColors": "Mit den bisherigen Farben weiter"
   },
   "contrast": {
     "title": "Kontrastrechner",
@@ -1946,7 +1974,10 @@
     "stored": "Beim Kunden hinterlegt:",
     "remember": "Beim Kunden merken",
     "rememberHint": "Diese Adresse bei {{name}} hinterlegen, damit sie beim nächsten Sammeln bereitsteht.",
-    "takeKeepColors": "Keine Farbe angehakt: Die Farben der aktuellen Fassung bleiben. Schriften und Logos kommen wie markiert in einen neuen Entwurf."
+    "takeKeepColors": "Keine Farbe angehakt: Die Farben der aktuellen Fassung bleiben. Schriften und Logos kommen wie markiert in einen neuen Entwurf.",
+    "offNow": "Sammeln aus Webseiten und Repos ist aus; PDFs gehen trotzdem.",
+    "offSwitch": "Einschalten unter Einstellungen, Server.",
+    "offAsk": "Einschalten kann es der Betreiber."
   },
   "rules": {
     "intro": "Farbpaare, Logo-Gründe und Schriften werden geprüft: hier beim Bearbeiten und für Programme über API und MCP. Freie Regeln sind Text für Menschen und werden von niemandem geprüft.",
@@ -2013,7 +2044,8 @@
       "logoDont": "„{{logo}}“ auf {{grounds}}",
       "font": "{{font}} für {{use}}",
       "fontMin": "{{font}} für {{use}}, mindestens {{min}} px"
-    }
+    },
+    "numbered": "Regel {{number}}: {{text}}"
   },
   "gallery": {
     "open": "{{kind}} öffnen",
@@ -2111,5 +2143,8 @@
     "field": "Nicht gespeichert: {{place}}, Feld „{{field}}“ stimmt nicht.",
     "at": "Nicht gespeichert: {{place}} stimmt nicht.",
     "twice": "Nicht gespeichert: Zwei Farben heißen „{{name}}“. Gib einer einen anderen Namen."
+  },
+  "keys": {
+    "ctrl": "Strg"
   }
 }

@@ -190,4 +190,4 @@ def mail_test(payload: TestMailIn, operator: OperatorAccount, db: DbSession) -> 
     try:
         mailer.send_test(db, to, language)
     except mailer.MailError as exc:
-        raise error(exc.code, str(exc), 502) from exc
+        raise error(exc.code, str(exc), mailer.status_of(exc)) from exc

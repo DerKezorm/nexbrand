@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import re
+import unicodedata
 from collections.abc import Iterable
 
 from sqlalchemy import select
@@ -31,7 +32,9 @@ class TeamError(Exception):
 
 def clean_name(name: str) -> str:
     text = " ".join(name.split())
-    if not text or len(text) > MAX_NAME or any(ord(char) < 32 for char in text):
+    if any(unicodedata.category(char) == "Cc" and char not in "\t\n\r" for char in name):
+        raise TeamError("invalid_characters", "The text holds control characters you cannot see.")
+    if not text or len(text) > MAX_NAME:
         raise TeamError("invalid_name", "A team needs a name of 1 to 80 characters.")
     return text
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+import unicodedata
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -29,7 +30,9 @@ class SpaceError(Exception):
 
 def clean_name(name: str) -> str:
     text = " ".join(name.split())
-    if not text or len(text) > MAX_NAME or any(ord(char) < 32 for char in text):
+    if any(unicodedata.category(char) == "Cc" and char not in "\t\n\r" for char in name):
+        raise SpaceError("invalid_characters", "The text holds control characters you cannot see.")
+    if not text or len(text) > MAX_NAME:
         raise SpaceError("invalid_name", "A client needs a name of 1 to 80 characters.")
     return text
 

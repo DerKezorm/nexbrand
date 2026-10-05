@@ -145,6 +145,8 @@ export type Me = {
   version: string
   whats_new_seen: string
   shares_allowed?: boolean
+  /** The operator's switch for collecting from websites and repositories (PDFs need none). */
+  collect_allowed?: boolean
   mail?: boolean
   /** The public address is set: without it no mail carries a link. */
   public_url?: boolean

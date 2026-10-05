@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom'
 
 import { sharesApi, type ShareInfo, type VersionInfo } from '../../api/client'
 import { linkRights } from '../../lib/review'
-import { Button, CopyLink, Feedback, Input, Select, useAction } from '../../pages/settings/ui'
+import { Button, Confirm, CopyLink, Feedback, Input, Select, useAction } from '../../pages/settings/ui'
 import { useAuth } from '../../state/auth'
 import { Dialog } from '../Dialog'
 
@@ -37,6 +37,8 @@ export function SharesPanel({ client, versions, role, project }: { client: strin
   const { me } = useAuth()
   const [shares, setShares] = useState<ShareInfo[]>([])
   const [making, setMaking] = useState(false)
+  // Ending a page asks first, with the family's dialog: whoever has the link sees nothing there afterwards.
+  const [ending, setEnding] = useState<ShareInfo | null>(null)
   const load = useCallback(() => void sharesApi.list(client).then((all) => setShares(all.filter((s) => (s.project_id ?? undefined) === project))).catch(() => setShares([])), [client, project])
   useEffect(load, [load])
   const published = versions.filter((v) => v.status === 'published')
@@ -61,14 +63,19 @@ export function SharesPanel({ client, versions, role, project }: { client: strin
             <span className="text-xs text-mist-500">
               {s.version_label ? t('shares.fixed', { label: s.version_label }) : t('shares.current')} · {s.expires_at ? t('shares.until', { date: new Date(s.expires_at).toLocaleDateString(i18n.language) }) : t('shares.forever')} · {t('shares.views', { count: s.views })}
             </span>
-            {s.password && <Lock className="h-3.5 w-3.5 text-mist-500" aria-label={t('shares.guarded')} />}
+            {/* In words, not a small lock alone (F14). */}
+            {s.password && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-ink-600 px-2 py-0.5 text-[11px] text-mist-400" data-testid="share-guarded" title={t('shares.guardedHint')}>
+                <Lock className="h-3 w-3" aria-hidden /> {t('shares.guarded')}
+              </span>
+            )}
             {s.link && (
               <a href={new URL(s.link).pathname} target="_blank" rel="noreferrer" className="nc-btn nc-btn-ghost !px-2.5 !py-0.5 !text-xs">
                 <Eye className="h-3.5 w-3.5" /> {t('shares.look')}
               </a>
             )}
             {linkRights(role, s.mine).end && (
-              <button type="button" aria-label={t('shares.remove')} className="rounded-full p-1.5 text-mist-500 hover:text-bad-500" onClick={() => void sharesApi.remove(s.id).then(load)}>
+              <button type="button" aria-label={t('shares.removeThis', { name: s.label || t('shares.unnamed') })} title={t('shares.remove')} className="rounded-full p-1.5 text-mist-500 hover:text-bad-500" onClick={() => setEnding(s)}>
                 <Trash2 className="h-4 w-4" />
               </button>
             )}
@@ -76,6 +83,20 @@ export function SharesPanel({ client, versions, role, project }: { client: strin
           {s.link ? <CopyLink value={s.link} label={t('shares.link')} /> : <p className="text-xs text-mist-500">{t('shares.linkWriters')}</p>}
         </article>
       ))}
+      {ending && (
+        <Confirm
+          title={t('shares.removeTitle', { name: ending.label || t('shares.unnamed') })}
+          text={t('shares.removeText')}
+          confirm={t('shares.remove')}
+          danger
+          onCancel={() => setEnding(null)}
+          onConfirm={async () => {
+            await sharesApi.remove(ending.id)
+            setEnding(null)
+            load()
+          }}
+        />
+      )}
       {making && <NewShare client={client} project={project} versions={published} onClose={() => setMaking(false)} onMade={() => (setMaking(false), load())} />}
     </div>
   )

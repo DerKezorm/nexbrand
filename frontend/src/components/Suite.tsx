@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { api, ApiError } from '../api/client'
+import { moment } from '../lib/time'
 import { Button, Card, Feedback, useAction } from '../pages/settings/ui'
 import { useAuth } from '../state/auth'
 import { Avatar } from './Avatar'
@@ -84,7 +85,7 @@ export function useSuiteConnected(): boolean {
 
 /** Settings, Server, nexsuite. */
 export function SuiteCard() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { me, setMe } = useAuth()
   const [status, setStatus] = useState<Status | null>(null)
   const [wizard, setWizard] = useState(false)
@@ -123,7 +124,7 @@ export function SuiteCard() {
               <dt className="text-mist-500">{t('suite.address')}</dt>
               <dd className="font-mono text-mist-100">{status.url}</dd>
               <dt className="text-mist-500">{t('suite.lastSync')}</dt>
-              <dd className="text-mist-100">{status.last_sync ? new Date(status.last_sync).toLocaleString() : t('suite.never')}</dd>
+              <dd className="text-mist-100">{status.last_sync ? moment(status.last_sync, i18n.language) : t('suite.never')}</dd>
               <dt className="text-mist-500">{t('suite.emergencyCodes')}</dt>
               <dd className="text-mist-100">{status.emergency_codes ? t('suite.codesKnown', { count: status.emergency_codes }) : t('suite.codesNone')}</dd>
             </dl>
@@ -373,13 +374,13 @@ function ConnectWizard({ resume, onClose }: { resume: boolean; onClose: () => vo
                   </span>
                   <span className="block text-xs text-mist-500">{a.email || a.name}</span>
                 </span>
-                <span className="text-mist-600" aria-hidden>
+                <span className="hidden text-mist-600 sm:inline" aria-hidden>
                   →
                 </span>
                 <select
                   value={accounts[a.id] ?? 'new'}
                   onChange={(e) => setAccounts((m) => ({ ...m, [a.id]: e.target.value }))}
-                  className="max-w-56 rounded-lg border border-ink-700 bg-ink-850 px-2 py-1 text-sm text-mist-100"
+                  className="w-full rounded-lg border border-ink-700 bg-ink-850 px-2 py-1 text-sm text-mist-100 sm:w-auto sm:max-w-56"
                   aria-label={t('suite.matchFor', { name: a.name })}
                 >
                   <option value="new">{t('suite.newPerson')}</option>
@@ -433,13 +434,13 @@ function ConnectWizard({ resume, onClose }: { resume: boolean; onClose: () => vo
               <li key={s.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm">
                 <Box className="h-4 w-4 shrink-0" style={{ color: s.color }} aria-hidden />
                 <span className="min-w-0 flex-1 font-medium text-mist-100">{s.name}</span>
-                <span className="text-mist-600" aria-hidden>
+                <span className="hidden text-mist-600 sm:inline" aria-hidden>
                   →
                 </span>
                 <select
                   value={clients[s.id] ?? 'new'}
                   onChange={(e) => setClients((m) => ({ ...m, [s.id]: e.target.value }))}
-                  className="max-w-56 rounded-lg border border-ink-700 bg-ink-850 px-2 py-1 text-sm text-mist-100"
+                  className="w-full rounded-lg border border-ink-700 bg-ink-850 px-2 py-1 text-sm text-mist-100 sm:w-auto sm:max-w-56"
                   aria-label={t('suite.matchFor', { name: s.name })}
                 >
                   <option value="new">{t('suite.newSpace')}</option>
@@ -461,13 +462,13 @@ function ConnectWizard({ resume, onClose }: { resume: boolean; onClose: () => vo
                   <li key={team.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm">
                     <Users className="h-4 w-4 shrink-0" style={{ color: team.color }} aria-hidden />
                     <span className="min-w-0 flex-1 font-medium text-mist-100">{team.name}</span>
-                    <span className="text-mist-600" aria-hidden>
+                    <span className="hidden text-mist-600 sm:inline" aria-hidden>
                       →
                     </span>
                     <select
                       value={teams[team.id] ?? 'new'}
                       onChange={(e) => setTeams((m) => ({ ...m, [team.id]: e.target.value }))}
-                      className="max-w-56 rounded-lg border border-ink-700 bg-ink-850 px-2 py-1 text-sm text-mist-100"
+                      className="w-full rounded-lg border border-ink-700 bg-ink-850 px-2 py-1 text-sm text-mist-100 sm:w-auto sm:max-w-56"
                       aria-label={t('suite.matchFor', { name: team.name })}
                     >
                       <option value="new">{t('suite.newTeam')}</option>

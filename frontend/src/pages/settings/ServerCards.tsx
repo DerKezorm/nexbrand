@@ -15,6 +15,7 @@ import { useAuth } from '../../state/auth'
 import { Button, Card, Confirm, CopyLink, Feedback, Input, saveAsFile, Select, SubHead, Toggle, useAction } from './ui'
 import { Managed } from '../../components/Suite'
 import { backupActions } from '../../lib/backups'
+import { moment } from '../../lib/time'
 
 export type ServerSettings = {
   public_url: string
@@ -92,7 +93,11 @@ export function AccountsCard({ readOnly = false }: { readOnly?: boolean }) {
   return (
     <Card id="accounts" icon={Users} title={t('server.accounts')} text={readOnly ? t('suite.managedAccounts') : t('server.accountsHint')}>
       <ul className="divide-y divide-ink-700 rounded-xl border border-ink-700">
-        {list.map((row) => (
+        {list.map((row) => {
+          const shown = row.display_name || row.name
+          // Each button names the account it acts on: seven "Delete" in a row told a screen reader nothing (G6).
+          const named = (action: string) => t('server.forAccount', { action, name: shown })
+          return (
           <li key={row.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
             <Avatar person={row} className="h-8 w-8 text-sm" />
             <div className="min-w-0 flex-1">
@@ -109,8 +114,10 @@ export function AccountsCard({ readOnly = false }: { readOnly?: boolean }) {
                   </span>
                 )}
               </div>
-              <div className="truncate text-xs text-mist-500">
-                {row.role === 'operator' ? t('account.operator') : t('server.member')} · {t(`server.signInBy.${row.sign_in}`)} · {t('server.inSpaces', { count: row.spaces })}
+              {/* Whole, on as many lines as it needs: the part a button row cut off was the one that matters (G6). The
+                  operator sees and manages every client, whatever access it has of its own. */}
+              <div className="text-xs break-words text-mist-500" data-testid="account-status">
+                {row.role === 'operator' ? t('account.operator') : t('server.member')} · {t(`server.signInBy.${row.sign_in}`)} · {row.role === 'operator' ? t('server.allClients') : t('server.inSpaces', { count: row.spaces })}
                 {row.two_factor ? ' · ' + t('server.withTwoFactor') : ''}
                 {row.locked ? ' · ' + t('server.locked') : ''}
                 {row.has_password === false && !row.blocked ? ' · ' + t('server.noPassword') : ''}
@@ -120,43 +127,45 @@ export function AccountsCard({ readOnly = false }: { readOnly?: boolean }) {
             {/* The links of a blocked account stay for the client's sake; here they end (A15), connected too: a person
                 blocked in nexsuite keeps them as well. */}
             {row.blocked && !!row.open_links && (
-              <Button small onClick={() => setAsking({ kind: 'links', account: row })}>
+              <Button small label={named(t('server.withdrawLinksRow'))} onClick={() => setAsking({ kind: 'links', account: row })}>
                 {t('server.withdrawLinksRow')}
               </Button>
             )}
             {row.id !== me?.id && !readOnly && (
-              <div className="flex flex-wrap gap-1.5">
-                <Button small onClick={() => setAsking({ kind: 'role', account: row })}>
+              // A row of their own under the name, not beside it (G6).
+              <div className="flex w-full flex-wrap gap-1.5 sm:pl-11" data-testid="account-actions">
+                <Button small label={named(row.role === 'operator' ? t('server.makeMember') : t('server.makeOperator'))} onClick={() => setAsking({ kind: 'role', account: row })}>
                   {row.role === 'operator' ? t('server.makeMember') : t('server.makeOperator')}
                 </Button>
                 {/* Also for accounts without one (after leaving nexsuite): a password is how they get in again (B4). */}
-                <Button small onClick={() => setAsking({ kind: 'password', account: row })}>
+                <Button small label={named(row.has_password === false ? t('server.givePassword') : t('server.newPassword'))} onClick={() => setAsking({ kind: 'password', account: row })}>
                   {row.has_password === false ? t('server.givePassword') : t('server.newPassword')}
                 </Button>
                 {row.blocked ? (
-                  <Button small onClick={() => setAsking({ kind: 'unblock', account: row })}>
+                  <Button small label={named(t('server.unblock'))} onClick={() => setAsking({ kind: 'unblock', account: row })}>
                     {t('server.unblock')}
                   </Button>
                 ) : (
-                  <Button small onClick={() => setAsking({ kind: 'block', account: row })}>
+                  <Button small danger label={named(t('server.block'))} onClick={() => setAsking({ kind: 'block', account: row })}>
                     {t('server.block')}
                   </Button>
                 )}
                 {row.two_factor && (
-                  <Button small onClick={() => setAsking({ kind: 'reset', account: row })}>
+                  <Button small label={named(t('server.resetTwoFactor'))} onClick={() => setAsking({ kind: 'reset', account: row })}>
                     {t('server.resetTwoFactor')}
                   </Button>
                 )}
-                <Button small onClick={() => setAsking({ kind: 'signout', account: row })}>
+                <Button small label={named(t('server.signOutEverywhere'))} onClick={() => setAsking({ kind: 'signout', account: row })}>
                   {t('server.signOutEverywhere')}
                 </Button>
-                <Button small danger onClick={() => setAsking({ kind: 'delete', account: row })}>
+                <Button small danger label={named(t('server.deleteAccount'))} onClick={() => setAsking({ kind: 'delete', account: row })}>
                   {t('server.deleteAccount')}
                 </Button>
               </div>
             )}
           </li>
-        ))}
+          )
+        })}
       </ul>
       {!readOnly && (
       <div>
@@ -536,7 +545,7 @@ export function ApiTokensCard({ server }: { server: Server }) {
                   </td>
                   <td className="py-1.5 pr-3">{token.clients === null ? t('server.apiTokens.allSpaces') : t('server.apiTokens.someSpaces', { count: token.clients })}</td>
                   <td className="py-1.5 pr-3 text-mist-400">
-                    {token.last_used_at ? new Date(token.last_used_at).toLocaleString(i18n.language, { dateStyle: 'short', timeStyle: 'short' }) : t('apiTokens.unused')}
+                    {token.last_used_at ? moment(token.last_used_at, i18n.language) : t('apiTokens.unused')}
                   </td>
                   <td className="py-1.5 text-right">
                     {token.blocked ? (
@@ -821,7 +830,7 @@ export function BackupsCard({ server }: { server: Server }) {
         {list.map((entry) => (
           <li key={entry.name} className="flex flex-wrap items-center gap-2 px-4 py-2.5">
             <div className="min-w-0 flex-1">
-              <div className="text-mist-100">{new Date(entry.created).toLocaleString(i18n.language)}</div>
+              <div className="text-mist-100">{moment(entry.created, i18n.language)}</div>
               <div className="text-xs text-mist-500">
                 {t(`server.kinds.${entry.kind}`)} · {t('server.backupContent', { clients: entry.clients, files: entry.files })} · {size(entry.size)} · {entry.version}
               </div>

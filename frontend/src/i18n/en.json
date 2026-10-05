@@ -1,6 +1,6 @@
 {
   "app": {
-    "home": "nexbrand home",
+    "home": "Go to the start page",
     "mainMenu": "Main menu"
   },
   "nav": {
@@ -11,7 +11,7 @@
   "theme": {
     "dark": "Dark",
     "light": "Light",
-    "group": "Appearance",
+    "group": "Light or dark",
     "system": "As the system"
   },
   "search": {
@@ -30,7 +30,7 @@
     "done": "Done"
   },
   "account": {
-    "menu": "Account menu of {{name}}",
+    "menu": "Account of {{name}}",
     "operator": "Operator",
     "mine": "My account",
     "language": "Language",
@@ -77,7 +77,6 @@
     "noFavorites": "Star a client to keep it here.",
     "collapse": "Collapse",
     "expand": "Expand",
-    "nothingHere": "No clients here yet",
     "noRecent": "Nothing opened yet.",
     "clients": "Clients"
   },
@@ -395,7 +394,9 @@
     "linksStay_other": "{{name}} has {{count}} open links for clients (public pages and reviews). They stay valid until you withdraw them.",
     "withdrawLinks": "Withdraw",
     "withdrawLinksRow": "Withdraw links",
-    "linksWithdrawn": "Links withdrawn."
+    "linksWithdrawn": "Links withdrawn.",
+    "allClients": "sees and manages every client",
+    "forAccount": "{{name}}: {{action}}"
   },
   "errors": {
     "avatar_not_a_picture": "That is not a picture nexbrand takes (JPEG, PNG, WebP, GIF, HEIC or AVIF).",
@@ -609,7 +610,11 @@
     "client_name_in_bin": "A client of this name is in the bin. Restore it, or choose another name.",
     "project_name_taken": "This client has a project of this name already. Choose another name.",
     "team_name_taken": "There is a team of this name already. Choose another name.",
-    "team_leads_off": "The operator has not let team leads change their teams."
+    "team_leads_off": "The operator has not let team leads change their teams.",
+    "password_unchanged": "The new password is the same as the current one. Choose another.",
+    "invalid_characters": "The text holds control characters you cannot see. Type it anew instead of pasting it.",
+    "app_still_connected": "An app at this address is still connected to nexsuite. Disconnect it first, in the app or in nexsuite under Apps.",
+    "app_not_reachable": "nexsuite knows a connection with this address and cannot reach the app to ask. Disconnect it in nexsuite under Apps, then connect again."
   },
   "auth": {
     "name": "Name",
@@ -700,14 +705,14 @@
     "licence": "Licence",
     "source": "Source code",
     "releases": "Releases",
-    "releasesLink": "All versions and what changed",
+    "releasesLink": "Every version and what changed",
     "project": "Project page",
     "report": "Found a problem?",
     "reportLink": "Report it on GitHub",
     "builtWith": "Built with",
     "updates": {
       "title": "Updates",
-      "text": "Whether a newer version of nexbrand is out.",
+      "text": "Whether there is a newer version of nexbrand.",
       "daily": "Check once a day",
       "dailyHint": "Asks GitHub for the newest release. Off: only when you press the button.",
       "now": "Check now",
@@ -718,6 +723,15 @@
       "toRelease": "What is new",
       "checkedAt": "last checked {{when}}",
       "whatGoesOut": "Only the question goes out: a request to api.github.com for the newest release of nexbrand, with no names, clients or settings. It is the only call nexbrand makes on its own."
+    },
+    "family": "Part of the nex family",
+    "familyText": "nexbrand belongs together with these apps. Connected to nexsuite, they share people, teams and the sign-in, and clients come from there.",
+    "apps": {
+      "nexsuite": "People, teams, clients and the sign-in for the whole family",
+      "nexcanvas": "Whiteboards, together and live",
+      "nexlore": "A team's notes and knowledge",
+      "nextasks": "Tasks for teams",
+      "nexmail": "Mail on your own server"
     }
   },
   "notices": {
@@ -1016,7 +1030,7 @@
     "all": "All clients",
     "text": "Every client has its CI in versions; projects build on one of them.",
     "filter": "Filter clients",
-    "empty": "No clients here yet.",
+    "empty": "No clients yet.",
     "bin": "Bin",
     "binText": "Clients stay in the bin for 30 days, then they go with all their versions.",
     "binOpen": "Bin",
@@ -1030,7 +1044,11 @@
     "fromSuiteAll": "Clients come from nexsuite: they are made, renamed and deleted there, and get their CI here.",
     "binSuite": "Deleted in nexsuite. Bringing it back and deleting it for good happen there.",
     "purgeTitle": "Delete {{name}} for good?",
-    "purgeText": "The client goes with every version, project, file and link. This cannot be undone."
+    "purgeText": "The client goes with every version, project, file and link. This cannot be undone.",
+    "ask": "You do not have access to any client yet. Ask whoever manages a client, or the operator, to add you.",
+    "askSuite": "You do not have access to any client yet. Access to clients comes from nexsuite; ask whoever manages a client there, or the operator.",
+    "restoreThis": "Restore {{name}}",
+    "purgeThis": "Delete {{name}} for good"
   },
   "client": {
     "new": "New client",
@@ -1043,7 +1061,7 @@
     "drafts_one": "{{count}} draft",
     "drafts_other": "{{count}} drafts",
     "missing": "This client does not exist, or you may not see it.",
-    "edit": "Edit",
+    "edit": "Edit client details",
     "export": "As code",
     "timeline": "Versions",
     "asOf": "As of",
@@ -1057,7 +1075,7 @@
     "draftBanner": "Draft by {{author}}.",
     "draftHolds": "It holds once published; until then {{label}} holds.",
     "draftOnly": "There is no published version yet; projects build on this draft meanwhile.",
-    "editDraft": "Edit",
+    "editDraft": "Edit draft",
     "compareWith": "Compare with {{label}}",
     "toClient": "Put before the client",
     "publish": "Publish",
@@ -1079,7 +1097,7 @@
     "trashText": "{{name}} goes into the bin with all versions and projects. It stays there for 30 days.",
     "deleteDraft": "Delete draft",
     "deleteDraftText": "Delete the draft {{label}}? Published versions stay.",
-    "leaveText": "There are unsaved changes. Close anyway?",
+    "leaveText": "What you changed since the last save is lost.",
     "name": "Name",
     "sector": "Sector",
     "contact": "Contact or address",
@@ -1128,7 +1146,9 @@
     "upcoming": "upcoming",
     "upcomingText": "You are looking at version {{label}}. It holds from {{from}}; until then, {{current}} holds.",
     "upcomingNone": "You are looking at version {{label}}. It holds from {{from}}; until then, none holds.",
-    "threeYearsTitle": "The version that held on {{date}}"
+    "threeYearsTitle": "The version that held on {{date}}",
+    "leaveTitle": "Discard unsaved changes?",
+    "leave": "Discard"
   },
   "projects": {
     "text": "A project is an app, a product or a campaign of {{client}} with a CI of its own. Each part comes from {{client}}, from {{client}} plus its own, or is its own.",
@@ -1457,7 +1477,11 @@
     "offYou": "Public pages are off, and with them public links and reviews.",
     "offWhere": "Switch them on under Settings → Server → Public pages.",
     "offAsk": "The operator has not allowed public pages, so there are no public links or reviews. Ask them to switch them on under Settings → Server → Public pages.",
-    "linkWriters": "Everyone who may write for this client sees the link."
+    "linkWriters": "Everyone who may write for this client sees the link.",
+    "removeThis": "End the page {{name}}",
+    "removeTitle": "End the page {{name}}?",
+    "removeText": "The link stops working; whoever has it sees nothing there any more. A new page gets a new link.",
+    "guardedHint": "Whoever opens the link needs the password."
   },
   "reviews": {
     "none": "No review yet. A draft goes to the client with “Put before the client”.",
@@ -1468,7 +1492,6 @@
     },
     "asClient": "See as the client",
     "withdraw": "Withdraw",
-    "withdrawAsk": "Withdraw the review? The link stops working.",
     "link": "Link of the review",
     "chosen": "{{who}} chose “{{label}}”; it became the published version.",
     "theClient": "The client",
@@ -1500,7 +1523,9 @@
     "mailFailed": "The review is ready, but the mail did not go out: {{reason}} Copy the link from the Review tab and send it yourself.",
     "noAddress": "To mail the link nexbrand needs its public address; until then you copy the link from the Review tab.",
     "noAddressWhere": "Enter it under Settings → Server → Sign-in → Public address.",
-    "noAddressAsk": "To mail the link nexbrand needs its public address. Ask the operator to enter it under Settings → Server → Sign-in; until then you copy the link from the Review tab."
+    "noAddressAsk": "To mail the link nexbrand needs its public address. Ask the operator to enter it under Settings → Server → Sign-in; until then you copy the link from the Review tab.",
+    "withdrawTitle": "Withdraw the review of {{label}}?",
+    "withdrawText": "The link stops working. Whoever has it only sees there that the review has ended."
   },
   "preview": {
     "label": "Sample page in this CI",
@@ -1772,7 +1797,10 @@
     "pickTitle": "A CI for a client from nexsuite",
     "pickText": "These clients have no CI yet. Choose one and the workbench starts with it.",
     "pickNone": "No client is waiting for its CI right now. New clients are made in nexsuite.",
-    "toClients": "To the clients"
+    "toClients": "To the clients",
+    "needName": "Type a name first.",
+    "needColor": "Add a colour first.",
+    "keepColors": "Go on with the colours so far"
   },
   "contrast": {
     "title": "Contrast checker",
@@ -1946,7 +1974,10 @@
     "stored": "Kept with the client:",
     "remember": "Keep with the client",
     "rememberHint": "Keep this address with {{name}}, ready for the next collecting.",
-    "takeKeepColors": "No colour ticked: the current version's colours stay. Fonts and logos go into a new draft as marked."
+    "takeKeepColors": "No colour ticked: the current version's colours stay. Fonts and logos go into a new draft as marked.",
+    "offNow": "Collecting from websites and repositories is off; PDFs work anyway.",
+    "offSwitch": "Switch it on under Settings, Server.",
+    "offAsk": "The operator can switch it on."
   },
   "rules": {
     "intro": "Colour pairs, logo grounds and fonts are checked: here while editing, and for programs over the API and MCP. Free rules are text for people and checked by nobody.",
@@ -2013,7 +2044,8 @@
       "logoDont": "“{{logo}}” on {{grounds}}",
       "font": "{{font}} for {{use}}",
       "fontMin": "{{font}} for {{use}}, at least {{min}} px"
-    }
+    },
+    "numbered": "Rule {{number}}: {{text}}"
   },
   "gallery": {
     "open": "Open {{kind}}",
@@ -2111,5 +2143,8 @@
     "field": "Not saved: {{place}}, field “{{field}}” is not valid.",
     "at": "Not saved: {{place}} is not valid.",
     "twice": "Not saved: two colours are called “{{name}}”. Give one of them another name."
+  },
+  "keys": {
+    "ctrl": "Ctrl"
   }
 }

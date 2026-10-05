@@ -23,3 +23,8 @@ def detail(code: str, text: str, **values: Any) -> dict[str, Any]:
 
 def error(code: str, text: str, status_code: int = 400, **values: Any) -> HTTPException:
     return HTTPException(status_code=status_code, detail=detail(code, text, **values))
+
+
+def invalid_characters() -> HTTPException:
+    """A name or title with a control character in it (``services.names.has_control``)."""
+    return error("invalid_characters", "The text holds control characters you cannot see.", 422)

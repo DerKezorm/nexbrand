@@ -6,7 +6,8 @@ import { Link } from 'react-router-dom'
 import { reviewsApi, type ClientWhole, type ReviewComment, type ReviewInfo, type VersionInfo } from '../../api/client'
 import { errorText } from '../../lib/errors'
 import { directionLetter, linkRights, shownAuthor } from '../../lib/review'
-import { Button, CopyLink, Feedback, Input, Select, useAction } from '../../pages/settings/ui'
+import { moment } from '../../lib/time'
+import { Button, Confirm, CopyLink, Feedback, Input, Select, useAction } from '../../pages/settings/ui'
 import { useAuth } from '../../state/auth'
 import { useBrands } from '../../state/brands'
 import { Dialog } from '../Dialog'
@@ -50,6 +51,8 @@ export function ReviewsPanel({ client, versions, only, role, onChange }: { clien
 function ReviewCard({ client, review, newSince, version, role, locale, onChange }: { client: string; review: ReviewInfo; newSince?: string; version?: VersionInfo; role: Role; locale: string; onChange: () => void }) {
   const { t } = useTranslation()
   const [answer, setAnswer] = useState<Record<string, string>>({})
+  // Withdrawing asks with the family's dialog, not the browser's (F6).
+  const [withdrawing, setWithdrawing] = useState(false)
   const may = linkRights(role, review.mine)
   const tone = review.status === 'open' ? 'border-magenta-500/50 text-magenta-text' : review.status === 'chosen' ? 'border-ok-500/40 text-ok-500' : 'border-ink-700 text-mist-500'
   const chosen = review.variants.find((v) => v.id === review.chosen)
@@ -68,11 +71,25 @@ function ReviewCard({ client, review, newSince, version, role, locale, onChange 
           </a>
         )}
         {review.status === 'open' && may.end && (
-          <button type="button" className="nc-btn nc-btn-ghost !px-2.5 !py-0.5 !text-xs" onClick={() => window.confirm(t('reviews.withdrawAsk')) && void reviewsApi.withdraw(client, review.id).then(onChange)}>
+          <button type="button" className="nc-btn nc-btn-ghost !px-2.5 !py-0.5 !text-xs" onClick={() => setWithdrawing(true)}>
             <Undo2 className="h-3.5 w-3.5" /> {t('reviews.withdraw')}
           </button>
         )}
       </div>
+      {withdrawing && (
+        <Confirm
+          title={t('reviews.withdrawTitle', { label: review.label })}
+          text={t('reviews.withdrawText')}
+          confirm={t('reviews.withdraw')}
+          danger
+          onCancel={() => setWithdrawing(false)}
+          onConfirm={async () => {
+            await reviewsApi.withdraw(client, review.id)
+            setWithdrawing(false)
+            onChange()
+          }}
+        />
+      )}
       {review.status === 'open' && (review.link ? <CopyLink value={review.link} label={t('reviews.link')} /> : <p className="text-xs text-mist-500">{t('reviews.linkWriters')}</p>)}
       {chosen && <p className="rounded-xl border border-ok-500/30 bg-ok-500/8 px-3 py-2 text-sm text-mist-200">{t('reviews.chosen', { label: chosen.label, who: review.chosen_by || t('reviews.theClient') })}</p>}
       <div className="grid gap-3 md:grid-cols-2">
@@ -91,7 +108,7 @@ function ReviewCard({ client, review, newSince, version, role, locale, onChange 
                 .filter((c) => c.variant === v.id)
                 .map((c, i) => (
                   <li key={i} className={'rounded-lg px-2.5 py-1.5 text-sm ' + (c.agency ? 'bg-accent-500/10' : 'bg-ink-900') + (isNew(c) ? ' ring-1 ring-magenta-500/60' : '')}>
-                    <span className="text-xs font-semibold text-mist-300">{shownAuthor(c.author, t('review.noName'))}</span> <span className="text-[11px] text-mist-600">{new Date(c.at).toLocaleString(locale)}</span>
+                    <span className="text-xs font-semibold text-mist-300">{shownAuthor(c.author, t('review.noName'))}</span> <span className="text-[11px] text-mist-600">{moment(c.at, locale)}</span>
                     {isNew(c) && <span className="ml-1.5 rounded-full bg-magenta-500 px-1.5 text-[10px] font-semibold text-white">{t('reviews.new')}</span>}
                     {c.sample && <span className="ml-1.5 text-[11px] text-mist-500">{t('reviews.onSample', { name: v.data.samples.find((x) => x.media === c.sample)?.name ?? '' })}</span>}
                     <p className="whitespace-pre-line text-mist-200">{c.text}</p>

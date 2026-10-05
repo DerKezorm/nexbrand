@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react'
+
 import { avatarUrl } from '../api/client'
 import { personColor } from '../lib/person'
 
@@ -17,7 +19,7 @@ export function Avatar({
   if (url) return <img src={url} alt="" title={shown} className={classes + ' object-cover'} />
   const color = personColor(person.name)
   return (
-    <span title={shown} className={classes} style={{ background: `color-mix(in srgb, ${color} 24%, var(--color-ink-850))`, color }}>
+    <span title={shown} className={classes + ' nc-tint'} style={{ '--tint': color } as CSSProperties}>
       {(shown.trim()[0] ?? '?').toUpperCase()}
     </span>
   )

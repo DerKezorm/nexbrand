@@ -14,6 +14,7 @@ import { Link } from 'react-router-dom'
 import { ApiError, aiApi, type AiEvent, type AiModel, type AiState } from '../api/client'
 import { AI_PROVIDERS } from '../lib/aiProviders'
 import { errorText } from '../lib/errors'
+import { moment } from '../lib/time'
 import { useAuth } from '../state/auth'
 import { Section } from './Section'
 
@@ -207,7 +208,7 @@ export function AiAccess() {
             <li key={event.id} className="rounded-lg border border-ink-800 p-2 text-xs">
               <details>
                 <summary className="cursor-pointer text-mist-300">
-                  {new Date(event.at).toLocaleString(i18n.language, { dateStyle: 'short', timeStyle: 'short' })} · {t(`ai.tasks.${event.task}`)} · {event.model}
+                  {moment(event.at, i18n.language)} · {t(`ai.tasks.${event.task}`)} · {event.model}
                   {event.error ? ` · ${errorText(event.error)}` : ` · ${t('ai.tokens', { in: event.tokens_in, out: event.tokens_out })}`}
                 </summary>
                 <pre className="nc-scroll mt-2 max-h-64 overflow-auto rounded-lg bg-ink-950 p-2 font-mono text-[11px] whitespace-pre-wrap text-mist-300">

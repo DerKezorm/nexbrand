@@ -8,6 +8,7 @@ import { useShell } from '../components/AppShell'
 import { LogoView } from '../components/brand/LogoView'
 import { Sidebar } from '../components/Sidebar'
 import { textOn } from '../lib/color'
+import { useTitle } from '../lib/title'
 import { useAuth } from '../state/auth'
 import { useBrands } from '../state/brands'
 import { Button, Confirm, Feedback, useAction } from './settings/ui'
@@ -30,6 +31,7 @@ export function ClientsPage() {
     return all.filter((c) => !q || c.name.toLocaleLowerCase().includes(q) || c.sector.toLocaleLowerCase().includes(q))
   }, [bin, brands.bin, brands.clients, query])
   const canCreate = !!me?.may_create_clients
+  useTitle(bin ? t('clients.bin') : t('clients.title'))
   return (
     <div className="flex min-h-0 flex-1">
       <Sidebar />
@@ -60,6 +62,12 @@ export function ClientsPage() {
           {brands.loaded && list.length === 0 && (
             <div className="rounded-2xl border border-dashed border-ink-700 p-10 text-center">
               <p className="text-mist-300">{bin ? t('clients.binEmpty') : query ? t('search.nothing') : t('clients.empty')}</p>
+              {/* Whoever cannot make one learns how to get to a client (G5): from the managers here, or in nexsuite. */}
+              {!bin && !query && !canCreate && (
+                <p className="mx-auto mt-2 max-w-md text-sm text-mist-500" data-testid="clients-ask">
+                  {t(me?.suite === 'connected' ? 'clients.askSuite' : 'clients.ask')}
+                </p>
+              )}
               {!bin && !query && canCreate && (
                 <button type="button" className="nc-btn nc-btn-accent mt-4" onClick={() => shell.newClient()}>
                   <Plus className="h-4 w-4" /> {t('client.new')}
@@ -127,26 +135,28 @@ function BinCard({ client }: { client: ClientInfo }) {
   const restore = useAction()
   const [asking, setAsking] = useState(false)
   return (
-    <div className="space-y-2 rounded-2xl border border-ink-700 bg-ink-900 p-4" data-testid="bin-card">
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="min-w-0 flex-1 truncate font-semibold">{client.name}</span>
-        {/* Deleted in nexsuite: brought back or deleted for good there, never here (B6, B14). */}
-        {!client.managed && (
-          <>
-            <Button busy={restore.busy} onClick={() => void restore.run(async () => {
-              await clientsApi.restore(client.id)
-              await Promise.all([brands.refresh(), brands.loadBin()])
-            })}>
-              <RotateCcw className="h-4 w-4" /> {t('clients.restore')}
+    <div className="space-y-3 rounded-2xl border border-ink-700 bg-ink-900 p-4" data-testid="bin-card">
+      {/* The name on a line of its own, whole: beside two buttons it shrank to nothing, right next to "Delete for
+          good" (F6). The buttons name the client too, for whoever hears the page. */}
+      <h2 className="font-semibold break-words text-mist-100" data-testid="bin-name">
+        {client.name}
+      </h2>
+      {/* Deleted in nexsuite: brought back or deleted for good there, never here (B6, B14). */}
+      {!client.managed && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button busy={restore.busy} label={t('clients.restoreThis', { name: client.name })} onClick={() => void restore.run(async () => {
+            await clientsApi.restore(client.id)
+            await Promise.all([brands.refresh(), brands.loadBin()])
+          })}>
+            <RotateCcw className="h-4 w-4" aria-hidden /> {t('clients.restore')}
+          </Button>
+          {client.role === 'manage' && (
+            <Button danger label={t('clients.purgeThis', { name: client.name })} onClick={() => setAsking(true)}>
+              <Trash2 className="h-4 w-4" aria-hidden /> {t('clients.purge')}
             </Button>
-            {client.role === 'manage' && (
-              <Button onClick={() => setAsking(true)}>
-                <Trash2 className="h-4 w-4" /> {t('clients.purge')}
-              </Button>
-            )}
-          </>
-        )}
-      </div>
+          )}
+        </div>
+      )}
       {client.managed && <p className="text-xs text-mist-500">{t('clients.binSuite')}</p>}
       <Feedback problem={restore.problem} />
       {asking && (

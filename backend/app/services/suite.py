@@ -80,7 +80,9 @@ _sync_lock = threading.RLock()
 #: Saving the choices of a connection under way and finishing it do not cross (B23).
 _connect_lock = threading.RLock()
 #: What nexsuite answers to a pairing; anything else came from something that is not nexsuite (B24).
-PAIR_CODES = frozenset({"pair_code_invalid", "too_many_attempts", "invalid_url", "unknown_app", "suite_unreachable"})
+PAIR_CODES = frozenset({"pair_code_invalid", "too_many_attempts", "invalid_url", "unknown_app", "suite_unreachable",
+                        # An older connection of this address that still holds, or that nexsuite cannot ask about.
+                        "app_still_connected", "app_not_reachable"})
 #: Set by the tests: a notice fetches the directory before it answers.
 INLINE = False
 
@@ -455,6 +457,7 @@ def _finish(db: Session, operator: Account, accounts_map: dict[int, str], client
     _known(clients_map, {str(c["id"]) for c in seen.get("clients_candidates") or []}, "client")
     _known(teams_map, {str(t["id"]) for t in seen.get("teams") or []}, "team")
     addresses = {str(p["id"]): p.get("email") or "" for p in seen["people"]}
+    shown_names = {str(p["id"]): p.get("display_name") or "" for p in seen["people"]}
     accounts_here = {row.id: row for row in db.scalars(select(Account))}
     person_of: dict[int, str] = {}
     for account_id, choice in accounts_map.items():
@@ -470,12 +473,22 @@ def _finish(db: Session, operator: Account, accounts_map: dict[int, str], client
                 remember(f"person:{row.id}", made)
             new_people.append({"name": row.display_name or row.name, "password": made["password"]})
             choice = made["id"]
-        elif row.email and not addresses.get(str(choice)):
-            # Matched to a person without an address: the one from here goes along instead of getting lost (B7).
-            try:
-                request("POST", _api(db, f"/people/{int(choice)}/email"), token=token, body={"email": row.email})
-            except SuiteError:
-                logger.info("nexsuite did not take the address name=%s", row.name)
+        else:
+            if row.email and not addresses.get(str(choice)):
+                # Matched to a person without an address: the one from here goes along instead of getting lost (B7).
+                try:
+                    request("POST", _api(db, f"/people/{int(choice)}/email"), token=token, body={"email": row.email})
+                except SuiteError:
+                    logger.info("nexsuite did not take the address name=%s", row.name)
+            if row.display_name and not shown_names.get(str(choice)):
+                # The same for the display name: the sync after connecting would otherwise take the person's empty
+                # one, and the account would lose the name it had here (nexsuite 3ef5282). A refusal (taken, too
+                # long) stops nothing.
+                try:
+                    request("POST", _api(db, f"/people/{int(choice)}/name"), token=token,
+                            body={"display_name": row.display_name})
+                except SuiteError:
+                    logger.info("nexsuite did not take the display name name=%s", row.name)
         person_of[row.id] = str(choice)
     if operator.id not in person_of:
         raise SuiteError("operator_unmatched", "Your own account needs a person in nexsuite.", 422)
@@ -601,7 +614,7 @@ def _claim_name(db: Session, person: dict[str, Any], present: set[str], keeper: 
         holder.name = _free_name(db, base + "2")
         db.flush()
         # Its display name stands for it too where the new person shows the same one.
-        incoming = str(person.get("display_name") or "") or base
+        incoming = names.from_suite(person.get("display_name"), 80, invisible=True) or base
         _rename_references(db, holder, old, holder.name, shown if shown and shown == incoming else "")
         renamed.append((old, holder.name))
         # from= and to= are no names of people to the log (logs.rename_actor): this line keeps the move as it was.
@@ -798,7 +811,7 @@ def _settle_subjects(db: Session, people: dict[str, dict[str, Any]], keeper: int
             continue
         row.suite_person = ""
         copied = (person is not None and row.email == str(person.get("email") or "")[:255]
-                  and row.display_name == str(person.get("display_name") or "")[:80])
+                  and row.display_name == names.from_suite(person.get("display_name"), 80, invisible=True))
         if copied:
             row.email, row.display_name = "", ""
         if row.id != keeper and row.blocked_at is None:
@@ -826,7 +839,8 @@ def _apply(db: Session, seen: dict[str, Any], token: str) -> None:
             db.flush()
         # nexsuite knows this account by its person (also one connected before this was kept, B8).
         row.suite_person = pid
-        row.display_name = str(person.get("display_name") or "")[:80]
+        # Names from nexsuite follow the rule for names typed here: no control (C1 too) or format characters.
+        row.display_name = names.from_suite(person.get("display_name"), 80, invisible=True)
         row.email = str(person.get("email") or "")[:255]
         if row.id != keeper:
             # Signs in through nexsuite (password and second factor are set there); the own password stays kept
@@ -868,11 +882,11 @@ def _apply(db: Session, seen: dict[str, Any], token: str) -> None:
         tid = str(item["id"])
         team = existing.pop(tid, None)
         if team is None:
-            team = Team(name=str(item["name"])[:80], source=TEAM_ADMIN, external_id=tid)
+            team = Team(name=names.from_suite(item["name"], 80) or "?", source=TEAM_ADMIN, external_id=tid)
             db.add(team)
             db.flush()
         # A name another team here has gets a number here; nexsuite's own stays as it is (F15).
-        team.name = names.unique(db, "team", str(item["name"])[:80] or "?",
+        team.name = names.unique(db, "team", names.from_suite(item["name"], 80) or "?",
                                  db.scalars(select(Team.name).where(Team.id != team.id)), 80, tid, team.name)
         team.color = str(item.get("color") or team.color)[:16]
         wanted = {account_of[m] for m in item.get("members", []) if m in account_of}
@@ -924,24 +938,24 @@ def _apply_clients(db: Session, seen: dict[str, Any], account_of: dict[str, int]
         given.add(sid)
         space = spaces.get(sid)
         if space is None:
-            space = Space(name=str(item["name"])[:80] or "?", external_id=sid)
+            space = Space(name=names.from_suite(item["name"], 80) or "?", external_id=sid)
             db.add(space)
             db.flush()
             spaces[sid] = space
         client = client_of.get(space.id)
         if client is None:
-            client = Client(id=brands.new_id(), space_id=space.id, name=str(item["name"])[:120] or "?",
+            client = Client(id=brands.new_id(), space_id=space.id, name=names.from_suite(item["name"], 120) or "?",
                             updated_by="nexsuite")
             db.add(client)
             db.flush()
             client_of[space.id] = client
             logger.info("Client brought by nexsuite id=%s", client.id)
         # A name another client here has (one of its own, one in the bin) gets a number here (F15).
-        client.name = names.unique(db, "client", str(item["name"])[:120] or client.name,
+        client.name = names.unique(db, "client", names.from_suite(item["name"], 120) or client.name,
                                    db.scalars(select(Client.name).where(Client.id != client.id)), 120, client.id,
                                    client.name)
-        client.sector = str(item.get("sector") or "")[:120]
-        client.contact = str(item.get("contact") or "")[:255]
+        client.sector = names.from_suite(item.get("sector"), 120)
+        client.contact = names.from_suite(item.get("contact"), 255)
         space.name = client.name[:80]
         space.color = str(item.get("color") or space.color)[:16]
         if client.deleted_at is not None and sid not in binned:

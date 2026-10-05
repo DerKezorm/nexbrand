@@ -237,6 +237,9 @@ def check_password(account: Account, password: str) -> bool:
 def change_password(db: Session, account: Account, current: str, new: str) -> None:
     if not verify_password(current, account.password_hash):
         raise AccountError("wrong_password", "The current password is wrong.", 401)
+    if new == current:
+        # Taken before, and it ended the other sessions as if something had changed (Prüfgang E25 in nextasks).
+        raise AccountError("password_unchanged", "The new password is the same as the current one.", 422)
     account.password_hash = hash_password(new)
     db.commit()
     logger.info("Password changed name=%s", account.name)

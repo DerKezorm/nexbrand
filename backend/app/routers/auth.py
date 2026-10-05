@@ -334,6 +334,8 @@ def me(account: Account, db: DbSession) -> dict[str, Any]:
     return {
         **account_view(account),
         "shares_allowed": bool(settings_service.get(db, "shares_allowed")),
+        # Collecting from websites and repositories: the operator's switch, said before anybody tries (F19).
+        "collect_allowed": bool(settings_service.get(db, "collect_allowed")),
         "mail": mailer.configured(db),
         # Mail with a link needs the public address (the request's own Host is never put into a mail).
         "public_url": bool(settings_service.public_url(db)),

@@ -23,6 +23,10 @@ its own tokens under **My account → Connections**:
   out.
 - It is shown once, right after it was made. nexbrand keeps only a checksum.
 - The operator sees every token (never the token itself) and can block one for good.
+- A blocked or deleted account has no working token: a blocked one answers like none until the account is let in
+  again, a deleted one is gone with it. The same when nexsuite blocks or deletes the person. An account locked for a
+  while after wrong passwords keeps its tokens, so nobody switches a program off by guessing. Rights taken away at a
+  client are gone for its tokens at once.
 
 Fonts with the licence **internal** never leave through a token: the design set names them, their files are not
 handed out. A file that any version of the client keeps as an internal font is left out everywhere else as well: as
@@ -43,7 +47,7 @@ JSON; code comes as text.
 | Answer | Code | Meaning |
 |---|---|---|
 | 401 | `api_off` | The operator has not switched API tokens on. |
-| 401 | `token_invalid` | No such token, or it ran out, was blocked or deleted. |
+| 401 | `token_invalid` | No such token, or it ran out, was deleted (withdrawn) or blocked by the operator, its account is blocked or deleted, or the operator requires a second factor its account has not set up yet. |
 | 403 | `origin_refused` | The request came from a web page. |
 | 403 | `level_too_low` | A read token tried to propose a draft. |
 | 404 | `not_found` | No such client, version, project or file, or the token may not read it. Both answer the same. |

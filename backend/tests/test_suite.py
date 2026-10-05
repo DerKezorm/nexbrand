@@ -63,6 +63,10 @@ class FakeSuite:
         #: nexsuite out of reach for every call (A11).
         self.down = False
         self.reports: list[dict[str, Any]] = []
+        #: nexsuite refuses the pairing with this code (an older connection of the address, nexsuite 3ef5282).
+        self.pair_refused = ""
+        #: nexsuite refuses to take a display name (taken by another person).
+        self.name_refused = False
 
     def picture(self, url: str, token: str) -> bytes:
         assert token == self.token and url.startswith(SUITE + "/api/connect/v1/avatars/")
@@ -92,6 +96,8 @@ class FakeSuite:
             assert body["kind"] == "nexbrand" and body["redirect_uri"].endswith("/api/oidc/callback")
             if body["code"] != "GOOD-CODE-1234":
                 raise suite.SuiteError("pair_code_invalid", "nexsuite refused.", 409)
+            if self.pair_refused:
+                raise suite.SuiteError(self.pair_refused, "nexsuite refused.", 409)
             return {"app_id": 1, "client_id": "nxs-client", "client_secret": "the-client-secret",
                     "token": self.token, "issuer": SUITE}
         if token != self.token or not self.known:
@@ -114,6 +120,15 @@ class FakeSuite:
             self.people[pid] = {"id": pid, "name": body["name"], "display_name": body["display_name"],
                                 "email": body["email"], "operator": False, "blocked": False}
             return {"id": pid, "name": body["name"], "password": "mailed" if body["email"] else "in_suite"}
+        if path.startswith("/people/") and path.endswith("/name"):
+            # nexsuite 3ef5282: a person without a display name takes the app's, unless another goes by it.
+            person = self.people[path.split("/")[2]]
+            if self.name_refused:
+                raise suite.SuiteError("name_taken", "nexsuite refused.", 409)
+            if person["display_name"]:
+                return {"taken": False}
+            person["display_name"] = body["display_name"]
+            return {"taken": True}
         if path.startswith("/people/") and path.endswith("/email"):
             person = self.people[path.split("/")[2]]
             if person["email"]:

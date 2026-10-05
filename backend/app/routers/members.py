@@ -384,7 +384,7 @@ def _create(db: DbSession, request: Request, by: AccountRow, space: Space | None
             # The link was to go by mail only: kept, the invitation would stand without anybody holding its link.
             db.delete(invite)
             db.commit()
-            raise error(exc.code, str(exc), 502) from exc
+            raise error(exc.code, str(exc), mailer.status_of(exc)) from exc
     if email:
         # One open invitation per address and place: the new one replaces those before it (D5), so no old link stays
         # valid beside it. Only once the new one stands (its mail went out): a failed mail keeps the old one. Older

@@ -45,6 +45,34 @@ def key(name: str) -> str:
     return " ".join(text.split()).casefold()
 
 
+#: Typed or pasted line breaks and tabs: a name gathers them into one blank, they are no reason to refuse it.
+BLANKS = "\t\n\r"
+
+
+def has_control(text: str, keep: str = BLANKS) -> bool:
+    """A control character (Unicode Cc: C0, DEL and C1, U+0080 to U+009F) other than those in ``keep``. Names and
+    titles refuse every one, as display names do, also those Python counts as blanks (U+001C to U+001F, U+0085)."""
+    return any(unicodedata.category(char) == "Cc" and char not in keep for char in text)
+
+
+def title(value: Any, most: int) -> str:
+    """A name or title typed here, on one line: blanks gathered, at most ``most`` characters. Raises ``ValueError``
+    for a control character (``has_control``)."""
+    raw = str(value or "")
+    if has_control(raw):
+        raise ValueError("invalid_characters")
+    return " ".join(raw.split())[:most]
+
+
+def from_suite(value: Any, most: int, *, invisible: bool = False) -> str:
+    """A name nexsuite sends, by the rule for names typed here: control characters gone (and format characters, for a
+    display name: ``invisible``), blanks gathered, at most ``most`` characters. Never trusted to come checked."""
+    drop = ("Cc", "Cf") if invisible else ("Cc",)
+    text = "".join(char if unicodedata.category(char) not in drop else " " if char.isspace() else ""
+                   for char in str(value or ""))
+    return " ".join(text.split())[:most]
+
+
 def free(name: str, taken: Iterable[str], most: int) -> str:
     """``name``, or with `` (2)``, `` (3)`` … behind it when it is taken; never longer than ``most``."""
     keys = {key(item) for item in taken}

@@ -14,10 +14,10 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from ..deps import Account, DbSession, OperatorAccount
-from ..errors import error
+from ..errors import error, invalid_characters
 from ..models import Account as AccountRow
 from ..models import ApiToken, Client, utcnow
-from ..services import apitokens, rights
+from ..services import apitokens, names, rights
 from ..services.apitokens import TokenError
 
 logger = logging.getLogger("nexbrand.api")
@@ -103,7 +103,11 @@ def make_token(body: TokenIn, account: Account, db: DbSession) -> MadeOut:
             raise error("invalid_input", "Choose clients you may read.", 422)
         groups = list(found.values())
     try:
-        row, secret = apitokens.make(db, account, body.name, body.level, groups, body.days)
+        name = names.title(body.name, 100)
+    except ValueError as exc:
+        raise invalid_characters() from exc
+    try:
+        row, secret = apitokens.make(db, account, name, body.level, groups, body.days)
     except TokenError as exc:
         raise error(exc.code, exc.text, exc.status) from exc
     return MadeOut(token=_out(db, account, row), secret=secret)

@@ -16,6 +16,7 @@ import { emptySet, type BrandColor, type BrandLogo, type BrandSet } from '../lib
 import { check } from '../lib/checks'
 import { isHex, textOn } from '../lib/color'
 import { errorText } from '../lib/errors'
+import { useTitle } from '../lib/title'
 import { CATALOG, PAIRINGS, catalogEntry, catalogFont, fontStack } from '../lib/fonts'
 import { colorsOfImage, directions, familyOf, fromAi, oneColor, RATIOS, rolesFor, startRules, typeScale, wordmarks, type Direction } from '../lib/generate'
 import { useAuth } from '../state/auth'
@@ -29,6 +30,7 @@ type Bench = { colors: BrandColor[]; head: string; body: string; base: number; r
 
 export function NewClientPage() {
   const { t } = useTranslation()
+  useTitle(t('wizard.title'))
   const navigate = useNavigate()
   const { me } = useAuth()
   const brands = useBrands()
@@ -86,6 +88,8 @@ export function NewClientPage() {
   const hints = useMemo(() => (current.colors.length ? check(current).filter((h) => h.level !== 'info' && (logosShown || !h.logo)) : []), [current, logosShown])
   const allowed = presetId ? !!existing && (existing.role === 'write' || existing.role === 'manage') : !!me?.may_create_clients
   const canNext = step === 'who' ? !!name.trim() && allowed : step === 'start' ? true : step === 'colors' ? current.colors.length > 0 : true
+  // Why "Next" waits, said beside it instead of a grey button without a word (F25).
+  const waitsFor = step === 'who' && !name.trim() ? t('wizard.needName') : step === 'colors' && !current.colors.length ? t('wizard.needColor') : null
   // Whoever makes a client manages it; for one that exists, its right counts: from write up (A2).
   const reviewRight = existing ? existing.role === 'write' || existing.role === 'manage' : true
   const reviewPossible = reviewRight && me?.shares_allowed !== false
@@ -393,14 +397,23 @@ export function NewClientPage() {
               </Panel>
             )}
 
-            <div className="flex justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <button type="button" className="nc-btn nc-btn-ghost" onClick={() => setStep(STEPS[Math.max(0, index - 1)])} disabled={index === 0}>
                 <ArrowLeft className="h-4 w-4" /> {t('wizard.back')}
               </button>
-              {index < STEPS.length - 1 && (
-                <button type="button" className="nc-btn nc-btn-accent" onClick={() => void next()} disabled={!canNext || checking}>
-                  {t('wizard.next')} <ArrowRight className="h-4 w-4" />
-                </button>
+              {/* At the start the way on is the button of the chosen start: a second "Next" beside it went on without
+                  taking anything. Only with colours from before, it goes on with those, and says so (F25). */}
+              {index < STEPS.length - 1 && (step !== 'start' || current.colors.length > 0) && (
+                <span className="ml-auto flex flex-wrap items-center justify-end gap-3">
+                  {waitsFor && (
+                    <span id="wizard-waits" className="text-sm text-mist-500" data-testid="wizard-waits">
+                      {waitsFor}
+                    </span>
+                  )}
+                  <button type="button" className="nc-btn nc-btn-accent" onClick={() => void next()} disabled={!canNext || checking} aria-describedby={waitsFor ? 'wizard-waits' : undefined}>
+                    {step === 'start' ? t('wizard.keepColors') : t('wizard.next')} <ArrowRight className="h-4 w-4" />
+                  </button>
+                </span>
               )}
             </div>
           </div>

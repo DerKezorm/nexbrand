@@ -8,6 +8,7 @@ import { COLOR_ROLES, DARK_PARTS, RULE_TOPICS, RULE_USES, SCALE_USES, schemeOf, 
 import { check, type Hint } from '../../lib/checks'
 import { contrast, formatRatio, isHex, normalHex, parseColor, scaleOf } from '../../lib/color'
 import { errorText } from '../../lib/errors'
+import { shorten } from '../../lib/text'
 import { CATALOG, catalogEntry, findFont, fontStack } from '../../lib/fonts'
 import { harmonies, neutralsFor, RATIOS, sameRule, startRules, suggestDark, typeScale, wordmarks, type Names } from '../../lib/generate'
 import { MODES, resolve, type InheritPart, type Mode, type Modes } from '../../lib/inherit'
@@ -568,7 +569,8 @@ function RulesEditor({ value, hints, onChange }: { value: BrandSet; hints: Hint[
       <p className="text-sm text-mist-400">{t('rules.intro')}</p>
       {rules.map((r, i) => {
         const mine = hints.filter((h) => h.rule === i)
-        const label = words.sentence(r, value.logos).slice(0, 40)
+        // Numbered, and cut after a whole word: two rules may start alike, and a name cut mid-word reads as nonsense (F32).
+        const label = t('rules.numbered', { number: i + 1, text: shorten(words.sentence(r, value.logos)) })
         return (
           <Row key={i} label={label} onRemove={() => onChange(rules.filter((_, j) => j !== i))} onUp={i ? () => onChange(move(rules, i, i - 1)) : undefined} onDown={i < rules.length - 1 ? () => onChange(move(rules, i, i + 1)) : undefined}>
             <span className="text-xs font-semibold tracking-wide text-mist-500 uppercase">{t(`rules.type.${typeOf(r)}`)}</span>

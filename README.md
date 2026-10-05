@@ -151,7 +151,8 @@ With an image: `docker compose pull && docker compose up -d`. Built from source:
 nexbrand runs on its own, or joins [nexsuite](https://github.com/DerKezorm/nexsuite), which then keeps the people,
 teams and clients of all connected apps, decides who may see which client, and signs everybody in. The operator connects under **Settings →
 Server → nexsuite** with the address of nexsuite and a one-time code made there, matches the accounts and clients here
-to those there, and from then on people sign in through nexsuite. Clients are made in nexsuite then; one made there
+to those there, and from then on people sign in through nexsuite. A person there without an address or a display
+name takes the one of the account matched to it, so nothing gets lost. Clients are made in nexsuite then; one made there
 shows up in nexbrand without a CI and gets it here; it is also put in the bin and deleted for good there. A blocked
 person is signed out at once, and a page they still have open goes to the sign-in within seconds, saying why. A link
 to a page survives the sign-in, through nexsuite as through any other provider. Connecting again later suggests each
@@ -178,7 +179,8 @@ chosen and run out after 90 days unless somebody wants more on purpose. Everythi
 ## Security in short
 
 - Passwords are hashed with Argon2id; failed sign-ins lock an account for a while, and a brake per sender slows
-  guessing on top. With a second factor, the password alone opens nothing.
+  guessing on top. With a second factor, the password alone opens nothing. A lock from guessing leaves the account's
+  API tokens working, so nobody switches a program off with ten wrong passwords.
 - Every changing request needs the header `X-Nexbrand-Client`, which a page on another site cannot send.
 - A client somebody may not see answers exactly like one that does not exist, in every route.
 - A published version never changes; drafts from tokens or collecting stay drafts until a person publishes them. One
@@ -195,6 +197,8 @@ chosen and run out after 90 days unless somebody wants more on purpose. Everythi
 - Deleting a client for good takes the own password, as do the operator's acts on other accounts.
 - After signing in, nexbrand only ever sends the browser to one of its own pages, never to another address.
 - The log never contains a client's design, passwords, keys or tokens.
+- Names and titles hold no control characters, those from nexsuite included, and every answer asks search engines
+  not to index it, the public pages too.
 
 ## Development
 

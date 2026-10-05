@@ -32,6 +32,12 @@ class MailError(Exception):
         self.code = code
 
 
+def status_of(exc: MailError) -> int:
+    """The answer for a mail that did not go: 409 when no mail server is set up (a setting, nothing went wrong
+    outside, so no error in the log, G12), 502 when the mail server failed."""
+    return 409 if exc.code == "mail_off" else 502
+
+
 def configured(db: Session) -> bool:
     values = settings_service.get_all(db)
     return bool(values["smtp_host"] and values["smtp_from"])

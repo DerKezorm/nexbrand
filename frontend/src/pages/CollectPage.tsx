@@ -17,6 +17,7 @@ import { aiApi, ApiError, clientsApi, collectApi, upload, type ClientWhole, type
 import { COLOR_ROLES, type BrandColor, type BrandFont, type BrandLogo, type BrandSet, emptySet } from '../lib/brand'
 import { deltaE, textOn } from '../lib/color'
 import { errorText } from '../lib/errors'
+import { useTitle } from '../lib/title'
 import { catalogEntry, CATALOG } from '../lib/fonts'
 import { useAuth } from '../state/auth'
 import { useBrands } from '../state/brands'
@@ -74,7 +75,10 @@ function useDetail() {
 
 export function CollectPage() {
   const { t, i18n } = useTranslation()
+  useTitle(t('collect.title'))
   const { me } = useAuth()
+  // Websites and repositories wait for the operator's switch; said up front, not after a click (F19). PDFs need none.
+  const outsideOff = me?.collect_allowed === false
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const brands = useBrands()
@@ -87,6 +91,8 @@ export function CollectPage() {
   const [useAi, setUseAi] = useState(false)
   const [aiReady, setAiReady] = useState(false)
   const [result, setResult] = useState<Collected | null>(null)
+  /** The addresses and files the last run asked for. */
+  const [asked, setAsked] = useState<string[]>([])
   const [colors, setColors] = useState<FoundColor[]>([])
   const [fonts, setFonts] = useState<FoundFont[]>([])
   const [taken, setTaken] = useState<Taken[]>([])
@@ -180,16 +186,21 @@ export function CollectPage() {
           const media = await upload<MediaInfo>('/api/media', { space, name: source.file.name }, source.file)
           next[index] = { ...source, value: media.id, name: media.name }
         }
-        if (next[index].value.trim()) sent.push({ kind: next[index].kind, value: next[index].value.trim() })
+        // With the switch off only files go; the page says so above (F19).
+        if (next[index].value.trim() && !(outsideOff && next[index].kind !== 'pdf')) sent.push({ kind: next[index].kind, value: next[index].value.trim() })
       }
       setSources(next)
       if (sent.length === 0) throw new ApiError(400, 'collect_nothing')
       const found = await collectApi.run(sent, useAi && aiReady, i18n.language)
+      setAsked(sent.map((s) => s.value))
       setResult(found)
       setColors(found.colors)
       setFonts(found.fonts)
       setTaken([])
     })
+
+  /** Every source of the last run ended in a note (refused, unreachable, unreadable): nothing was read at all. */
+  const allFailed = !!result && asked.length > 0 && asked.every((value) => result.notes.some((note) => note.source === value.slice(0, 200)))
 
   const takeLogo = (url: string) =>
     act(async () => {
@@ -240,7 +251,7 @@ export function CollectPage() {
       }
     })
 
-  const ready = sources.some((s) => s.value.trim() || s.file)
+  const ready = sources.some((s) => (s.value.trim() || s.file) && !(outsideOff && s.kind !== 'pdf'))
   const filesWanted = fonts.some((f) => f.keep && withFiles[f.family] && f.files.length)
   // Something to take: colours, a font, or a logo. Without colours ticked, the current version's colours stay.
   const something = kept.length > 0 || fonts.some((f) => f.keep) || taken.length > 0
@@ -253,6 +264,18 @@ export function CollectPage() {
           <h1 className="text-2xl font-bold tracking-tight">{t('collect.title')}</h1>
           <p className="mt-1 max-w-2xl text-sm text-mist-500">{t('collect.text')}</p>
         </div>
+        {outsideOff && (
+          <p className="rounded-xl border border-warn-500/40 bg-warn-500/8 px-4 py-3 text-sm text-mist-200" role="status" data-testid="collect-off">
+            {t('collect.offNow')}{' '}
+            {me?.role === 'operator' ? (
+              <Link to="/settings?tab=server&sub=outside" className="text-accent-400 hover:underline">
+                {t('collect.offSwitch')}
+              </Link>
+            ) : (
+              t('collect.offAsk')
+            )}
+          </p>
+        )}
 
         <section className="space-y-4 rounded-2xl border border-ink-700 bg-ink-900 p-5">
           <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t('collect.mode')}>
@@ -424,7 +447,9 @@ export function CollectPage() {
                 ))}
               </ul>
             )}
-            {colors.length === 0 && fonts.length === 0 && <p className="text-sm text-mist-500">{t('collect.nothing')}</p>}
+            {/* "Nothing found, maybe JavaScript" only when a source was read: after a refused or unreachable address
+                it pointed the wrong way (F19). */}
+            {colors.length === 0 && fonts.length === 0 && !allFailed && <p className="text-sm text-mist-500">{t('collect.nothing')}</p>}
 
             {mode === 'draft' && colors.length > 0 && (
               <section className="rounded-2xl border border-ink-700 bg-ink-900 p-5" data-testid="collect-colors">

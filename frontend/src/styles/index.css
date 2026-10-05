@@ -74,9 +74,10 @@
   --color-gelb-text: #7a6000;
   --color-magenta-text: #9d17b0;
 
-  --color-ok-500: #16a34a;
-  --color-warn-500: #b45309;
-  --color-bad-500: #e11d48;
+  /* As text on white and on their own light wash (8 to 15 %) at least 4.5 to 1 (G7: "checked" was 2.5 to 1). */
+  --color-ok-500: #166534;
+  --color-warn-500: #92400e;
+  --color-bad-500: #b91c3c;
 
 
   --color-scrim: rgb(20 20 30 / 0.35);
@@ -110,6 +111,18 @@
 }
 
 @layer components {
+  /* A letter in the colour of a person or team (--tint) on a wash of it. The colour itself as text failed in light mode
+     (1.5 to 2.4 to 1, G7): there the letter is the colour darkened, in dark mode lightened, 4.5 to 1 for every colour
+     of the palettes (lib/tint.test.ts measures it from this file). */
+  .nc-tint {
+    background: color-mix(in srgb, var(--tint) 24%, var(--color-ink-850));
+    color: color-mix(in srgb, var(--tint) 75%, #ffffff);
+  }
+
+  :root[data-theme='light'] .nc-tint {
+    color: color-mix(in srgb, var(--tint) 40%, #14141a);
+  }
+
   .nc-scroll {
     scrollbar-width: thin;
     scrollbar-color: var(--color-ink-600) transparent;
