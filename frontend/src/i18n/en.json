@@ -974,7 +974,7 @@
     "finishing": "nexbrand connects to nexsuite and brings everything in step. This takes a moment.",
     "managedPassword": "You change your password and second factor in nexsuite; they count for every connected app.",
     "openSuite": "Open nexsuite",
-    "mailNone": "No mail server is set up in nexsuite. Then nexbrand sends no mail.",
+    "mailNone": "No mail server is set up in nexsuite, so nexbrand sends no mail. Your own setting is kept in case you disconnect.",
     "notSet": "not set"
   },
   "origin": {
@@ -1702,7 +1702,7 @@
     "hasCi": "This client has a CI already. What you build here becomes a new version as a draft.",
     "pickTitle": "A CI for a client from nexsuite",
     "pickText": "These clients have no CI yet. Choose one and the workbench starts with it.",
-    "pickNone": "Right now no client you may write for is without a CI. New clients are made in nexsuite.",
+    "pickNone": "No client is waiting for its CI right now. New clients are made in nexsuite.",
     "toClients": "To the clients"
   },
   "contrast": {

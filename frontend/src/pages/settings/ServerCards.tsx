@@ -633,8 +633,9 @@ export function MailCard({ server, managed = false }: { server: Server; managed?
       [t('server.smtpFrom'), s.smtp_from],
     ]
     return (
-      <Card id="mail" icon={Mail} title={t('suite.mailTitle')} text={t('suite.managedMail')}>
-        {s.smtp_host ? (
+      // Without a server there the card says it once, not twice.
+      <Card id="mail" icon={Mail} title={t('suite.mailTitle')} text={s.smtp_host ? t('suite.managedMail') : t('suite.mailNone')}>
+        {s.smtp_host && (
           <dl className="grid gap-x-6 gap-y-1.5 rounded-xl border border-ink-700 bg-ink-850 px-4 py-3 text-sm sm:grid-cols-[max-content_1fr]" data-testid="mail-from-suite">
             {rows.map(([label, value]) => (
               <div key={label} className="contents">
@@ -643,8 +644,6 @@ export function MailCard({ server, managed = false }: { server: Server; managed?
               </div>
             ))}
           </dl>
-        ) : (
-          <p className="text-sm text-mist-400" data-testid="mail-from-suite">{t('suite.mailNone')}</p>
         )}
       </Card>
     )

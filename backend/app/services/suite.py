@@ -58,7 +58,7 @@ from ..models import (
     utcnow,
 )
 from ..security import decrypt_secret, encrypt_secret, end_all_sessions
-from . import settings_service
+from . import logs, settings_service
 
 logger = logging.getLogger("nexbrand.suite")
 
@@ -261,9 +261,13 @@ def start(db: Session, url: str, code: str, redirect_uri: str, own_url: str) -> 
         # A second pairing would leave the first, half app in nexsuite for good (B6): resume it or give it up.
         raise SuiteError("connecting_already", "A connection is under way: resume it or give it up.", 409)
     base = clean_url(url)
+    code = code.strip()
+    if not 4 <= len(code) <= 40:
+        # nexsuite's own rule, checked here: its refusal of the form would read as "not nexsuite" (B24).
+        raise SuiteError("pair_code_invalid", "This code is not valid. Make a new one in nexsuite.", 409)
     try:
         made = request("POST", base + "/api/connect/v1/pair", body={
-            "code": code.strip(), "url": own_url, "kind": KIND, "name": "nexbrand", "version": __version__,
+            "code": code, "url": own_url, "kind": KIND, "name": "nexbrand", "version": __version__,
             "capabilities": CAPABILITIES, "redirect_uri": redirect_uri,
         })
     except SuiteError as exc:
@@ -495,8 +499,13 @@ def _finish(db: Session, operator: Account, accounts_map: dict[int, str], client
                     body={"people": people, "teams": teams})
             space.external_id = str(int(choice))
         clients_done += 1
-    for account_id, person in person_of.items():
-        accounts_here[account_id].oidc_subject = person
+    for account_id, row in accounts_here.items():
+        # Which accounts nexsuite knows from now on, by its person (B8, B21): the matched and the made ones. One left
+        # out is not nexsuite's; it keeps whatever sign-in link it had here (authentik) and is never renamed for it.
+        person = person_of.get(account_id)
+        if person is not None:
+            row.oidc_subject = person
+        row.suite_person = person or ""
     for account_id, choice in accounts_map.items():
         if choice == "skip" and account_id in accounts_here and account_id != operator.id:
             accounts_here[account_id].blocked_at = utcnow()
@@ -548,22 +557,83 @@ def _open_mail(token: str, sealed: str) -> dict[str, Any]:
     return json.loads(AESGCM(key).decrypt(raw[:12], raw[12:], b"nexsuite-mail"))
 
 
-def _claim_name(db: Session, wanted: str, present: set[str], keeper: int) -> str:
-    """The name for an account nexsuite brings: the person's own. An account that holds it but whose person is gone
-    from nexsuite (deleted there; it stays here, blocked, with what it did) moves to the next free name, so the new
-    person of that name is called as in nexsuite and not ``name2`` (B21). Never the emergency account: its name is
-    its way in."""
-    base = re.sub(r"[^a-z0-9._-]", "", wanted.lower())[:60] or "person"
+def _claim_name(db: Session, person: dict[str, Any], present: set[str], keeper: int,
+                renamed: list[tuple[str, str]]) -> str:
+    """The name for an account nexsuite brings: the person's own. An account nexsuite knew whose person is gone from
+    it (deleted there; it stays here, blocked, with what it did) moves to the next free name, so the new person of
+    that name is called as in nexsuite and not ``name2`` (B21). Never the emergency account (its name is its way in),
+    never an account nexsuite never had (left out when connecting: it is nobody's there)."""
+    base = re.sub(r"[^a-z0-9._-]", "", str(person["name"]).lower())[:60] or "person"
     holder = db.scalar(select(Account).where(Account.name == base))
-    if holder is not None and holder.id != keeper and holder.oidc_subject and holder.oidc_subject not in present:
-        old = holder.name
+    if (holder is not None and holder.id != keeper and holder.suite_person
+            and holder.suite_person not in present):
+        old, shown = holder.name, holder.display_name
         holder.name = _free_name(db, base + "2")
-        # What still names it by its name follows, so nothing it did is put on the new person.
-        db.execute(update(Client).where(Client.updated_by == old).values(updated_by=holder.name))
         db.flush()
+        # Its display name stands for it too where the new person shows the same one.
+        incoming = str(person.get("display_name") or "") or base
+        _rename_references(db, holder, old, holder.name, shown if shown and shown == incoming else "")
+        renamed.append((old, holder.name))
         logger.info("Name %s given to a new person from nexsuite; the account of the deleted one is now %s", old,
                     holder.name)
     return _free_name(db, base)
+
+
+def _rename_references(db: Session, holder: Account, old: str, new: str, shown: str) -> None:
+    """Everything stored by name instead of by id that means ``holder`` follows it from ``old`` to ``new``, in the same
+    transaction (B21): nothing it did may read like the new person of the old name. ``shown``: its display name, when
+    it is the new person's too; it becomes "shown (new)". Texts customers typed on a review page are theirs, never
+    touched. The log follows after the commit (``logs.rename_actor``)."""
+    from ..models import BrandVersion, Review, ReviewComment, SpaceNotice
+
+    names = {old: new}
+    if shown:
+        names[shown] = f"{shown} ({new})"[:80]
+    db.execute(update(Client).where(Client.updated_by == old).values(updated_by=new))
+    for said, becomes in names.items():
+        db.execute(update(BrandVersion).where(BrandVersion.author == said).values(author=becomes))
+        db.execute(update(BrandVersion).where(BrandVersion.published_by == said).values(published_by=becomes))
+        db.execute(update(Review).where(Review.created_by == holder.id, Review.sender == said).values(sender=becomes))
+        db.execute(update(ReviewComment).where(ReviewComment.agency.is_(True), ReviewComment.author == said)
+                   .values(author=becomes))
+    db.execute(update(SpaceNotice).where((SpaceNotice.actor_id == holder.id) | (SpaceNotice.actor == old))
+               .values(actor=new))
+    db.execute(update(SpaceNotice).where(SpaceNotice.subject == old).values(subject=new))
+    # The licence note of a font names who confirmed it ("confirmed by <name> on <day>"), in versions and reviews.
+    notes = [(re.compile(r"((?:von|by) )" + re.escape(said) + r"( (?:am|on) )"), becomes)
+             for said, becomes in names.items()]
+
+    def follow(data: Any) -> tuple[Any, bool]:
+        if not isinstance(data, dict):
+            return data, False
+        touched = False
+        fonts = []
+        for font in data.get("fonts") or []:
+            if isinstance(font, dict) and isinstance(font.get("license_note"), str):
+                text = font["license_note"]
+                for pattern, becomes in notes:
+                    text = pattern.sub(lambda match, b=becomes: match.group(1) + b + match.group(2), text)
+                if text != font["license_note"]:
+                    font, touched = {**font, "license_note": text[:300]}, True
+            fonts.append(font)
+        return ({**data, "fonts": fonts} if touched else data), touched
+
+    for version in db.scalars(select(BrandVersion)):
+        data, touched = follow(version.data)
+        if touched:
+            version.data = data
+    for review in db.scalars(select(Review)):
+        variants, any_touched = [], False
+        for variant in review.variants or []:
+            data, touched = follow(variant.get("data") if isinstance(variant, dict) else None)
+            variants.append({**variant, "data": data} if touched else variant)
+            any_touched = any_touched or touched
+        if any_touched:
+            review.variants = variants
+    owed = settings_service.get(db, "suite_owed") or {}
+    if any(item.get("who") == old for item in owed.get("reports") or []):
+        settings_service.save(db, {"suite_owed": {**owed, "reports": [
+            {**item, "who": new} if item.get("who") == old else item for item in owed["reports"]]}})
 
 
 def _free_name(db: Session, wanted: str, own_id: int | None = None) -> str:
@@ -600,6 +670,34 @@ def sync(db: Session) -> bool:
         return True
 
 
+#: Sign-ins nexbrand had no account for, and when the directory was fetched for them (B20): at most once per
+#: ``CATCH_UP_SECONDS`` for the same one, and only so many held at a time.
+CATCH_UP_SECONDS = 30
+CATCH_UP_MAX = 1000
+_catch_up: dict[str, float] = {}
+_catch_up_lock = threading.Lock()
+#: The clock of the brake; replaced in the tests.
+_clock = time.monotonic
+
+
+def catch_up(subject: str) -> bool:
+    """Fetches the directory for a sign-in nexbrand has no account for yet (a person made in nexsuite a moment ago),
+    with a session of its own, for a worker thread: the sign-in waits, the server does not. False when held back or
+    when nexsuite could not be asked."""
+    now = _clock()
+    with _catch_up_lock:
+        for key, at in list(_catch_up.items()):
+            if now - at >= CATCH_UP_SECONDS:
+                del _catch_up[key]
+        if subject in _catch_up or len(_catch_up) >= CATCH_UP_MAX:
+            return False
+        _catch_up[subject] = now
+    from ..db import SessionLocal
+
+    with SessionLocal() as db:
+        return sync(db)
+
+
 def _moment(text: Any) -> datetime:
     """A time nexsuite sent; now when it cannot be read."""
     try:
@@ -615,14 +713,17 @@ def _apply(db: Session, seen: dict[str, Any], token: str) -> None:
     present = {str(person["id"]) for person in seen.get("people", [])}
     account_of: dict[str, int] = {}
     signed_out: list[int] = []
+    renamed: list[tuple[str, str]] = []
     for person in seen.get("people", []):
         pid = str(person["id"])
         row = by_subject.get(pid)
         if row is None:
-            row = Account(name=_claim_name(db, str(person["name"]), present, keeper), sign_in=SIGN_IN_OIDC,
+            row = Account(name=_claim_name(db, person, present, keeper, renamed), sign_in=SIGN_IN_OIDC,
                           password_hash="", oidc_subject=pid, whats_new_seen=__version__)
             db.add(row)
             db.flush()
+        # nexsuite knows this account by its person (also one connected before this was kept, B8).
+        row.suite_person = pid
         row.display_name = str(person.get("display_name") or "")[:80]
         row.email = str(person.get("email") or "")[:255]
         if row.id != keeper:
@@ -653,6 +754,7 @@ def _apply(db: Session, seen: dict[str, Any], token: str) -> None:
         account_of[pid] = row.id
     # People nexsuite no longer has can no longer sign in here; the emergency account neither, as when blocked there
     # (Prüfgang D8, decided 04.10.2026). Disconnecting lets it in again.
+    # One left out when connecting is blocked already and keeps its own link (authentik): untouched here.
     for subject, row in by_subject.items():
         if subject not in account_of and row.blocked_at is None:
             row.blocked_at = utcnow()
@@ -697,6 +799,8 @@ def _apply(db: Session, seen: dict[str, Any], token: str) -> None:
                                    "suite_mail": True})
     settings_service.save(db, {"suite_emergency": list(seen.get("emergency") or [])})
     db.commit()
+    for old, new in renamed:
+        logs.rename_actor(old, new)
     for account_id in signed_out:
         end_all_sessions(db, account_id)
 
@@ -863,6 +967,10 @@ def _disconnect(db: Session, *, tell: bool) -> tuple[list[str], list[str]]:
         db.flush()
     without = []
     for row in db.scalars(select(Account).where(Account.oidc_subject != "")):
+        # Only the accounts nexsuite knew sign in here again; one left out keeps its own link (authentik) as it was
+        # (B8). Connected before ``suite_person`` was kept: every account not blocked was nexsuite's.
+        if not (row.suite_person == row.oidc_subject or (not row.suite_person and row.blocked_at is None)):
+            continue
         # Kept for connecting again to the same nexsuite (B8): the account is suggested its own person.
         row.suite_person = row.oidc_subject
         row.oidc_subject = ""

@@ -24,6 +24,12 @@ from .conftest import PASSWORD, client_of, make_account, new_client, new_group, 
 from .test_oidc import CLIENT_ID, CLIENT_SECRET, ISSUER, FakeProvider, come_back, configure, fresh_browser
 from .test_suite import SUITE, FakeSuite, _row, _setting, connect
 
+
+@pytest.fixture(autouse=True)
+def _no_catch_up_held() -> None:
+    """The brake on fetching the directory for strangers remembers them per process: each test starts clean."""
+    suite._catch_up.clear()
+
 # The fixtures of the suite and sign-in tests, under the names pytest looks for.
 fake = test_suite.fake
 world = test_suite.world
@@ -192,6 +198,15 @@ def test_b24_nexsuites_own_refusal_is_passed_on(client: TestClient, operator: Ac
     assert wrong.status_code == 409 and wrong.json()["detail"]["code"] == "pair_code_invalid"
 
 
+def test_b24_a_code_too_short_once_trimmed_is_a_wrong_code_not_another_app(client: TestClient, operator: Account,
+                                                                           fake: FakeSuite) -> None:
+    for code in ("abc ", "   abc   ", " ab  "):
+        short = client.post("/api/suite/start", json={"url": SUITE, "code": code})
+        assert short.status_code == 409 and short.json()["detail"]["code"] == "pair_code_invalid", code
+    assert fake.calls == [], "nexsuite is not even asked"
+    assert _setting("suite_state") == ""
+
+
 # --- B10, B20: the sign-in ----------------------------------------------------------------------------------------
 
 
@@ -208,6 +223,16 @@ def test_b24_nexsuites_own_refusal_is_passed_on(client: TestClient, operator: Ac
     ("/c/ä", None),
     ("c/relative", None),
     ("/" + "a" * 600, None),
+    # The API in any spelling a browser or the server reads as the API (correction round).
+    ("/%61pi/auth/me", None),
+    ("/API/auth/me", None),
+    ("/Api", None),
+    ("/c/../api/auth/me", None),
+    ("/./api/x", None),
+    ("/%252F%252Fevil.example.com", None),
+    ("/%2F%2Fevil.example.com", None),
+    ("/%5Cevil.example.com", None),
+    ("/apiary", "/apiary"),
 ])
 def test_b10_only_a_page_of_nexbrands_own_is_a_landing(asked: str, landing: str | None) -> None:
     assert oidc.safe_next(asked) == landing
@@ -234,6 +259,19 @@ def test_b10_a_direct_link_survives_the_sign_in_through_the_provider(client: Tes
     assert other.headers["location"] == "/", "never another host"
     plain = _sign_in(fresh_browser(client), provider, None)
     assert plain.headers["location"] == "/"
+
+
+def test_b10_a_next_too_long_is_dropped_not_refused(client: TestClient, operator: Account,
+                                                     provider: FakeProvider) -> None:
+    configure(client, auto_create=True)
+    browser = fresh_browser(client)
+    long = "/c/" + "a" * 2000
+    started = browser.get(f"/api/oidc/start?next={quote(long, safe='')}", follow_redirects=False)
+    assert started.status_code == 302, "a sign-in, not a 422"
+    back = _sign_in(browser, provider, long)
+    assert back.status_code == 303 and back.headers["location"] == "/"
+    api = _sign_in(fresh_browser(client), provider, "/%61pi/auth/me")
+    assert api.headers["location"] == "/"
 
 
 def test_b10_a_refusal_keeps_the_page_for_the_next_try(client: TestClient, operator: Account,
@@ -267,7 +305,191 @@ def test_b20_a_person_made_in_nexsuite_a_moment_ago_gets_in_at_once(
     assert stranger.headers["location"] == "/login?error=suite_no_account"
 
 
+def test_b20_the_directory_is_fetched_off_the_server_loop_and_at_most_every_half_minute(
+        client: TestClient, operator: Account, world: dict, fake: FakeSuite, provider: FakeProvider,
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    import threading
+
+    connect(client, world, operator)
+    _suite_signs_in(client)
+    now = [1000.0]
+    monkeypatch.setattr(suite, "_clock", lambda: now[0])
+    threads: list[str] = []
+    real = suite.catch_up
+
+    def watched(subject: str) -> bool:
+        threads.append(threading.current_thread().name)
+        return real(subject)
+
+    monkeypatch.setattr(suite, "catch_up", watched)
+
+    def fetched() -> int:
+        return sum(1 for method, path in fake.calls if method == "GET" and path == "/directory")
+
+    before = fetched()
+    for _ in range(3):
+        refused = _sign_in(fresh_browser(client), provider, None, sub="999", email="x@example.com")
+        assert refused.headers["location"] == "/login?error=suite_no_account"
+    assert fetched() == before + 1, "the same stranger fetches the directory once in half a minute"
+    assert threads and all(name.startswith("AnyIO worker thread") for name in threads), threads
+    now[0] += suite.CATCH_UP_SECONDS + 1
+    _sign_in(fresh_browser(client), provider, None, sub="999", email="x@example.com")
+    assert fetched() == before + 2, "and once more after it"
+    # Another person is not held back by the stranger.
+    fake.people["62"] = {"id": "62", "name": "eli", "display_name": "", "email": "", "operator": False,
+                         "blocked": False}
+    back = _sign_in(fresh_browser(client), provider, None, sub="62", email="eli@example.com")
+    assert back.headers["location"] == "/" and _row("eli").oidc_subject == "62"
+
+
 # --- B21, B22, B26, G3 ------------------------------------------------------------------------------------------
+
+
+def _everything_by_name(client: TestClient, world: dict, fake: FakeSuite, shown: str) -> dict[str, Any]:
+    """anna does everything nexbrand keeps by a name instead of an id: a draft and a published version, a review with
+    an agency comment, a licence note, a notice, the last change of a client, a line in the log. A customer of the
+    same name comments too."""
+    from app.models import SpaceNotice
+    from app.services import logs
+
+    from .test_brands import SET
+
+    fake.people["2"]["display_name"] = shown
+    client.post("/api/suite/sync")
+    with SessionLocal() as db:
+        settings_service.save(db, {"shares_allowed": True})
+        db.commit()
+    cid = client_of(client, world["studio"])
+    said = shown or "anna"
+    data = {**SET, "fonts": [{"family": "Inter", "license": "free",
+                              "license_note": f"Files taken from the client's website; licence confirmed by {said} "
+                                              f"on 05/10/2026."}]}
+    with new_client(world["anna"]) as anna:
+        draft = anna.post(f"/api/clients/{cid}/versions", json={"label": "2.0", "data": data})
+        assert draft.status_code == 201, draft.text
+        published = anna.post(f"/api/clients/{cid}/versions", json={"label": "1.0", "data": SET}).json()["id"]
+        assert anna.post(f"/api/clients/{cid}/versions/{published}/publish", json={}).status_code == 200
+        review = anna.post(f"/api/clients/{cid}/reviews", json={
+            "version_id": draft.json()["id"], "label": "2.0", "sender": said,
+            "variants": [{"id": "a", "label": "Calm", "data": data}]})
+        assert review.status_code == 201, review.text
+        rid, token = review.json()["id"], review.json()["link"].rsplit("/", 1)[1]
+        assert anna.post(f"/api/clients/{cid}/reviews/{rid}/comments",
+                         json={"variant": "a", "text": "From us"}).status_code == 201
+    with new_client() as customer:
+        assert customer.post(f"/api/review/{token}/comments",
+                             json={"variant": "a", "text": "Nice", "author": "anna"}).status_code == 201
+    with SessionLocal() as db:
+        db.get(Client, cid).updated_by = "anna"  # type: ignore[union-attr]
+        notice = SpaceNotice(account_id=world["ben"].id, space_id=world["studio"], kind="invite", actor="anna",
+                             actor_id=world["anna"].id, subject="anna")
+        db.add(notice)
+        db.commit()
+        notice_id = notice.id
+    with logs.log_file().open("ab") as file:
+        file.write(b"2026-10-05 10:00:00 INFO     nexbrand.clients [r1 u:anna] | Version published by=anna "
+                   b"name=annabel to=anna@example.com\r\n")
+    return {"cid": cid, "rid": rid, "draft": draft.json()["id"], "published": published, "notice": notice_id}
+
+
+def _names_now(made: dict[str, Any]) -> dict[str, Any]:
+    from app.models import BrandVersion, Review, ReviewComment, SpaceNotice
+    from app.services import logs
+
+    with SessionLocal() as db:
+        draft = db.get(BrandVersion, made["draft"])
+        published = db.get(BrandVersion, made["published"])
+        review = db.get(Review, made["rid"])
+        assert draft is not None and published is not None and review is not None
+        notice = db.get(SpaceNotice, made["notice"])
+        assert notice is not None
+        comments = {c.agency: c.author for c in db.query(ReviewComment).filter_by(review_id=review.id)}
+        line = [x for x in logs.log_file().read_bytes().split(b"\r\n") if b"Version published" in x][-1].decode()
+        return {"author": draft.author, "published_by": published.published_by, "sender": review.sender,
+                "agency_comment": comments[True], "customer_comment": comments[False],
+                "note": draft.data["fonts"][0]["license_note"],
+                "review_note": review.variants[0]["data"]["fonts"][0]["license_note"],
+                "updated_by": db.get(Client, made["cid"]).updated_by,  # type: ignore[union-attr]
+                "actor": notice.actor, "subject": notice.subject, "log": line}
+
+
+def test_b21_everything_the_deleted_one_did_stays_hers(client: TestClient, operator: Account, world: dict,
+                                                       fake: FakeSuite) -> None:
+    connect(client, world, operator)
+    made = _everything_by_name(client, world, fake, "")
+    del fake.people["2"]
+    fake.people["70"] = {"id": "70", "name": "anna", "display_name": "", "email": "", "operator": False,
+                         "blocked": False}
+    client.post("/api/suite/sync")
+    now = _names_now(made)
+    assert now.pop("customer_comment") == "anna", "what a customer typed is theirs"
+    log = now.pop("log")
+    assert "u:anna2]" in log and "by=anna2 " in log and "name=annabel" in log and "to=anna@example.com" in log
+    assert now.pop("note") == now.pop("review_note") == ("Files taken from the client's website; licence confirmed "
+                                                         "by anna2 on 05/10/2026.")
+    assert now == dict.fromkeys(now, "anna2"), now
+
+
+def test_b21_a_display_name_follows_only_when_the_new_person_shows_the_same(
+        client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
+    connect(client, world, operator)
+    made = _everything_by_name(client, world, fake, "Anna Berg")
+    del fake.people["2"]
+    fake.people["70"] = {"id": "70", "name": "anna", "display_name": "Anna Berg", "email": "", "operator": False,
+                         "blocked": False}
+    client.post("/api/suite/sync")
+    now = _names_now(made)
+    for key in ("author", "published_by", "sender", "agency_comment"):
+        assert now[key] == "Anna Berg (anna2)", key
+    assert now["note"].endswith("confirmed by Anna Berg (anna2) on 05/10/2026.")
+    assert now["updated_by"] == now["actor"] == now["subject"] == "anna2"
+
+
+def test_b21_a_display_name_of_its_own_stays(client: TestClient, operator: Account, world: dict,
+                                              fake: FakeSuite) -> None:
+    connect(client, world, operator)
+    made = _everything_by_name(client, world, fake, "Anna Berg")
+    del fake.people["2"]
+    fake.people["70"] = {"id": "70", "name": "anna", "display_name": "Anna New", "email": "", "operator": False,
+                         "blocked": False}
+    client.post("/api/suite/sync")
+    now = _names_now(made)
+    assert now["author"] == now["sender"] == now["agency_comment"] == "Anna Berg"
+    assert now["updated_by"] == "anna2"
+
+
+def test_b21_b8_an_account_left_out_keeps_its_name_and_its_own_link(client: TestClient, operator: Account,
+                                                                    world: dict, fake: FakeSuite) -> None:
+    # The checker's r2 and r3: cleo signs in through authentik on her own and is left out when connecting.
+    with SessionLocal() as db:
+        cleo = db.get(Account, world["cleo"].id)
+        assert cleo is not None
+        cleo.oidc_subject = "ak-cleo-uuid"
+        db.commit()
+    connect(client, world, operator)
+    fake.people["60"] = {"id": "60", "name": "cleo", "display_name": "", "email": "", "operator": False,
+                         "blocked": False}
+    client.post("/api/suite/sync")
+    assert (_row("cleo").id, _row("cleo").oidc_subject, _row("cleo").suite_person) == (
+        world["cleo"].id, "ak-cleo-uuid", ""), "nexsuite never had her: not renamed"
+    assert _row("cleo2").oidc_subject == "60"
+    assert client.post("/api/suite/disconnect", json={"current_password": PASSWORD}).status_code == 200
+    assert _row("cleo").oidc_subject == "ak-cleo-uuid", "her own link stays"
+    assert _row("cleo2").oidc_subject == "" and _row("cleo2").suite_person == "60"
+    fake.connected = False
+    rows = {a["name"]: a for a in _start(client)["accounts"]}
+    assert (rows["cleo"]["from_suite"], rows["cleo"]["gone"], rows["cleo"]["suggest"]) == (False, False, "skip")
+    assert (rows["cleo2"]["from_suite"], rows["cleo2"]["suggest"]) == (True, "60")
+
+
+def test_b8_a_connection_from_before_this_was_kept_is_known_too(client: TestClient, operator: Account, world: dict,
+                                                                fake: FakeSuite) -> None:
+    connect(client, world, operator)
+    with SessionLocal() as db:  # as connected before ``suite_person`` was kept
+        db.query(Account).update({"suite_person": ""})
+        db.commit()
+    assert client.post("/api/suite/disconnect", json={"current_password": PASSWORD}).status_code == 200
+    assert (_row("anna").oidc_subject, _row("anna").suite_person) == ("", "2")
 
 
 def test_b21_a_new_person_gets_the_name_a_deleted_one_had(client: TestClient, operator: Account, world: dict,

@@ -181,6 +181,33 @@ _store_read: Callable[[], tuple[str, datetime | None]] | None = None
 _store_write: Callable[[str, datetime | None], None] | None = None
 
 
+def rename_actor(old: str, new: str) -> int:
+    """An account moved from ``old`` to ``new`` (``services/suite.py``, B21): its lines in the log name it so too,
+    as ``u:<name>`` and as ``…=<name>`` in a message, so nothing it did reads like whoever gets the old name. Under the
+    handler's lock, so no line is written in between. Returns the lines changed."""
+    pattern = re.compile(r"(u:|=)" + re.escape(old) + r"(?![A-Za-z0-9._@-])")
+    changed = 0
+    lock = _handler.lock if _handler is not None else None
+    if lock is not None:
+        lock.acquire()
+    try:
+        if _handler is not None:
+            _handler.flush()
+        for path in [log_file(), *rotated_files()]:
+            if not path.is_file():
+                continue
+            # As bytes: the line ends stay as they were written.
+            text = path.read_bytes().decode("utf-8", errors="replace")
+            fresh, count = pattern.subn(lambda match: match.group(1) + new, text)
+            if count:
+                path.write_bytes(fresh.encode("utf-8"))
+                changed += count
+    finally:
+        if lock is not None:
+            lock.release()
+    return changed
+
+
 def env_mode() -> str | None:
     value = (get_settings().log_level or "").strip().lower()
     if value in MODES:

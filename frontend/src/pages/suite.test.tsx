@@ -448,6 +448,17 @@ describe('while connected', () => {
     expect(page.querySelector('input')).toBeNull()
   })
 
+  it('the mail card says once that nexsuite has no mail server', async () => {
+    auth.me = { ...ME, suite: 'connected', suite_mail: true } as Me
+    const { MailCard } = await import('./settings/ServerCards')
+    const settings = { smtp_host: '', smtp_port: 587, smtp_security: 'starttls', smtp_user: '', smtp_from: '' }
+    const page = await mount(<MailCard server={{ settings, busy: false, problem: null, done: null, save: async () => undefined } as never} managed />)
+    const text = page.textContent ?? ''
+    expect(text.split(i18n.t('suite.mailNone')).length - 1).toBe(1)
+    expect(text).not.toContain(i18n.t('suite.managedMail'))
+    expect(page.querySelector('[data-testid="mail-from-suite"]')).toBeNull()
+  })
+
   it('every client and its access is only looked at where nexsuite keeps the rights', async () => {
     auth.me = { ...ME, suite: 'connected' } as Me
     server.handler = (_m, path) => {

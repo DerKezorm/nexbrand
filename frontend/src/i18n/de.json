@@ -974,7 +974,7 @@
     "finishing": "nexbrand verbindet sich mit nexsuite und gleicht alles ab. Das dauert einen Moment.",
     "managedPassword": "Passwort und zweiter Faktor änderst du in nexsuite; sie gelten für alle verbundenen Apps.",
     "openSuite": "nexsuite öffnen",
-    "mailNone": "In nexsuite ist kein Mailserver eingerichtet. Dann verschickt nexbrand keine Mails.",
+    "mailNone": "In nexsuite ist kein Mailserver eingerichtet, deshalb verschickt nexbrand keine Mails. Deine eigene Einstellung ist aufbewahrt, falls du trennst.",
     "notSet": "nicht gesetzt"
   },
   "origin": {
@@ -1702,7 +1702,7 @@
     "hasCi": "Dieser Kunde hat schon eine CI. Was du hier baust, wird eine neue Fassung als Entwurf.",
     "pickTitle": "CI für einen Kunden aus nexsuite",
     "pickText": "Diese Kunden haben noch keine CI. Wähle einen, die Werkbank fängt mit ihm an.",
-    "pickNone": "Gerade hat kein Kunde, an dem du schreiben darfst, noch keine CI. Neue Kunden legt nexsuite an.",
+    "pickNone": "Hier wartet gerade kein Kunde auf seine CI. Neue Kunden legt nexsuite an.",
     "toClients": "Zu den Kunden"
   },
   "contrast": {

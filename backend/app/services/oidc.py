@@ -28,13 +28,14 @@ from __future__ import annotations
 import base64
 import hashlib
 import logging
+import posixpath
 import re
 import secrets
 import threading
 import time
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import unquote, urlencode
 
 import httpx
 import jwt
@@ -612,7 +613,14 @@ def safe_next(value: object) -> str | None:
     """The page to land on after signing in, or None if ``value`` is not one of nexbrand's own (no open redirect)."""
     if not isinstance(value, str) or not _NEXT.fullmatch(value) or value == "/":
         return None
-    if value.split("?", 1)[0].rstrip("/") == "/api" or value.startswith("/api/"):
+    # Compared as the server and a browser read the path: decoded (also twice), dots resolved, any case.
+    path = value.split("?", 1)[0]
+    for _ in range(3):
+        path = unquote(path)
+    if path.startswith(("//", "/\\")) or "\\" in path:
+        return None
+    path = posixpath.normpath(path).lower()
+    if path == "/api" or path.startswith("/api/"):
         return None
     return value
 

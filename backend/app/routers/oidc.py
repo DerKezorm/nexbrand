@@ -25,6 +25,7 @@ from typing import Annotated, Any
 from urllib.parse import quote
 
 from fastapi import APIRouter, Query, Request, Response
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select, update
@@ -147,7 +148,8 @@ async def start(
     request: Request,
     db: DbSession,
     invite: Annotated[str | None, Query(max_length=64, pattern=r"^[A-Za-z0-9_-]+$")] = None,
-    next_path: Annotated[str | None, Query(alias="next", max_length=500)] = None,
+    # No length limit here: a too long one is only dropped (``safe_next``), never a refusal of the sign-in (B10).
+    next_path: Annotated[str | None, Query(alias="next")] = None,
 ) -> RedirectResponse:
     # Public: this is the sign-in button. Failures land on the sign-in page with a code. ``next`` is the page the
     # button was pressed for (a direct link); only a page of nexbrand's own goes along (B10).
@@ -275,6 +277,12 @@ async def callback(
         db.rollback()
         return refuse("invite_invalid", "the invitation ran out or was used meanwhile")
     auto_create = bool(settings_service.get(db, "oidc_auto_create")) or invite is not None
+    if (suite.connected(db) and identity.subject.strip()
+            and db.scalar(select(AccountRow.id).where(AccountRow.oidc_subject == identity.subject)) is None):
+        # A person made in nexsuite a moment ago may not be here yet: the directory is fetched once, in a worker
+        # thread so the server goes on meanwhile, and at most every half minute for the same person (B20).
+        await run_in_threadpool(suite.catch_up, identity.subject)
+        db.expire_all()
     account = _resolve(db, identity, auto_create, invited=invite is not None)
     if isinstance(account, str):
         # Nothing was written for a refusal: the invitation comes back with the rollback.
@@ -430,11 +438,9 @@ def _resolve(db: DbSession, identity: oidc.Identity, auto_create: bool, *, invit
     if existing is not None:
         return existing
     if suite.connected(db):
-        # Connected, accounts come from nexsuite, found by the person's id only. A person made there a moment ago
-        # may not be here yet: the directory is fetched once now instead of turning the person away (B20).
-        suite.sync(db)
-        existing = db.scalar(select(AccountRow).where(AccountRow.oidc_subject == identity.subject))
-        return existing if existing is not None else "suite_no_account"
+        # Connected, accounts come from nexsuite, found by the person's id only (one made there a moment ago was
+        # fetched by the callback, B20).
+        return "suite_no_account"
     verified = bool(identity.email and identity.email_verified)
     if verified:
         by_email = db.scalar(select(AccountRow).where(func.lower(AccountRow.email) == identity.email))
