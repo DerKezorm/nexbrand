@@ -163,7 +163,8 @@ def members(space_id: SpaceId, account: Account, db: DbSession) -> dict[str, Any
                   for notice, person in db.execute(
                       select(SpaceNotice, AccountRow).join(AccountRow, AccountRow.id == SpaceNotice.account_id)
                       .where(SpaceNotice.space_id == space.id, SpaceNotice.kind == notices.INVITE,
-                             SpaceNotice.done_at.is_(None)).order_by(AccountRow.name))] if managing else [],
+                             SpaceNotice.done_at.is_(None), SpaceNotice.created_at > notices.oldest_open())
+                      .order_by(AccountRow.name))] if managing else [],
         "role": rights.role_in(db, account, space.id),
         # Connected to nexsuite: the accounts come from there (no invitation links), and so do the rights of a space
         # nexsuite gives this app.
@@ -358,11 +359,6 @@ def _create(db: DbSession, request: Request, by: AccountRow, space: Space | None
         if brake.wait_seconds(key, MAILS_PER_HOUR):
             raise error("too_many_attempts", "Too many invitation mails. Try again later.", 429)
         brake.failed(key)
-    if email:
-        # One open invitation per address and place: a second one replaces the first (D5), so no old link stays valid
-        # beside the new one. In the same transaction as the new one.
-        place = Invite.space_id == space.id if space else Invite.space_id.is_(None)
-        db.execute(delete(Invite).where(func.lower(Invite.email) == email.lower(), place))
     try:
         invite, token = accounts.create_invite(
             db, by, space_id=space.id if space else None, space_role=payload.role if space else "",
@@ -386,6 +382,13 @@ def _create(db: DbSession, request: Request, by: AccountRow, space: Space | None
             db.delete(invite)
             db.commit()
             raise error(exc.code, str(exc), 502) from exc
+    if email:
+        # One open invitation per address and place: the new one replaces those before it (D5), so no old link stays
+        # valid beside it. Only once the new one stands (its mail went out): a failed mail keeps the old one. Older
+        # than this one only, so two made at the same moment never take each other away.
+        place = Invite.space_id == space.id if space else Invite.space_id.is_(None)
+        db.execute(delete(Invite).where(func.lower(Invite.email) == email.lower(), place, Invite.id < invite.id))
+        db.commit()
     return {**_invite_view(invite, db), "link": link, "sent": sent}
 
 

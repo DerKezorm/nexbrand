@@ -17,7 +17,7 @@ import { BrandsProvider, useBrands } from './state/brands'
 
 /** Everything behind the sign-in: without an account the page goes to the sign-in, and comes back after. An account
  * that still has to set up its second factor (the operator requires one) reaches its own account page only. */
-function SignedIn({ children }: { children: ReactNode }) {
+export function SignedIn({ children }: { children: ReactNode }) {
   const { status, me, ended } = useAuth()
   const location = useLocation()
   if (status === 'loading') return null

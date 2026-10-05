@@ -380,7 +380,8 @@
       "githubNone": "Kein Token gespeichert"
     },
     "backupsDryRun": "Wiederherstellen zeigt zuerst einen Probelauf.",
-    "block": "Sperren"
+    "block": "Sperren",
+    "proxyUnknown": "Anfragen kommen über einen Proxy, aber NEXBRAND_TRUSTED_PROXIES ist nicht gesetzt. Dann sieht nexbrand alle als einen Absender: Wer oft falsch rät, bremst jeden aus, der sich in einem hier noch nie benutzten Browser anmeldet. Trag die Adresse des Proxys in NEXBRAND_TRUSTED_PROXIES ein."
   },
   "errors": {
     "avatar_not_a_picture": "Das ist kein Bild, das nexbrand annimmt (JPEG, PNG, WebP, GIF, HEIC oder AVIF).",

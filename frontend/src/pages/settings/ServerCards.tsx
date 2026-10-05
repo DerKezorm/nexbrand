@@ -39,6 +39,8 @@ export type ServerSettings = {
   upload_ceiling_mb: number
   strip_location: boolean
   update_check: boolean
+  /** Requests come with proxy headers, but no trusted proxy is set (read only). */
+  proxy_unknown?: boolean
 }
 
 type Change = Partial<ServerSettings> & { smtp_password?: string; collect_github_token?: string }
@@ -93,16 +95,23 @@ export function AccountsCard({ readOnly = false }: { readOnly?: boolean }) {
           <li key={row.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
             <Avatar person={row} className="h-8 w-8 text-sm" />
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-medium text-mist-100">
-                {row.display_name || row.name}
-                {row.display_name && <span className="ml-1 text-xs font-normal text-mist-500">@{row.name}</span>}
-                {row.id === me?.id && <span className="ml-1.5 text-xs font-normal text-mist-500">{t('members.you')}</span>}
+              <div className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-mist-100">
+                <span className="truncate">
+                  {row.display_name || row.name}
+                  {row.display_name && <span className="ml-1 text-xs font-normal text-mist-500">@{row.name}</span>}
+                  {row.id === me?.id && <span className="ml-1.5 text-xs font-normal text-mist-500">{t('members.you')}</span>}
+                </span>
+                {/* Up front, not at the end of a line that a phone cuts short (G1). */}
+                {row.blocked && (
+                  <span className="shrink-0 rounded-full border border-bad-500/40 px-1.5 py-px text-[11px] font-medium text-bad-500" data-testid="blocked-mark">
+                    {t('server.blocked')}
+                  </span>
+                )}
               </div>
               <div className="truncate text-xs text-mist-500">
                 {row.role === 'operator' ? t('account.operator') : t('server.member')} · {t(`server.signInBy.${row.sign_in}`)} · {t('server.inSpaces', { count: row.spaces })}
                 {row.two_factor ? ' · ' + t('server.withTwoFactor') : ''}
                 {row.locked ? ' · ' + t('server.locked') : ''}
-                {row.blocked ? ' · ' + t('server.blocked') : ''}
                 {row.has_password === false && !row.blocked ? ' · ' + t('server.noPassword') : ''}
               </div>
             </div>
@@ -956,5 +965,20 @@ export function LogCard() {
         />
       )}
     </Card>
+  )
+}
+
+/** Requests come with proxy headers, but no proxy is named: the sign-in brake sees one sender for everybody (A5). */
+export function ProxyHint() {
+  const { t } = useTranslation()
+  const [seen, setSeen] = useState(false)
+  useEffect(() => {
+    api<ServerSettings>('/api/settings').then((answer) => setSeen(!!answer.proxy_unknown), () => undefined)
+  }, [])
+  if (!seen) return null
+  return (
+    <p role="status" className="rounded-xl border border-warn-500/30 bg-warn-500/10 px-4 py-3 text-sm text-mist-200" data-testid="proxy-hint">
+      {t('server.proxyUnknown')}
+    </p>
   )
 }

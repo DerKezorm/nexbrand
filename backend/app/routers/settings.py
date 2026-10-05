@@ -9,11 +9,11 @@ from __future__ import annotations
 import logging
 from typing import Any, Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
 from ..config import get_settings
-from ..deps import DbSession, OperatorAccount
+from ..deps import DbSession, OperatorAccount, unknown_proxy_seen
 from ..errors import error
 from ..models import SIGN_IN_PASSWORD
 from ..security import encrypt_secret
@@ -47,6 +47,8 @@ class SettingsOut(BaseModel):
     upload_ceiling_mb: int
     strip_location: bool
     update_check: bool
+    #: Requests come with proxy headers, but no trusted proxy is configured (only in the answer of GET).
+    proxy_unknown: bool = False
 
 
 class SettingsIn(BaseModel):
@@ -108,8 +110,10 @@ def _view(db: DbSession) -> SettingsOut:
 
 
 @router.get("", response_model=SettingsOut)
-def read(_operator: OperatorAccount, db: DbSession) -> SettingsOut:
-    return _view(db)
+def read(request: Request, _operator: OperatorAccount, db: DbSession) -> SettingsOut:
+    # Requests come through a proxy nexbrand was not told about: the sign-in brake sees one sender for everybody
+    # (A5). The page names the setting.
+    return _view(db).model_copy(update={"proxy_unknown": unknown_proxy_seen(request)})
 
 
 @router.put("", response_model=SettingsOut)

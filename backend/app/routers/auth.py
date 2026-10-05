@@ -238,11 +238,18 @@ def login(payload: LoginIn, request: Request, response: Response, db: DbSession)
     # works (whoever has an account would otherwise reset it between guesses at other names). It always counts: an
     # X-Forwarded-For nexbrand was not told to believe changes nothing about the sender (the connection counts), and
     # before, any such header took this count away (Prüfgang 05.10.2026 A5). Behind a proxy the operator did not
-    # name, all senders share it; the log says so once and names the setting.
+    # name, all senders share it; the log and Settings, Server say so and name the setting.
+    #
+    # So that a stranger behind such a proxy cannot keep everybody out with 30 wrong names, a browser that signed in
+    # as this very name before (its device cookie, signed by the server) passes the count per sender; the count per
+    # name stays (decided 05.10.2026, A5). The emergency account gets in that way while somebody guesses.
     ip = client_ip(request)
     behind_unknown_proxy(request)
-    keys = [("login:" + ip + "|" + payload.name.strip().lower()[:64], Brake.FREE),
-            ("login-ip:" + ip, LOGIN_FREE_PER_SENDER)]
+    keys = [("login:" + ip + "|" + payload.name.strip().lower()[:64], Brake.FREE)]
+    device = device_of(request.cookies.get(DEVICE_COOKIE))
+    known = accounts.by_name(db, payload.name) if device is not None else None
+    if known is None or known.id != device:
+        keys.append(("login-ip:" + ip, LOGIN_FREE_PER_SENDER))
     wait = max(brake.wait_seconds(key, free) for key, free in keys)
     if wait:
         raise HTTPException(
@@ -251,8 +258,7 @@ def login(payload: LoginIn, request: Request, response: Response, db: DbSession)
             headers={"Retry-After": str(wait)},
         )
     try:
-        account = accounts.authenticate(db, payload.name, payload.password,
-                                        device_of(request.cookies.get(DEVICE_COOKIE)))
+        account = accounts.authenticate(db, payload.name, payload.password, device)
     except AccountError as exc:
         for key, _free in keys:
             brake.failed(key)

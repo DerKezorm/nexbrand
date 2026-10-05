@@ -66,7 +66,8 @@ def _send(db: Session, message: EmailMessage) -> None:
 
 
 #: The invitation, in the language of whoever receives it (Prüfgang 05.10.2026, decision 8): the account that already
-#: has the address, else the language the invitation was made in, else English.
+#: has the address; else, as nexbrand has no language of its own, the inviter's account language, then the language
+#: the inviter's page shows, else English.
 INVITE_MAIL = {
     "de": {
         "subject": "{by} lädt dich zu nexbrand ein",

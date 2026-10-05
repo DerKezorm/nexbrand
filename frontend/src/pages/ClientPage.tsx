@@ -456,7 +456,7 @@ function deleteDraftWarning(reviews: ClientWhole['reviews'], version: string, t:
 }
 
 /** Who has access: the people (with invitations) and the teams. A client nexsuite keeps shows them, changed there. */
-function AccessButtons({ space }: { space: NonNullable<ReturnType<ReturnType<typeof useBrands>['space']>> }) {
+export function AccessButtons({ space }: { space: NonNullable<ReturnType<ReturnType<typeof useBrands>['space']>> }) {
   const { t } = useTranslation()
   const [open, setOpen] = useState<'people' | 'teams' | null>(null)
   const manage = space.role === 'manage' && !space.managed
@@ -464,7 +464,7 @@ function AccessButtons({ space }: { space: NonNullable<ReturnType<ReturnType<typ
     <>
       <button type="button" className="nc-btn nc-btn-ghost" onClick={() => setOpen('people')} title={space.managed ? t('suite.fromSuite') : undefined}>
         <Users className="h-4 w-4" /> {t('client.access')}
-        <span className="text-xs text-mist-500 tabular-nums">{space.members.length + space.teams.length}</span>
+        <span className="text-xs text-mist-500 tabular-nums" data-testid="access-count">{space.people ?? space.members.length}</span>
       </button>
       {manage && (
         <button type="button" className="nc-btn nc-btn-ghost" onClick={() => setOpen('teams')}>

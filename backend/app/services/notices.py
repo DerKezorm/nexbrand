@@ -78,8 +78,13 @@ def tell(db: Session, space: Space, kind: str, actor: Account, subject: str, rol
                            actor=actor.name, actor_id=actor.id, subject=subject))
 
 
+def oldest_open() -> datetime:
+    """Notices from before this are gone: not listed, and an invitation from before cannot be accepted."""
+    return datetime.now(UTC) - timedelta(days=INVITE_DAYS)
+
+
 def open_for(db: Session, account_id: int) -> list[NoticeView]:
-    since = datetime.now(UTC) - timedelta(days=INVITE_DAYS)
+    since = oldest_open()
     rows = db.scalars(
         select(SpaceNotice)
         .where(SpaceNotice.account_id == account_id, SpaceNotice.done_at.is_(None), SpaceNotice.created_at > since)

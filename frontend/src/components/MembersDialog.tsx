@@ -104,7 +104,8 @@ export function MembersDialog({ space, onClose }: { space: Space; onClose: () =>
           return (
             <li key={member.name} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm">
               <Avatar person={shown ?? { id: 0, name: member.name, avatar: null }} className="h-7 w-7 text-xs" />
-              <span className="min-w-0 flex-1 truncate font-medium text-mist-100">
+              {/* At least room for a name: the right and the buttons go to the next line on a phone. */}
+              <span className="min-w-[8rem] flex-1 truncate font-medium text-mist-100">
                 {shown?.display_name || member.name}
                 {shown?.display_name && <span className="ml-1.5 text-xs font-normal text-mist-500">@{member.name}</span>}
                 {member.you && <span className="ml-2 text-xs font-normal text-mist-500">{t('members.you')}</span>}

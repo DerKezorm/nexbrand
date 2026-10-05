@@ -56,6 +56,9 @@ def _view(db: DbSession, account: AccountRow, space: Space) -> dict[str, Any]:
         # Its rights come from nexsuite: changed there, not here.
         "managed": bool(space.external_id) and suite.connected(db),
         "teams": [{"id": team.id, "name": team.name, "color": team.color, "role": grant.role} for grant, team in teams],
+        # Everybody who gets in, through a right of their own or a team, each once: the number on "Access", the same
+        # the dialog says.
+        "people": len({person.id for _membership, person in rows} | rights.team_members_of(db, space.id)),
         "members": [
             {
                 "id": person.id,

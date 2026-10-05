@@ -178,6 +178,8 @@ export type SpaceInfo = {
   members: Member[]
   /** The teams with a right in the client. */
   teams: TeamGrantInfo[]
+  /** Everybody who gets in, through a right of their own or a team, each once. */
+  people?: number
   /** Its rights come from nexsuite. */
   managed?: boolean
 }

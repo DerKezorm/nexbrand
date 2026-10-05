@@ -43,8 +43,8 @@ frame here: accounts, second factor, sign-in through a provider, log, languages 
 - **Access per client.** People and teams get access to a client, to read, write or manage it; whoever makes a
   client manages it, and the operator decides whether members may make clients. A client somebody may not see
   answers like one that does not exist. Clients go to a bin for 30 days.
-- **Around it, as in nexlore.** Accounts by invitation (the mail in the language of whoever receives it), blocked and
-  let in again by the operator, second factor with recovery codes, sign-in through an OIDC
+- **Around it, as in nexlore.** Accounts by invitation (the mail in the receiver's language when an account with that
+  address has one, else in the inviter's), blocked and let in again by the operator, second factor with recovery codes, sign-in through an OIDC
   provider with a button for authentik, a log in four levels, German and English plus languages the operator adds as
   JSON files, backups of the database together with every file, with a check before going back.
 
@@ -95,7 +95,8 @@ nexbrand is made to be reachable from outside, for yourself on the road or for a
    the proxy.
 3. **Tell nexbrand about the proxy**: `NEXBRAND_PUBLIC_URL` (the address people use), `NEXBRAND_TRUSTED_PROXIES`
    (the proxy's address or network; without it every sign-in seems to come from the proxy and the brake against
-   guessing cannot tell people apart), and `NEXBRAND_COOKIE_SECURE: "on"`.
+   guessing cannot tell people apart: a browser that signed in as that name before still gets in, any other waits;
+   Settings, Server says so while it is missing), and `NEXBRAND_COOKIE_SECURE: "on"`.
 4. **A second factor**: set up your own under My account, Security. Or sign in through your OpenID Connect provider.
 5. **Leave the switches closed you do not need**: public pages, API tokens, collecting from websites and AI are
    off until you open them.

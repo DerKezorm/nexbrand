@@ -95,12 +95,12 @@ const ME: Me = {
   suite: 'off',
 } as unknown as Me
 
-const auth = { me: ME as Me | null }
+const auth: { me: Me | null; state: Record<string, unknown> | null } = { me: ME, state: null }
 vi.mock('../state/auth', async (importOriginal) => {
   const real = await importOriginal<typeof import('../state/auth')>()
   return {
     ...real,
-    useAuth: () => (auth.me ? { status: 'signedIn', me: auth.me, ended: false, refresh: async () => undefined, setMe: () => undefined, signOut: async () => undefined } : real.useAuth()),
+    useAuth: () => auth.state ?? (auth.me ? { status: 'signedIn', me: auth.me, ended: false, refresh: async () => undefined, setMe: () => undefined, signOut: async () => undefined } : real.useAuth()),
   }
 })
 vi.mock('../state/brands', () => ({ useBrands: () => ({ refresh: async () => undefined, space: () => undefined, spaces: [] }) }))
@@ -110,6 +110,7 @@ beforeEach(() => {
   server.calls = []
   server.pending = 0
   auth.me = ME
+  auth.state = null
   stubFetch()
 })
 
@@ -380,5 +381,66 @@ describe('a link that does not hold', () => {
     expect(page.textContent).toContain(i18n.t('suite.emergencyTitle'))
     expect(page.textContent).not.toContain(i18n.t('auth.login.passwordOff'))
     expect(page.querySelector('a[href="/login"]')?.textContent).toBe(i18n.t('auth.backToLogin'))
+  })
+})
+
+// --- Second round of the check: the reason travels, the mark stays visible, the hint and the number ----------------
+
+describe('after the check', () => {
+  it('sends an ended session to the sign-in with its reason', async () => {
+    auth.state = { status: 'signedOut', me: null, ended: true, refresh: async () => undefined, setMe: () => undefined, signOut: async () => undefined }
+    const { SignedIn } = await import('../App')
+    let where = ''
+    function Where() {
+      const location = useLocation()
+      where = location.pathname + location.search
+      return null
+    }
+    await mount(
+      <Routes>
+        <Route path="login" element={<Where />} />
+        <Route
+          path="c/:id"
+          element={
+            <SignedIn>
+              <p>inside</p>
+            </SignedIn>
+          }
+        />
+      </Routes>,
+      '/c/abc',
+    )
+    expect(where).toBe('/login?next=%2Fc%2Fabc&ended=1')
+  })
+
+  it('shows "blocked" before the line a phone cuts short', async () => {
+    server.handler = (_m, path) => (path === '/api/accounts' ? { status: 200, body: ACCOUNTS } : undefined)
+    const { AccountsCard } = await import('./settings/ServerCards')
+    const page = await mount(<AccountsCard readOnly />)
+    const marks = page.querySelectorAll('[data-testid="blocked-mark"]')
+    expect(marks).toHaveLength(1)
+    expect(marks[0].textContent).toBe(i18n.t('server.blocked'))
+    expect(marks[0].closest('.truncate')).toBeNull()
+    expect(marks[0].className).toContain('shrink-0')
+  })
+
+  it('tells the operator about a proxy nobody named', async () => {
+    let unknown = true
+    server.handler = (_m, path) => (path === '/api/settings' ? { status: 200, body: { proxy_unknown: unknown } } : undefined)
+    const { ProxyHint } = await import('./settings/ServerCards')
+    const page = await mount(<ProxyHint />)
+    expect(page.textContent).toContain('NEXBRAND_TRUSTED_PROXIES')
+    await act(async () => root!.unmount())
+    host!.remove()
+    unknown = false
+    const quiet = await mount(<ProxyHint />)
+    expect(quiet.textContent).toBe('')
+  })
+
+  it('puts on "Access" the people the dialog counts', async () => {
+    const { AccessButtons } = await import('./ClientPage')
+    const space = { ...SPACE, members: [{ id: 1, name: 'robin', display_name: '', role: 'manage' as const, avatar: null }], teams: [{ id: 3, name: 'Design', color: '#2f7bff', role: 'write' as const }], people: 4 }
+    const page = await mount(<AccessButtons space={space} />)
+    expect(page.querySelector('[data-testid="access-count"]')?.textContent).toBe('4')
   })
 })

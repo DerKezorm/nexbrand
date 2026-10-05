@@ -251,3 +251,104 @@ def test_the_invitation_mail_follows_the_receivers_own_language_first(client: Te
     assert sent[-1]["Subject"] == "tester lädt dich zu nexbrand ein"
     client.post("/api/invites", json={"email": "b@example.com", "send": True, "language": "fr"})
     assert sent[-1]["Subject"] == "tester invites you to nexbrand"
+
+
+# --- A5: behind a proxy nobody named, a stranger's guesses do not keep the known browsers out ------------------------
+
+
+def _browser(host: str = "172.18.0.2") -> TestClient:
+    from app.main import app
+
+    return TestClient(app, base_url="http://testserver", headers={"X-Nexbrand-Client": "tab-proxy00001"},
+                      client=(host, 50000))
+
+
+def _spray(count: int = 31) -> list[int]:
+    stranger = _browser()
+    return [stranger.post("/api/auth/login", json={"name": f"guess{n}", "password": "summer2026"},
+                          headers={"X-Forwarded-For": f"198.51.100.{n}"}).status_code for n in range(count)]
+
+
+def test_the_emergency_account_gets_in_from_its_browser_while_a_stranger_guesses(
+    client: TestClient, operator: Account, world: dict, fake: FakeSuite
+) -> None:
+    from app.security import DEVICE_COOKIE, brake, device_token
+
+    connect(client, world, operator)
+    own = _browser()
+    assert own.post("/api/auth/login", json={"name": "tester", "password": PASSWORD}).status_code == 200
+    assert own.cookies.get(DEVICE_COOKIE)
+    own.post("/api/auth/logout")
+    assert 429 in _spray()
+    # The emergency account, from the browser it signed in with before: in.
+    assert own.post("/api/auth/login", json={"name": "tester", "password": PASSWORD},
+                    headers={"X-Forwarded-For": "203.0.113.9"}).status_code == 200
+    # Without that browser, with a made-up cookie or with one given to another name: the sender waits.
+    assert _browser().post("/api/auth/login", json={"name": "tester", "password": PASSWORD}).status_code == 429
+    forged = _browser()
+    forged.cookies.set(DEVICE_COOKIE, f"{operator.id}.abc." + "0f" * 16, path="/api/auth")
+    assert forged.post("/api/auth/login", json={"name": "tester", "password": PASSWORD}).status_code == 429
+    other = _browser()
+    other.cookies.set(DEVICE_COOKIE, device_token(world["anna"].id), path="/api/auth")
+    assert other.post("/api/auth/login", json={"name": "tester", "password": PASSWORD}).status_code == 429
+    brake.forget()
+
+
+def test_the_operator_hears_of_a_proxy_nobody_named(client: TestClient, operator: Account,
+                                                    monkeypatch: pytest.MonkeyPatch) -> None:
+    from app import deps
+    from app.config import get_settings
+
+    monkeypatch.setattr(deps, "_warned_unknown_proxy", False)
+    assert client.get("/api/settings").json()["proxy_unknown"] is False
+    assert client.get("/api/settings", headers={"X-Real-IP": "198.51.100.4"}).json()["proxy_unknown"] is True
+    # Remembered for the next visit without the header, and gone once the proxy is named.
+    assert client.get("/api/settings").json()["proxy_unknown"] is True
+    monkeypatch.setattr(get_settings(), "trusted_proxies", "172.16.0.0/12")
+    assert client.get("/api/settings", headers={"X-Forwarded-For": "198.51.100.4"}).json()["proxy_unknown"] is False
+
+
+# --- D5: a failed mail keeps the invitation it was to replace; old invitations by name drop off ----------------------
+
+
+def test_a_replacement_whose_mail_fails_keeps_the_invitation_before(client: TestClient, operator: Account,
+                                                                    monkeypatch: pytest.MonkeyPatch) -> None:
+    space = new_group(client, "Studio")
+    first = client.post(f"/api/spaces/{space}/invites", json={"role": "read", "email": "x@example.com"})
+    assert first.status_code == 201
+    assert client.put("/api/settings", json={"smtp_host": "mail.example.com", "smtp_from": "brand@example.com",
+                                             "public_url": "https://brand.example.com"}).status_code == 200
+
+    def refuse(db: Any, message: EmailMessage) -> None:
+        raise mailer.MailError("mail_failed", "The mail server did not take the mail.")
+
+    monkeypatch.setattr(mailer, "_send", refuse)
+    failed = client.post(f"/api/spaces/{space}/invites", json={"role": "write", "email": "x@example.com", "send": True})
+    assert failed.status_code == 502
+    with SessionLocal() as db:
+        assert [row.space_role for row in db.query(Invite).filter_by(space_id=space)] == ["read"]
+    stranger = TestClient(client.app, headers={"X-Nexbrand-Client": "tab-stranger0"})
+    assert stranger.get(f"/api/invite/{first.json()['link'].rsplit('/', 1)[1]}").status_code == 200
+
+
+def test_invitations_by_name_too_old_to_accept_are_not_listed(client: TestClient, operator: Account) -> None:
+    make_account("anna")
+    space = new_group(client, "Studio")
+    assert client.put(f"/api/spaces/{space}/members/anna", json={"role": "read"}).status_code == 202
+    assert len(client.get(f"/api/spaces/{space}/members").json()["asked"]) == 1
+    with SessionLocal() as db:
+        row = db.query(SpaceNotice).filter_by(space_id=space, kind="invite").one()
+        row.created_at = utcnow() - timedelta(days=notices.INVITE_DAYS, minutes=1)
+        db.commit()
+    assert client.get(f"/api/spaces/{space}/members").json()["asked"] == []
+
+
+def test_the_number_on_access_is_the_people_the_dialog_counts(client: TestClient, operator: Account) -> None:
+    anna, ben, cleo = make_account("anna"), make_account("ben"), make_account("cleo")
+    space = new_group(client, "Studio")
+    join(client, space, "anna", "read")
+    team = _team(client, "Design", [anna, ben, cleo])
+    client.put(f"/api/spaces/{space}/teams/{team}", json={"role": "read"})
+    listed = next(s for s in client.get("/api/spaces").json() if s["id"] == space)
+    # tester and anna by name, ben and cleo through the team (anna counts once): four, not three entries.
+    assert listed["people"] == client.get(f"/api/spaces/{space}/members").json()["count"] == 4
