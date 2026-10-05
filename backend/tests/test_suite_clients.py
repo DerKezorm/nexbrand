@@ -565,6 +565,114 @@ def test_a_left_out_account_is_not_taken_for_a_new_person_with_its_number(
     assert browser.get("/api/auth/me").json()["name"] == "dora"
 
 
+def test_no_account_links_itself_to_a_provider_while_connected(
+        client: TestClient, operator: Account, world: dict, fake: FakeSuite, provider: FakeProvider) -> None:
+    # From nextasks: the emergency account linked to a subject of its own would be nobody's to the next sync, and
+    # locked out. Started before connecting and coming back after, nothing is linked either.
+    from urllib.parse import parse_qs, urlsplit
+
+    configure(client, auto_create=False)
+    started = client.post("/api/oidc/link/start", json={"password": PASSWORD})
+    assert started.status_code == 200, started.text
+    values = {k: v[0] for k, v in parse_qs(urlsplit(started.json()["url"]).query).items()}
+    connect(client, world, operator)
+    _suite_signs_in(client)
+    refused = client.post("/api/oidc/link/start", json={"password": PASSWORD})
+    assert refused.status_code == 409 and refused.json()["detail"]["code"] == "managed_by_suite"
+    provider.challenge = values["code_challenge"]
+    provider.claims = {"nonce": values["nonce"], "sub": "ak-own-uuid"}
+    back = come_back(client, values["state"])
+    assert back.headers["location"] == "/account?error=managed_by_suite"
+    assert _row("tester").oidc_subject == "1", "still its person in nexsuite, not the foreign subject"
+    assert client.post("/api/suite/sync").status_code in (200, 204)
+    assert _row("tester").blocked_at is None, "the emergency account still gets in"
+
+
+def test_a_person_blocked_in_nexsuite_keeps_its_account_in_a_connection_from_before(
+        client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
+    # The checker's case for connections before c485f67 (``suite_person`` empty everywhere): erik is blocked in
+    # nexsuite, synced, then the marks are gone; the next syncs must not make "erik2" with erik's subject, and
+    # unblocked in nexsuite, erik works with his rights and history again.
+    connect(client, world, operator)
+    fake.people["3"]["blocked"] = True
+    assert client.post("/api/suite/sync").status_code in (200, 204)
+    erik = _row("erik")
+    assert erik.blocked_at is not None and erik.oidc_subject == "3"
+    with SessionLocal() as db:
+        db.query(Account).update({"suite_person": ""})
+        db.commit()
+    for _ in range(2):
+        assert client.post("/api/suite/sync").status_code in (200, 204)
+    with SessionLocal() as db:
+        assert db.query(Account).filter(Account.oidc_subject == "3").count() == 1
+        assert db.query(Account).filter(Account.name == "erik2").count() == 0
+    assert _row("erik").oidc_subject == "3" and _row("erik").suite_person == "3"
+    fake.people["3"]["blocked"] = False
+    assert client.post("/api/suite/sync").status_code in (200, 204)
+    assert _row("erik").id == erik.id and _row("erik").blocked_at is None
+
+
+def test_a_stranger_with_the_persons_copied_address_does_not_win_her_subject(
+        client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
+    # From nextasks: an old sync copied anna's address and display name onto ben, who also holds her subject; anna's
+    # own account has no address left. The sign-in name decides: anna keeps her account, ben is blocked, loses the
+    # subject (put aside: nothing tells whether it was his own link) and what he had of her.
+    connect(client, world, operator)
+    with SessionLocal() as db:
+        anna = db.get(Account, world["anna"].id)
+        ben = db.get(Account, world["ben"].id)
+        assert anna is not None and ben is not None
+        ben.oidc_subject, ben.email, ben.display_name = "2", "anna@example.com", "Anna Berg"
+        anna.email, anna.display_name = "", ""
+        db.query(Account).update({"suite_person": ""})
+        db.commit()
+    assert client.post("/api/suite/sync").status_code in (200, 204)
+    anna, ben = _row("anna"), _row("ben")
+    assert anna.id == world["anna"].id and anna.oidc_subject == "2" and anna.suite_person == "2"
+    assert anna.blocked_at is None and anna.email == "anna@example.com"
+    assert ben.oidc_subject != "2" and ben.own_subject == "2" and ben.blocked_at is not None
+    assert (ben.email, ben.display_name) == ("", "")
+
+
+def test_a_subject_from_the_connection_is_dropped_where_the_own_link_is_aside(
+        client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
+    # cleo was left out with her own link (aside since connecting); a subject of a person she got later is dropped,
+    # not put over her own link.
+    with SessionLocal() as db:
+        cleo = db.get(Account, world["cleo"].id)
+        assert cleo is not None
+        cleo.oidc_subject = "ak-cleo-uuid"
+        db.commit()
+    connect(client, world, operator)
+    with SessionLocal() as db:
+        cleo = db.get(Account, world["cleo"].id)
+        assert cleo is not None and cleo.own_subject == "ak-cleo-uuid"
+        cleo.oidc_subject = "3"
+        db.commit()
+    assert client.post("/api/suite/sync").status_code in (200, 204)
+    cleo = _row("cleo")
+    assert (cleo.oidc_subject, cleo.own_subject) == ("", "ak-cleo-uuid") and cleo.blocked_at is not None
+    assert _row("erik").oidc_subject == "3"
+
+
+def test_a_person_renamed_in_nexsuite_keeps_its_blocked_account_from_before(
+        client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
+    # erik blocked in nexsuite, his display name changed there meanwhile, the marks of an old connection: no erik2.
+    connect(client, world, operator)
+    fake.people["3"]["blocked"] = True
+    assert client.post("/api/suite/sync").status_code in (200, 204)
+    erik = _row("erik")
+    with SessionLocal() as db:
+        db.query(Account).update({"suite_person": ""})
+        db.commit()
+    fake.people["3"]["display_name"] = "Erik New"
+    for _ in range(2):
+        assert client.post("/api/suite/sync").status_code in (200, 204)
+    with SessionLocal() as db:
+        assert db.query(Account).filter(Account.name == "erik2").count() == 0
+    assert _row("erik").id == erik.id and _row("erik").oidc_subject == "3" and _row("erik").suite_person == "3"
+
+
 def test_b8_a_connection_from_before_this_was_kept_is_known_too(client: TestClient, operator: Account, world: dict,
                                                                 fake: FakeSuite) -> None:
     connect(client, world, operator)
@@ -635,105 +743,6 @@ def test_b21_the_log_renames_people_only(client: TestClient, operator: Account) 
         assert f" {key}=anna2" in found, key
     for key in ("family", "label", "team", "from", "to", "xby"):
         assert f" {key}=anna " in found or found.endswith(f" {key}=anna"), key
-
-
-def _log_texts(call: Any) -> list[tuple[str, Any]]:
-    """Each value a logger call puts into its message, with the text before it: from ``%s`` and its arguments, from an
-    f-string, from ``"…" % (…)`` and from ``"…".format(…)``."""
-    import ast
-    import re
-
-    first, rest = call.args[0], call.args[1:]
-    if isinstance(first, ast.JoinedStr):
-        out, text = [], ""
-        for part in first.values:
-            if isinstance(part, ast.Constant):
-                text += str(part.value)
-            else:
-                out.append((text, part.value))
-                text += "{}"
-        return out
-    if isinstance(first, ast.BinOp) and isinstance(first.op, ast.Mod) and isinstance(first.left, ast.Constant):
-        text = str(first.left.value)
-        values = first.right.elts if isinstance(first.right, ast.Tuple) else [first.right]
-        return [(text[:m.start()], value) for m, value in zip(re.finditer(r"%[sdr]", text), values, strict=False)]
-    if (isinstance(first, ast.Call) and isinstance(first.func, ast.Attribute) and first.func.attr == "format"
-            and isinstance(first.func.value, ast.Constant)):
-        text = str(first.func.value.value)
-        named = {keyword.arg: keyword.value for keyword in first.keywords}
-        out, index = [], 0
-        for m in re.finditer(r"\{([A-Za-z_0-9]*)[^{}]*\}", text):
-            field = m.group(1)
-            if field.isdigit():
-                value = first.args[int(field)] if int(field) < len(first.args) else None
-            elif field:
-                value = named.get(field)
-            else:
-                value = first.args[index] if index < len(first.args) else None
-                index += 1
-            if value is not None:
-                out.append((text[:m.start()], value))
-        return out
-    if isinstance(first, ast.Constant) and isinstance(first.value, str):
-        text = first.value
-        return [(text[:m.start()], value) for m, value in zip(re.finditer(r"%[sdr]", text), rest, strict=False)]
-    return []
-
-
-def test_every_log_line_names_a_person_under_a_key() -> None:
-    """A person's name in a log line stands under one of ``logs.PERSON_KEYS``, never as free text ("Account %s
-    linked"): only so does a rename (B21) reach it. Read from the code: every call to a logger, with ``%s``, an
-    f-string, ``%`` or ``.format``, and the ``.name`` of any object but those known to be no person."""
-    import ast
-    from pathlib import Path
-
-    from app.services import logs
-
-    # ``.name`` of these is no person: a table, a column, a file, a folder, a language file, the system.
-    things = {"table", "column", "path", "folder_path", "os", "client", "space", "team", "project", "version",
-              "locale", "file", "media"}
-    things_in = {("locales.py", "target")}
-    keys = tuple(f"{key}=" for key in logs.PERSON_KEYS)
-    wrong = []
-    for path in sorted(Path("app").rglob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        for node in ast.walk(tree):
-            if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
-                    and node.func.attr in ("debug", "info", "warning", "error", "exception", "critical")
-                    and isinstance(node.func.value, ast.Name) and node.func.value.id in ("logger", "logging")
-                    and node.args):
-                continue
-            for before, value in _log_texts(node):
-                if not (isinstance(value, ast.Attribute) and value.attr == "name"):
-                    continue
-                receiver = ast.unparse(value.value)
-                if receiver in things or (path.name, receiver) in things_in:
-                    continue
-                # The record of a rename keeps both names as they were (from=, to=), on purpose.
-                if before.endswith(("from=", "to=")) and "moved" in before:
-                    continue
-                if not before.endswith(keys):
-                    wrong.append(f"{path}:{node.lineno}: {before}…")
-    assert not wrong, "\n".join(wrong)
-
-
-def test_the_log_guard_reads_every_way_of_formatting() -> None:
-    """The guard above, against lines it must and must not object to."""
-    import ast
-
-    def flagged(source: str) -> list[str]:
-        call = ast.parse(source).body[0].value  # type: ignore[attr-defined]
-        return [before for before, value in _log_texts(call)
-                if isinstance(value, ast.Attribute) and value.attr == "name"]
-
-    assert flagged('logger.info("Account %s linked", row.name)') == ["Account "]
-    assert flagged('logger.info(f"Account {db.get(A, 1).name} linked")') == ["Account "]
-    assert flagged('logger.info("Account %s linked" % (who.name,))') == ["Account "]
-    assert flagged('logger.info("Account %s linked" % who.name)') == ["Account "]
-    assert flagged('logger.info("Account {} linked by {by}".format(x.name, by=y.name))') == ["Account ",
-                                                                                          "Account {} linked by "]
-    assert flagged('logger.info("Account {0} linked".format(x.name))') == ["Account "]
-    assert flagged('logger.info("Signed in name=%s", account.name)') == ["Signed in name="]
 
 
 def test_b22_who_makes_clients_is_not_changed_here_while_connected(client: TestClient, operator: Account,

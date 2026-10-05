@@ -324,9 +324,11 @@ def project_current(db: Session, project: Project) -> BrandVersion | None:
 
 
 def project_shown(db: Session, project: Project) -> BrandVersion | None:
-    """The version a project is shown and handed out with: the current one, or else its newest draft."""
+    """The version a project is shown and handed out with: the one that holds today; before any holds, the first one
+    published to hold from a later day (as for a client); without any published, its newest draft."""
     rows = project_versions(db, project)
-    return project_current(db, project) or (rows[-1] if rows else None)
+    coming = next((v for v in rows if v.status == PUBLISHED), None)
+    return project_current(db, project) or coming or (rows[-1] if rows else None)
 
 
 def effective(db: Session, row: BrandVersion) -> dict[str, Any]:

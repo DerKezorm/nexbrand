@@ -53,16 +53,19 @@ def shown_ratio(ratio: float) -> float:
 
 
 _NUMBER = r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)"
-_HEX_TEXT = re.compile(r"#?([0-9a-f]{3}|[0-9a-f]{6})|#([0-9a-f]{4}|[0-9a-f]{8})")
-_FUNCTION = re.compile(r"(rgba?|hsla?)\(\s*([^()]*?)\s*\)")
-_PART = re.compile(rf"({_NUMBER})(%|deg)?")
+_HEX_TEXT = re.compile(r"#?([0-9a-f]{3}|[0-9a-f]{6})|#([0-9a-f]{4}|[0-9a-f]{8})", re.ASCII)
+_FUNCTION = re.compile(r"(rgba?|hsla?)\(\s*([^()]*?)\s*\)", re.ASCII)
+_PART = re.compile(rf"({_NUMBER})(%|deg)?", re.ASCII)
+#: Spaces as CSS knows them, nothing else: ``str.strip`` would also take ``\x1c`` and a no-break space, which the
+#: browser keeps (the same in ``lib/color.ts``).
+_SPACE = " \t\n\r\f\v"
 
 
 def _parts(text: str) -> list[tuple[float, str]] | None:
     """The values inside ``rgb(…)`` or ``hsl(…)``: three, by commas or spaces, an alpha after ``/`` or a fourth comma
     left out."""
     body, _, _alpha = text.partition("/")
-    items = [item for item in re.split(r"\s*,\s*|\s+", body.strip()) if item]
+    items = [item for item in re.split(r"\s*,\s*|\s+", body.strip(_SPACE), flags=re.ASCII) if item]
     if len(items) == 4 and "," in body:
         items = items[:3]
     if len(items) != 3:
@@ -82,7 +85,7 @@ def parse(value: object) -> str | None:
     not a colour read here (a name such as ``red`` neither). The same as ``parseColor`` in ``lib/color.ts``."""
     if not isinstance(value, str):
         return None
-    text = value.strip().lower()
+    text = value.strip(_SPACE).lower()
     if len(text) > 80:
         return None
     hexed = _HEX_TEXT.fullmatch(text)

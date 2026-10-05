@@ -139,8 +139,9 @@ export function CollectPage() {
     setTarget(fresh.id)
     return { id: fresh.id, space_id: fresh.space_id }
   }
-  // The current version as the client's page shows it: the latest published one (`current` names its label only).
-  const current = whole?.versions.filter((v) => v.status === 'published').at(-1) ?? null
+  // The version that holds today, as the server says (`current_id`): one published to hold from a later day is not
+  // what the CI is checked against, nor what a draft starts from (F2).
+  const current = whole?.versions.find((v) => v.id === whole.current_id) ?? null
   const ci = useMemo(() => current?.data.colors ?? [], [current])
 
   const kept = colors.filter((c) => c.keep)

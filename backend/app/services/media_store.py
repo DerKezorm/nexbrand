@@ -46,7 +46,9 @@ SHOWN = {
 }
 IMAGES = {"jpeg", "png", "gif", "webp", "avif", "bmp"}
 #: What an upload for a logo, or for a font, has to be (F9): anything else is refused, not stored as a stray file.
-PICTURES = IMAGES | {"svg", "heic"}
+#: A logo is what a browser shows: a HEIC counts once it became a WebP. The interface takes whatever the server took
+#: (``expect``), so this is the one list.
+PICTURES = IMAGES | {"svg"}
 FONTS = {"woff2", "woff", "otf", "ttf"}
 EXPECTED = {"picture": (PICTURES, "not_a_picture", "This is not a picture that works as a logo."),
             "font": (FONTS, "not_a_font", "This is not a font file (WOFF2, WOFF, OTF or TTF).")}
@@ -304,7 +306,7 @@ def finish(
             logger.info("SVG refused why=%s by=%s", problem, account.name)
             raise MediaError("svg_unsafe", "This SVG holds a script, an event, embedded HTML or a DOCTYPE; save it "
                              "as a plain drawing and upload it again.", 422)
-    if expect in EXPECTED and kind not in EXPECTED[expect][0]:
+    if expect in EXPECTED and kind not in EXPECTED[expect][0] | ({"heic"} if expect == "picture" else set()):
         _, code, text = EXPECTED[expect]
         raise MediaError(code, text, 422)
     if kind in IMAGES | {"heic", "avif"} and _pixels(received, kind) > MAX_PIXELS:
@@ -321,6 +323,10 @@ def finish(
             name = Path(name).stem + ".webp"
         else:
             webp.unlink(missing_ok=True)
+    if expect == "picture" and kind not in PICTURES:
+        # A HEIC that could not become a WebP: no browser would show it as a logo.
+        _, code, text = EXPECTED[expect]
+        raise MediaError(code, text, 422)
     digest = _hash(received)
     # A file once kept in the house stays so; the same bytes uploaded anew come as a file of their own, free (A4).
     existing = db.scalar(select(Media).where(Media.space_id == space_id, Media.sha256 == digest,

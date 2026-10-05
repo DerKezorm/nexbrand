@@ -720,13 +720,74 @@ def claimants(db: Session, subject: str | None = None) -> list[Account]:
     return [row for row in db.scalars(query.order_by(Account.id)) if row.suite_person or row.blocked_at is None]
 
 
+def _same_name(row: Account, person: dict[str, Any] | None) -> bool:
+    """The account's sign-in name is the person's: no earlier sync changed it, unlike address and display name, which
+    an old sync may have copied onto a stranger's account."""
+    return person is not None and row.name == str(person.get("name") or "")
+
+
+def _settle_subjects(db: Session, people: dict[str, dict[str, Any]], keeper: int, signed_out: list[int]) -> None:
+    """Each subject is claimed by one account at most: a connection made before ``suite_person`` was kept (c485f67)
+    knows no owner, and a person blocked in nexsuite must not lose its account to a new one ("erik2") just because
+    the old one is blocked. An account whose ``suite_person`` names another person never claims a subject: it goes
+    back to its own person. Among the rest, unmarked ones only when not blocked or carrying the person's sign-in name;
+    the first by: the sign-in name is the person's, not blocked, smallest id. Address and display name do not count:
+    an old sync may have copied them onto a stranger's account. Every other account lets the subject go: when its
+    own link is aside already, the subject came with the connection and is dropped; otherwise nothing tells whether it
+    is its own link (a connection from before kept no mark), so it is put aside (``own_subject``, given back on
+    disconnecting). Left without a person it is blocked like an account left out; an
+    address it holds goes only together with the display name when both are exactly those of that person."""
+    rows = list(db.scalars(select(Account).where(Account.oidc_subject != "").order_by(Account.id)))
+    holders: dict[str, list[Account]] = {}
+    for row in rows:
+        holders.setdefault(row.oidc_subject, []).append(row)
+    owner: dict[str, Account] = {}
+    for subject, group in holders.items():
+        person = people.get(subject)
+        able = [row for row in group if row.suite_person == subject
+                or (not row.suite_person and (row.blocked_at is None or _same_name(row, person)))]
+        if able:
+            owner[subject] = min(able, key=lambda row: (not _same_name(row, person), row.blocked_at is not None,
+                                                        row.id))
+    for row in rows:
+        subject = row.oidc_subject
+        if owner.get(subject) is row:
+            if subject in people:
+                row.suite_person = subject
+            continue
+        person = people.get(subject)
+        if row.own_subject:
+            # Its own link is aside already (since connecting): this subject came with the connection.
+            logger.info("A subject from the connection dropped from an account name=%s", row.name)
+        else:
+            logger.info("A link of its own kept aside from nexsuite name=%s", row.name)
+            row.own_subject = subject
+        row.oidc_subject = ""
+        own = row.suite_person if row.suite_person and row.suite_person != subject else ""
+        if own and own not in owner and own not in holders:
+            row.oidc_subject = own  # its own person in nexsuite, whose account it stays
+            owner[own] = row
+            continue
+        row.suite_person = ""
+        copied = (person is not None and row.email == str(person.get("email") or "")[:255]
+                  and row.display_name == str(person.get("display_name") or "")[:80])
+        if copied:
+            row.email, row.display_name = "", ""
+        if row.id != keeper and row.blocked_at is None:
+            row.blocked_at = utcnow()
+            signed_out.append(row.id)
+    db.flush()
+
+
 def _apply(db: Session, seen: dict[str, Any], token: str) -> None:
     keeper = int(settings_service.get(db, "suite_emergency_account") or 0)
-    by_subject = {row.oidc_subject: row for row in claimants(db)}
     present = {str(person["id"]) for person in seen.get("people", [])}
     account_of: dict[str, int] = {}
     signed_out: list[int] = []
     renamed: list[tuple[str, str]] = []
+    # Before anything is matched by subject: one account per subject (connections from before c485f67).
+    _settle_subjects(db, {str(person["id"]): person for person in seen.get("people", [])}, keeper, signed_out)
+    by_subject = {row.oidc_subject: row for row in claimants(db)}
     for person in seen.get("people", []):
         pid = str(person["id"])
         row = by_subject.get(pid)
@@ -784,7 +845,7 @@ def _apply(db: Session, seen: dict[str, Any], token: str) -> None:
             db.flush()
         # A name another team here has gets a number here; nexsuite's own stays as it is (F15).
         team.name = names.unique(db, "team", str(item["name"])[:80] or "?",
-                                 db.scalars(select(Team.name).where(Team.id != team.id)), 80, tid)
+                                 db.scalars(select(Team.name).where(Team.id != team.id)), 80, tid, team.name)
         team.color = str(item.get("color") or team.color)[:16]
         wanted = {account_of[m] for m in item.get("members", []) if m in account_of}
         current = set(db.scalars(select(TeamMember.account_id).where(TeamMember.team_id == team.id)))
@@ -849,7 +910,8 @@ def _apply_clients(db: Session, seen: dict[str, Any], account_of: dict[str, int]
             logger.info("Client brought by nexsuite id=%s", client.id)
         # A name another client here has (one of its own, one in the bin) gets a number here (F15).
         client.name = names.unique(db, "client", str(item["name"])[:120] or client.name,
-                                   db.scalars(select(Client.name).where(Client.id != client.id)), 120, client.id)
+                                   db.scalars(select(Client.name).where(Client.id != client.id)), 120, client.id,
+                                   client.name)
         client.sector = str(item.get("sector") or "")[:120]
         client.contact = str(item.get("contact") or "")[:255]
         space.name = client.name[:80]

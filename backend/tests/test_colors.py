@@ -27,7 +27,10 @@ PARSE_SAMPLES = ["#B8322A", "#b8322a", "b8322a", "#abc", "abc", "#abcd", "abcd",
                  "rgb(1, 2, 3, 4, 5)", "rgb(1 2 3 4)", "rgb(1deg, 2, 3)", "hsl(16, 76%, 37%)", "hsl(16deg 76% 37%)",
                  "hsla(200, 50%, 50%, .3)", "hsl(-30, 50%, 50%)", "hsl(390 50 50)", "hsl(10%, 50%, 50%)",
                  "hsl(10, 150%, 50%)", "  #FFF  ", "RGB(1,2,3)", "red", "transparent", "", "#12345", "#1234567",
-                 "#ggg", "rgb()", "rgb(1,2,3", "url(x)", "hsl(" + "1 " * 50 + ")"]
+                 "#ggg", "rgb()", "rgb(1,2,3", "url(x)", "hsl(" + "1 " * 50 + ")",
+                 # Read the same in the browser: no Unicode digits, only the spaces CSS knows (F3).
+                 "rgb(\u0663,0,0)", "rgb(\uff11, 0, 0)", "\x1c#fff", "#fff\x1c", "\u00a0#fff", "rgb(1,\u00a02,3)",
+                 "rgb(1\u20032\u20033)", "\t#fff\n", "\u212aaa"]
 #: Ratios as shown (F17): cut, never rounded up past a threshold.
 SHOWN_SAMPLES = [4.4992, 4.5, 4.57, 2.9999, 3.0, 6.995, 7.0, 9.999, 10.0, 12.36, 21.0, 1.0]
 

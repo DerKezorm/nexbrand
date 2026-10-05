@@ -192,6 +192,10 @@ export function ClientPage() {
   const next = published.find((v) => v.valid_from > shown.valid_from)
   const face = project ? project.face : whole.face
   const clientCurrent = whole.versions.find((v) => v.id === whole.current_id)
+  // The project stands on a published client version older than the one that holds today: lifting it is a step
+  // forward. On the one that holds, or on one that holds only from a later day, nothing to lift (F2).
+  const order = whole.versions.map((v) => v.id)
+  const behind = !!(clientCurrent && own && base?.status === 'published' && order.indexOf(base.id) < order.indexOf(clientCurrent.id))
   // Published to hold from a later day than the one that holds now.
   const upcoming = (v: VersionInfo) => v.status === 'published' && (!current || published.indexOf(v) > published.indexOf(current))
   const mine = new Set(versions.map((v) => v.id))
@@ -316,12 +320,12 @@ export function ClientPage() {
             })}
           </ol>
           {project && own && (
-            <div className={'mt-3 space-y-2 rounded-xl px-3 py-2.5 text-sm ' + (clientCurrent && own.base_id !== clientCurrent.id && base?.status === 'published' ? 'border border-gelb-500/40 bg-gelb-500/8' : 'bg-ink-850')} data-testid="project-base">
+            <div className={'mt-3 space-y-2 rounded-xl px-3 py-2.5 text-sm ' + (behind ? 'border border-gelb-500/40 bg-gelb-500/8' : 'bg-ink-850')} data-testid="project-base">
               {/* The sentence over the whole width, the parts and the button below: in one row the sentence was
                   squeezed into a narrow column (04.10.2026). */}
               <p className="text-mist-300">
                 {t('projects.base', { client: whole.name, label: own.base_label ?? '?' })}{' '}
-                {clientCurrent && own.base_id !== clientCurrent.id && base?.status === 'published' && t('projects.newer', { label: clientCurrent.label })}
+                {behind && clientCurrent && t('projects.newer', { label: clientCurrent.label })}
                 {base?.status === 'draft' && t('projects.onDraftText', { label: base.label })}
               </p>
               <div className="flex flex-wrap items-center gap-2">
@@ -335,7 +339,7 @@ export function ClientPage() {
                   )
                 })}
               </span>
-              {canWrite && clientCurrent && own.base_id !== clientCurrent.id && base?.status === 'published' && (
+              {canWrite && behind && clientCurrent && (
                 <button type="button" className="nc-btn nc-btn-ghost" onClick={() => setDialog('lift')}>
                   <ArrowUpCircle className="h-4 w-4" /> {t('projects.liftTo', { label: clientCurrent.label })}
                 </button>

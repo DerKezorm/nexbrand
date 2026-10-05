@@ -65,12 +65,15 @@ export function formatRatio(r: number, locale = 'en'): string {
 
 const NUMBER = /[+-]?(?:\d+(?:\.\d*)?|\.\d+)/.source
 const HEX_TEXT = /^(?:#?([0-9a-f]{3}|[0-9a-f]{6})|#([0-9a-f]{4}|[0-9a-f]{8}))$/
-const FUNCTION = /^(rgba?|hsla?)\(\s*([^()]*?)\s*\)$/
+// Spaces as CSS knows them, nothing else: `trim` and `\s` would also take a no-break space (as `_SPACE` there).
+const SPACE = '[ \t\n\r\f\v]'
+const FUNCTION = new RegExp(`^(rgba?|hsla?)\\(${SPACE}*([^()]*?)${SPACE}*\\)$`)
+const EDGES = new RegExp(`^${SPACE}+|${SPACE}+$`, 'g')
 const PART = new RegExp(`^(${NUMBER})(%|deg)?$`)
 
 function parts(text: string): [number, string][] | null {
   const body = text.split('/')[0]
-  let items = body.trim().split(/\s*,\s*|\s+/).filter((item) => item)
+  let items = body.replace(EDGES, '').split(new RegExp(`${SPACE}*,${SPACE}*|${SPACE}+`)).filter((item) => item)
   if (items.length === 4 && body.includes(',')) items = items.slice(0, 3)
   if (items.length !== 3) return null
   const out: [number, string][] = []
@@ -87,7 +90,7 @@ function parts(text: string): [number, string][] | null {
  * such as `red` neither). The same as `colors.parse` on the server; `color_cases.json` holds both to it. */
 export function parseColor(value: unknown): string | null {
   if (typeof value !== 'string') return null
-  const text = value.trim().toLowerCase()
+  const text = value.replace(EDGES, '').toLowerCase()
   if (text.length > 80) return null
   const hexed = HEX_TEXT.exec(text)
   if (hexed) {

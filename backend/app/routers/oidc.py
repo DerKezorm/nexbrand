@@ -182,6 +182,9 @@ async def start_link(
 ) -> dict[str, Any]:
     """Linking hands the account to whoever the browser is at the provider, so it asks for the password: a page
     elsewhere cannot start it (the tab header), and neither can somebody at an unattended browser."""
+    # Connected, the provider is nexsuite and each account is its person: linking would give an account (the
+    # emergency one) a subject of its own that the next sync takes for nobody's, and lock it out.
+    suite.refuse_if_managed(db)
     row = db.get(AccountRow, account.id)
     assert row is not None
     if row.sign_in != SIGN_IN_PASSWORD:
@@ -270,6 +273,9 @@ async def callback(
 
     # From here on the provider vouches for the identity; the rest are account questions.
     if linking:
+        if suite.connected(db):
+            # Started before connecting, coming back after: nothing is linked while nexsuite keeps the sign-in.
+            return refuse("managed_by_suite", "linking while connected to nexsuite")
         return _finish_link(db, request, attempt, identity, refuse)
     invite_token = attempt.get("invite")
     invite = accounts.find_invite(db, str(invite_token)) if invite_token else None
@@ -290,7 +296,7 @@ async def callback(
         return refuse(account, f"no account for this identity: {account} address={oidc.masked(identity.email)}")
     if account.blocked_at is not None:
         db.rollback()
-        return refuse("account_blocked", f"account {account.name} is blocked")
+        return refuse("account_blocked", f"the account is blocked name={account.name}")
     if invite is not None:
         accounts.redeem(db, invite, account, consumed=True)
 
@@ -393,7 +399,7 @@ def _finish_link(
         select(AccountRow).where(AccountRow.oidc_subject == identity.subject, AccountRow.id != current.id)
     )
     if other is not None:
-        return refuse("oidc_subject_taken", f"this identity already belongs to account {other.name!r}")
+        return refuse("oidc_subject_taken", f"this identity already belongs to another account name={other.name}")
     current.oidc_subject = identity.subject
     if identity.email and identity.email_verified and not current.email:
         current.email = identity.email

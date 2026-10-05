@@ -22,8 +22,6 @@ export type FileMap = Record<string, FileInfo>
 
 type Ctx = { space: number; files: FileMap; addFile: (m: MediaInfo) => void; fileUrl: (id: string) => string }
 
-const FONT_KINDS = new Set(['woff2', 'woff', 'otf', 'ttf'])
-const PICTURE_KINDS = new Set(['svg', 'png', 'jpeg', 'webp', 'gif', 'avif'])
 
 /** The words the generators need, in the language of the page. */
 // eslint-disable-next-line react-refresh/only-export-components
@@ -254,7 +252,8 @@ function FontsEditor({ fonts, onChange, ctx }: { fonts: BrandFont[]; onChange: (
     const ids: string[] = []
     for (const [n, file] of files.entries()) {
       const made = await upload.send(file, n === 0, 'font')
-      if (made && FONT_KINDS.has(made.kind)) ids.push(made.id)
+      // The server took it as a font (`expect`): its list is the one that counts (F9).
+      if (made) ids.push(made.id)
     }
     if (!ids.length) return
     if (into !== undefined) edit(into, { files: [...(fonts[into].files ?? []), ...ids] })
@@ -371,7 +370,8 @@ function LogosEditor({ logos, colors, fonts, name, onChange, ctx }: { logos: Bra
     const made: BrandLogo[] = []
     for (const [n, file] of files.entries()) {
       const m = await upload.send(file, n === 0, 'picture')
-      if (m && PICTURE_KINDS.has(m.kind))
+      // The server took it as a picture (`expect`, a HEIC as WebP): its list is the one that counts (F9).
+      if (m)
         made.push({ id: newId('logo-' + (logos.length + made.length + 1)), name: file.name.replace(/\.[^.]+$/, ''), media: m.id, fg: '#000000', accent: '#000000', ground: '#FFFFFF', files: [] })
     }
     if (made.length) onChange([...logos, ...made])
@@ -443,7 +443,7 @@ function LogosEditor({ logos, colors, fonts, name, onChange, ctx }: { logos: Bra
       ))}
       {!logos.length && <p className="text-sm text-mist-500">{t('editor.noLogos')}</p>}
       <div className="flex flex-wrap gap-2">
-        <FileButton label={t('editor.uploadLogo')} accept=".svg,.png,.jpg,.jpeg,.webp,.gif,.avif,image/*" multiple busy={upload.busy} onFiles={(files) => void addPictures(files)} />
+        <FileButton label={t('editor.uploadLogo')} accept=".svg,.png,.jpg,.jpeg,.webp,.gif,.avif,.bmp,.heic,.heif,image/*" multiple busy={upload.busy} onFiles={(files) => void addPictures(files)} />
         <button
           type="button"
           className="nc-btn nc-btn-ghost"

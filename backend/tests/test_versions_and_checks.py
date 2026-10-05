@@ -338,3 +338,143 @@ def test_f15_what_nexsuite_brings_never_fails_on_a_name(client: TestClient, oper
             teams = sorted(t.name for t in db.query(Team))
         assert clients.count("Ideen") == 1 and "IDEEN (2)" in clients, clients
         assert teams.count("Print") == 1 and "print (2)" in teams, teams
+
+
+def test_f15_two_at_once_make_one_client(client: TestClient, operator: Account,
+                                         monkeypatch: pytest.MonkeyPatch) -> None:
+    """Two requests with the same new name at the same moment (a double click, two people): the first holds the name
+    from its look until its commit, the second waits and is refused. Played out step by step: the first stops right
+    after its look until the second has had every chance to look too."""
+    import threading
+
+    from app.db import SessionLocal
+    from app.models import Account as AccountRow
+    from app.models import Client
+    from app.services import names
+
+    looked = {"first": threading.Event(), "second": threading.Event()}
+    go = threading.Event()
+    real = names.check_client
+
+    def watched(db: Any, name: str, own_id: str | None = None) -> None:
+        real(db, name, own_id)
+        who = threading.current_thread().name
+        looked[who].set()
+        if who == "first":
+            go.wait(5)
+
+    monkeypatch.setattr(names, "check_client", watched)
+    results: dict[str, str] = {}
+
+    def make(who: str) -> None:
+        with SessionLocal() as db:
+            account = db.get(AccountRow, operator.id)
+            assert account is not None
+            try:
+                brands.create_client(db, account, "Twin Example", label=None)
+                results[who] = "made"
+            except brands.BrandError as exc:
+                results[who] = exc.code
+
+    first = threading.Thread(target=make, args=("first",), name="first")
+    first.start()
+    assert looked["first"].wait(5)
+    second = threading.Thread(target=make, args=("second",), name="second")
+    second.start()
+    # Without the lock the second looks now and finds the name free; with it, it waits for the first.
+    looked["second"].wait(1)
+    go.set()
+    first.join(10)
+    second.join(10)
+    with SessionLocal() as db:
+        made = [c for c in db.query(Client) if c.name == "Twin Example"]
+    assert len(made) == 1, results
+    assert sorted(results.values()) == ["client_name_taken", "made"], results
+
+
+def test_f15_one_name_however_it_is_written(client: TestClient, operator: Account) -> None:
+    import unicodedata
+
+    composed = unicodedata.normalize("NFC", "Café Lumière")
+    decomposed = unicodedata.normalize("NFD", "Café Lumière")
+    assert composed != decomposed
+    assert client.post("/api/clients", json={"name": composed, "label": ""}).status_code == 201
+    twin = client.post("/api/clients", json={"name": decomposed, "label": ""})
+    assert twin.status_code == 409 and _code(twin) == "client_name_taken"
+    assert client.post("/api/clients", json={"name": "Acme", "label": ""}).status_code == 201
+    for hidden in ("Ac\u200bme", "\u2060Acme", "Ac\u00adme", "\uff21\uff43\uff4d\uff45", "Acme  "):
+        answer = client.post("/api/clients", json={"name": hidden, "label": ""})
+        assert answer.status_code == 409 and _code(answer) == "client_name_taken", ascii(hidden)
+    assert client.post("/api/teams", json={"name": "Design"}).status_code == 201
+    assert client.post("/api/teams", json={"name": "De\u200bsign"}).status_code == 409
+
+
+def test_f15_a_number_from_nexsuite_is_logged_once(client: TestClient, operator: Account, world: dict,
+                                                   fake: test_suite.FakeSuite,
+                                                   caplog: pytest.LogCaptureFixture) -> None:
+    import logging
+
+    test_suite.connect(client, world, operator)
+    fake.clients["11"] = {**fake.clients["10"], "id": "11", "name": "IDEEN"}
+    fake.ticked.add("11")
+    with caplog.at_level(logging.WARNING, logger="nexbrand.names"):
+        for _ in range(3):
+            assert client.post("/api/suite/sync").status_code in (200, 204)
+    said = [r for r in caplog.records if "given a number" in r.getMessage()]
+    assert len(said) == 1, [r.getMessage() for r in said]
+
+
+def test_f9_every_picture_the_server_takes_as_a_logo_is_one_a_browser_shows(
+        client: TestClient, space: int, monkeypatch: pytest.MonkeyPatch) -> None:
+    """BMP is a logo; a HEIC is one as the WebP it becomes; a HEIC that cannot become one is refused and not kept."""
+    import io
+
+    from sqlalchemy import func, select
+
+    from app.db import SessionLocal
+    from app.models import Media
+    from app.services import media, media_store
+
+    from .test_media import picture
+
+    def as_bytes(fmt: str) -> bytes:
+        out = io.BytesIO()
+        picture().save(out, format=fmt)
+        return out.getvalue()
+
+    bmp = client.post(f"/api/media?space={space}&name=logo.bmp&expect=picture", content=as_bytes("BMP"))
+    assert bmp.status_code == 201 and bmp.json()["kind"] == "bmp"
+    assert "bmp" in media_store.PICTURES and media_store.PICTURES <= set(media_store.SHOWN)
+    heic = client.post(f"/api/media?space={space}&name=logo.heic&expect=picture", content=as_bytes("HEIF"))
+    assert heic.status_code == 201 and heic.json()["kind"] == "webp"
+    monkeypatch.setattr(media, "to_webp", lambda *_: False)
+    with SessionLocal() as db:
+        before = db.scalar(select(func.count()).select_from(Media))
+    other = picture()
+    other.putpixel((0, 0), (1, 2, 3))
+    out = io.BytesIO()
+    other.save(out, format="HEIF")
+    refused = client.post(f"/api/media?space={space}&name=other.heic&expect=picture", content=out.getvalue())
+    assert refused.status_code == 422 and refused.json()["detail"]["code"] == "not_a_picture"
+    with SessionLocal() as db:
+        assert db.scalar(select(func.count()).select_from(Media)) == before
+
+
+def test_f2_before_any_version_holds_the_coming_one_is_given_as_not_current(client: TestClient, space: int,
+                                                                             tokens_on: None) -> None:
+    made = make_client(client, space, project="Website")
+    cid, first = made["id"], made["versions"][0]["id"]
+    _publish(client, cid, first, "1.0", "2030-01-01")
+    pid = client.get(f"/api/clients/{cid}").json()["projects"][0]["id"]
+    own = client.get(f"/api/clients/{cid}/projects/{pid}").json()["versions"][0]["id"]
+    _publish(client, cid, own, "1.0", "2031-01-01")
+    # A draft after it: the project still answers with its coming version, as the client does.
+    assert client.post(f"/api/clients/{cid}/versions", json={"label": "1.1", "project_id": pid,
+                                                             "source": own}).status_code == 201
+    auth = _token(client)
+    with _program() as program:
+        assert program.get("/api/v1/clients", headers=auth).json()[0]["current_version"] is None
+        brand = program.get(f"/api/v1/clients/{cid}", headers=auth).json()
+        assert brand["version"]["label"] == "1.0" and brand["current"] is False
+        project = program.get(f"/api/v1/clients/{cid}?project=Website", headers=auth).json()
+        assert project["version"]["id"] == own and project["current"] is False

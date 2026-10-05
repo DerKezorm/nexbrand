@@ -1,6 +1,7 @@
 """Names that tell things apart (F15, decided 05.10.2026): no two clients of one name, no two projects of one name in
-a client, no two teams of one name. Names are compared without capitals and without spaces at the ends or doubled
-inside ("Acme", " acme " and "ACME" are one name).
+a client, no two teams of one name. Names are compared without capitals, without spaces at the ends or doubled
+inside, without invisible signs and in one Unicode form (``key``: "Acme", " acme ", "ACME" and "Acme" with a
+zero-width space inside are one name).
 
 A client in the bin counts too: brought back, it would stand beside its double. Whoever names one gets a clear
 refusal (``client_name_taken``, ``client_name_in_bin``, ``project_name_taken``, ``team_name_taken``).
@@ -13,6 +14,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import unicodedata
 from collections.abc import Iterable
 from typing import Any
 
@@ -36,7 +38,11 @@ class NameTaken(Exception):
 
 
 def key(name: str) -> str:
-    return " ".join(str(name or "").split()).casefold()
+    """A name as compared: NFKC (an "é" typed as one sign or as "e" and an accent is one name), without invisible
+    signs (a zero-width space, a soft hyphen), spaces folded to one inside and gone at the ends, without capitals."""
+    text = unicodedata.normalize("NFKC", str(name or ""))
+    text = "".join(char for char in text if unicodedata.category(char) != "Cf")
+    return " ".join(text.split()).casefold()
 
 
 def free(name: str, taken: Iterable[str], most: int) -> str:
@@ -78,10 +84,12 @@ def check_team(db: Session, name: str, own_id: int | None = None) -> None:
             raise NameTaken("team_name_taken", "There is a team of this name already. Choose another name.")
 
 
-def unique(db: Session, kind: str, name: str, others: Iterable[str], most: int, source: Any = "") -> str:
-    """For what nexsuite brings: its name, or with a number when another here has it. Logged, never refused."""
+def unique(db: Session, kind: str, name: str, others: Iterable[str], most: int, source: Any = "",
+           before: str = "") -> str:
+    """For what nexsuite brings: its name, or with a number when another here has it. Never refused; logged once,
+    when the number is new (``before``: the name it has here now), not with every sync."""
     found = free(name, others, most)
-    if found != name:
+    if found != name and found != before:
         logger.warning("Name taken here, given a number kind=%s id=%s", kind, source)
     return found
 

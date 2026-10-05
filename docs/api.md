@@ -59,11 +59,14 @@ change that would break a program goes to `/api/v2` beside it.
 
 A client is named by its id or its name (`Example Bakery`, as it is written in nexbrand, any case). A version by its
 id or its label (`2026`, `1.0`). A project by its id or its name. No two clients have the same name, and no two
-projects of one client: nexbrand compares names without capitals and spaces at the ends.
+projects of one client: nexbrand compares names without capitals, without spaces at the ends, with spaces inside
+folded to one, without invisible signs (a zero-width space) and in one Unicode form (NFKC).
 
 The version that holds today is the published one with the latest day that is not after today. A version published
 to hold from a later day (`valid_from`) holds from that day on, not before: until then `current_version`, the
-standard answer, the code and the audit go by the version before it.
+standard answer, the code and the audit go by the version before it. With no version before it (a client or project
+whose only published version holds from a later day), `current_version` is `null`, and the standard answer, the code
+and the audit give that coming version with `current: false`.
 
 ### `GET /api/v1/me`
 
@@ -198,8 +201,8 @@ nexbrand with the token's name as author; a person publishes it there, or throws
 Two colours, written as for the audit (`#` as `%23`; `000`, `rgb(0 0 0)` and `hsl(…)` work too):
 `ratio`, `text` and `large_text` (`AAA`, `AA`, `AA large` or `fail`), `graphics` (`pass` or `fail`), `vision`
 (the ratio as people with each colour vision deficiency see it) and, below 4.5:1, `nearest_passing`: the nearest
-colour of the same hue that reaches it. Every `ratio` in the API is cut to two places, never rounded up: 4.4992 is
-4.49, so a ratio shown at or above a threshold has reached it.
+colour of the same hue that reaches it. Every `ratio` in the API is cut, never rounded up: to two places, from 10:1 to
+one (12.36 is 12.3). 4.4992 is 4.49, so a ratio shown at or above a threshold has reached it.
 
 ### `GET /api/v1/files/{id}`
 

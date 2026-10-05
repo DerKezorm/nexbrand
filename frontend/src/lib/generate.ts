@@ -21,20 +21,55 @@ export function harmonies(primary: string): Harmony[] {
 
 export type Names = { primary: string; accent: string; second: string; paper: string; stone: string; ink: string; white: string; light: string; dark: string }
 
-/** Neutrals tinted with the main hue: an off-white, a mid grey for borders, a dark for text. */
 /** Apart from white so clearly that the checks never call the two "nearly the same" (they warn below ΔE 4; F24: a new
  * client met that hint about colours nexbrand had made itself). */
-const PAPER_FROM_WHITE = 5
+const PAPER_FROM_WHITE = 4.5
 
+/** The off-white for a main colour: as light as it can be while apart from white, reached by more of the hue before
+ * less light, so the main colour keeps reading on it as on white where it can (F24). */
+function paperFor(primary: string): string {
+  const [h] = hsl(primary)
+  const holds = (paper: string) => contrast(primary, paper) >= 4.5 || contrast(primary, '#FFFFFF') < 4.5
+  let first: string | null = null
+  for (let light = 96; light >= 88; light -= 0.5)
+    for (let saturation = 30; saturation <= 100; saturation += 5) {
+      const paper = fromHsl(h, saturation, light)
+      if (deltaE(paper, '#FFFFFF') < PAPER_FROM_WHITE) continue
+      if (holds(paper)) return paper
+      first ??= paper
+    }
+  return first ?? fromHsl(h, 30, 92)
+}
+
+/** A neutral at `light`, or the nearest lightness (in turns lighter and darker) apart from the main colour: a grey
+ * main colour must not meet a stone or an ink "nearly the same" that nexbrand put beside it (F24). */
+function apartFrom(primary: string, hue: number, saturation: number, light: number, low: number, high: number): string {
+  for (let step = 0; step <= 40; step++) {
+    const at = light + (step % 2 ? 1 : -1) * Math.ceil(step / 2)
+    if (at < low || at > high) continue
+    const value = fromHsl(hue, saturation, at)
+    if (deltaE(value, primary) >= 6) return value
+  }
+  return fromHsl(hue, saturation, light)
+}
+
+/** Neutrals tinted with the main hue: an off-white, a mid grey for borders, a dark for text. */
 export function neutralsFor(primary: string, names: Names): BrandColor[] {
   const [h] = hsl(primary)
-  let paper = fromHsl(h, 30, 96)
-  for (let light = 96; light > 85 && deltaE(paper, '#FFFFFF') < PAPER_FROM_WHITE; light -= 0.5) paper = fromHsl(h, 30, light)
   return [
-    { name: names.paper, hex: paper, role: 'neutral' },
-    { name: names.stone, hex: fromHsl(h, 8, 62), role: 'neutral' },
-    { name: names.ink, hex: fromHsl(h, 25, 13), role: 'neutral' },
+    { name: names.paper, hex: paperFor(primary), role: 'neutral' },
+    { name: names.stone, hex: apartFrom(primary, h, 8, 62, 45, 75), role: 'neutral' },
+    { name: names.ink, hex: apartFrom(primary, h, 25, 13, 5, 22), role: 'neutral' },
   ]
+}
+
+/** "With one colour": the colour, its neutrals and white. A colour that reads on white but not on the off-white made for
+ * it is darkened in its hue until it does: nexbrand's own neutral must not make a hint the colour did not have (F24). */
+export function oneColor(start: string, names: Names): BrandColor[] {
+  const neutrals = neutralsFor(start, names)
+  let primary = start.toUpperCase()
+  if (contrast(primary, '#FFFFFF') >= 4.5 && contrast(primary, neutrals[0].hex) < 4.5) primary = reach(primary, neutrals[0].hex, 4.5) ?? primary
+  return [{ name: names.primary, hex: primary, role: 'primary' }, ...neutrals, { name: names.white, hex: '#FFFFFF', role: 'neutral' }]
 }
 
 export const RATIOS = [1.125, 1.2, 1.25, 1.333, 1.5]

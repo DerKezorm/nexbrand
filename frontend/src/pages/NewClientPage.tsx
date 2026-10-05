@@ -17,7 +17,7 @@ import { check } from '../lib/checks'
 import { isHex, textOn } from '../lib/color'
 import { errorText } from '../lib/errors'
 import { CATALOG, PAIRINGS, catalogEntry, catalogFont, fontStack } from '../lib/fonts'
-import { colorsOfImage, directions, familyOf, fromAi, neutralsFor, RATIOS, rolesFor, startRules, typeScale, wordmarks, type Direction } from '../lib/generate'
+import { colorsOfImage, directions, familyOf, fromAi, oneColor, RATIOS, rolesFor, startRules, typeScale, wordmarks, type Direction } from '../lib/generate'
 import { useAuth } from '../state/auth'
 import { useBrands } from '../state/brands'
 import { Feedback } from './settings/ui'
@@ -639,7 +639,7 @@ function StartStep({
           <div className="flex items-center gap-2">
             <input type="color" aria-label={t('wizard.startColor')} value={isHex(start) ? start : '#000000'} onChange={(e) => setStart(e.target.value.toUpperCase())} className="h-10 w-14 rounded-lg border border-ink-700 bg-ink-850" />
             <input value={start} onChange={(e) => setStart(e.target.value)} aria-label={t('wizard.startColor')} className="h-10 w-28 rounded-lg border border-ink-700 bg-ink-850 px-3 font-mono text-sm" />
-            <button type="button" className="nc-btn nc-btn-accent" disabled={!isHex(start)} onClick={() => onColors([{ name: names.primary, hex: start.toUpperCase(), role: 'primary' }, ...neutralsFor(start, names), { name: names.white, hex: '#FFFFFF', role: 'neutral' }])}>
+            <button type="button" className="nc-btn nc-btn-accent" disabled={!isHex(start)} onClick={() => onColors(oneColor(start, names))}>
               {t('wizard.takeThis')}
             </button>
           </div>
@@ -669,7 +669,7 @@ function LogoUpload({ ensure, logo, onChange }: { ensure: () => Promise<number>;
         <ImagePlus className="h-4 w-4" /> {t('wizard.uploadLogo')}
         <input
           type="file"
-          accept=".svg,.png,.jpg,.jpeg,.webp,image/*"
+          accept=".svg,.png,.jpg,.jpeg,.webp,.gif,.avif,.bmp,.heic,.heif,image/*"
           className="sr-only"
           disabled={busy}
           onChange={(e) => {
@@ -679,7 +679,8 @@ function LogoUpload({ ensure, logo, onChange }: { ensure: () => Promise<number>;
             setProblem(null)
             ensure()
               .then((space) => mediaApi.upload(space, file, file.name, undefined, 'picture'))
-              .then((m) => (['svg', 'png', 'jpeg', 'webp', 'gif', 'avif'].includes(m.kind) ? onChange(m) : setProblem('not_a_picture')))
+              // The server refuses what is no picture and keeps nothing of it (`expect`, F9).
+              .then((m) => onChange(m))
               .catch((error) => setProblem(error instanceof ApiError ? error.code : 'internal_error'))
               .finally(() => setBusy(false))
           }}
