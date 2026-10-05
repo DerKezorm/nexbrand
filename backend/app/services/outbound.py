@@ -28,6 +28,8 @@ TIMEOUT = 12.0
 MAX_REDIRECTS = 4
 MAX_URL = 2000
 AGENT = "nexbrand (collecting a brand's colours)"
+#: Headers that only the first host gets, never one a redirect leads to.
+PRIVATE_HEADERS = {"authorization", "cookie", "proxy-authorization"}
 
 
 class FetchError(ValueError):
@@ -93,9 +95,12 @@ class Fetched:
 def get(url: str, *, limit: int, accept: str = "*/*", headers: dict[str, str] | None = None) -> Fetched:
     """One address, its redirects followed by hand and checked each; at most ``limit`` bytes (more is an error)."""
     deadline = time.monotonic() + TIMEOUT
+    origin: tuple[str, str, int] | None = None
+    given = dict(headers or {})
     with httpx.Client(transport=transport, follow_redirects=False, trust_env=False) as client:
         for _hop in range(MAX_REDIRECTS + 1):
             scheme, host, port, ip = _checked(url)
+            origin = origin or (scheme, host.lower(), port)
             parts = urlsplit(url)
             target = f"[{ip}]" if ":" in ip else ip
             direct = parts._replace(netloc=f"{target}:{port}").geturl()
@@ -103,7 +108,11 @@ def get(url: str, *, limit: int, accept: str = "*/*", headers: dict[str, str] | 
             if left <= 0:
                 raise FetchError("timeout")
             named = host if port in (80, 443) else f"{host}:{port}"
-            sent = {"Host": named, "User-Agent": AGENT, "Accept": accept, **(headers or {})}
+            if (scheme, host.lower(), port) != origin:
+                # A key is for the host it was given for: a redirect elsewhere goes without it from there on (A11),
+                # as browsers and the usual clients do.
+                given = {key: value for key, value in given.items() if key.lower() not in PRIVATE_HEADERS}
+            sent = {"Host": named, "User-Agent": AGENT, "Accept": accept, **given}
             extensions = {"sni_hostname": host} if scheme == "https" else {}
             try:
                 with client.stream("GET", direct, headers=sent, timeout=left, extensions=extensions) as answer:

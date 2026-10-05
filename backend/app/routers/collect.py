@@ -187,6 +187,9 @@ async def take_fonts(payload: FontsIn, account: Account) -> dict[str, Any]:
 
         try:
             stored = await run_in_threadpool(finish)
+        except media_store.MediaError as exc:
+            notes.append({"source": item.url[:200], "problem": exc.code})
+            continue
         finally:
             received.unlink(missing_ok=True)
         taken.append({"id": stored.id, "name": stored.name, "kind": stored.kind, "weight": item.weight,
@@ -223,6 +226,8 @@ async def take_logo(payload: LogoIn, account: Account) -> dict[str, Any]:
 
     try:
         stored = await run_in_threadpool(finish)
+    except media_store.MediaError as exc:
+        raise error(exc.code, exc.text, exc.status, **exc.values()) from exc
     finally:
         received.unlink(missing_ok=True)
     return {"id": stored.id, "name": stored.name, "kind": stored.kind, "size": stored.size}

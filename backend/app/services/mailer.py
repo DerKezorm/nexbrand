@@ -1,7 +1,8 @@
-"""Invitation mail through the operator's SMTP server.
+"""Mail through the operator's SMTP server: invitations, and the link of a review to the client.
 
-Off until the operator enters a server: the link to copy is always enough. Nothing else is ever mailed. The mail
-is English like everything nexbrand sends out; it names who invites and into which space, and carries the link.
+Off until the operator enters a server: the link to copy is always enough. Nothing else is ever mailed. The
+invitation names who invites and into which space, and carries the link. The review mail goes to someone without an
+account, in the language of the person who puts the draft forward.
 """
 
 from __future__ import annotations
@@ -74,6 +75,41 @@ def send_invite(db: Session, to: str, link: str, *, by: str, space: str | None) 
         "The link works once and runs out after a while. If you did not expect this mail, ignore it.\n"
     )
     _send(db, message)
+
+
+#: The review mail, in the language of the person who puts the draft forward (English when it is neither).
+REVIEW_MAIL = {
+    "de": {
+        "subject": "{sender}: Ihre Meinung zum neuen Auftritt von {client}",
+        "body": "{sender} bittet um Ihre Meinung zum neuen Auftritt von {client}.\n\n{message}"
+                "Unter diesem Link sehen Sie die Entwürfe, können sie kommentieren und einen auswählen:\n{link}\n\n"
+                "Ein Konto brauchen Sie dafür nicht. Wenn Sie diese Mail nicht erwartet haben, können Sie sie "
+                "ignorieren.\n",
+    },
+    "en": {
+        "subject": "{sender}: your opinion on the new look of {client}",
+        "body": "{sender} asks for your opinion on the new look of {client}.\n\n{message}"
+                "This link shows the drafts; you can comment on them and choose one:\n{link}\n\n"
+                "You need no account for it. If you did not expect this mail, ignore it.\n",
+    },
+}
+
+
+def _one_line(text: str) -> str:
+    """A name in a mail header: one line, no control characters."""
+    return " ".join("".join(char if ord(char) >= 32 and ord(char) != 127 else " " for char in text).split())
+
+
+def send_review(db: Session, to: str, link: str, *, client: str, sender: str, message: str, language: str) -> None:
+    """The link of a review to the client. ``language``: a code such as ``de`` or ``de-AT``."""
+    words = REVIEW_MAIL.get(language.split("-")[0].lower(), REVIEW_MAIL["en"])
+    values = {"sender": _one_line(sender), "client": _one_line(client), "link": link,
+              "message": f"{message.strip()}\n\n" if message.strip() else ""}
+    mail = EmailMessage()
+    mail["To"] = to
+    mail["Subject"] = words["subject"].format(**values)
+    mail.set_content(words["body"].format(**values))
+    _send(db, mail)
 
 
 def send_test(db: Session, to: str) -> None:

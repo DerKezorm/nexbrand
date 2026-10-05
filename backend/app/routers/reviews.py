@@ -5,9 +5,13 @@ on a sample page, comments, and chooses one. The choice is written into the draf
 the agency gave ("1.0"): from then on it is the client's current design set, and its history says the client chose
 it.
 
-* **Closed until the operator opens it**, the same switch as public pages (``shares_allowed``); managers of the
-  space make a review, writers comment from the agency's side.
-* **The link is the key**, as for public pages; a review that ran out or was withdrawn answers like none.
+* **Closed until the operator opens it**, the same switch as public pages (``shares_allowed``); from write up a
+  person of the agency puts a draft before the client and comments from the agency's side; whoever made a review, or
+  a manager, withdraws it.
+* **The link is the key**, as for public pages; a review that ran out or was withdrawn answers like none. Readers see
+  that there is a review and what was said, never the link: with it they could choose for the client (A2).
+* **By mail if wanted**: with a mail server set up, the link goes to the address given, in the language of the person
+  who puts the draft forward.
 * **Comments are brakes**: thirty an hour per page and sender, at most ``MAX_COMMENTS`` in all.
 * **Only what the page shows leaves**: the files the directions name, never a font kept in the house as a file.
 """
@@ -16,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import secrets
+import unicodedata
 from datetime import timedelta
 from typing import Annotated, Any
 
@@ -29,7 +34,7 @@ from ..deps import Account, DbSession, client_ip
 from ..errors import detail, error
 from ..models import DRAFT, MANAGE, READ, WRITE, BrandVersion, Client, Media, Review, ReviewComment, Space, utcnow
 from ..security import Brake
-from ..services import brands, brandset, rights, settings_service
+from ..services import accounts, brands, brandset, mailer, rights, settings_service
 from .media import deliver
 from .shares import link
 
@@ -43,7 +48,10 @@ MediaId = Annotated[str, PathParam(min_length=8, max_length=40, pattern=r"^[A-Za
 MAX_VARIANTS = 4
 MAX_COMMENTS = 500
 COMMENTS_PER_HOUR = 30
+#: Review mails one account may send in an hour (the operator's mail server is not for sending without end).
+MAILS_PER_HOUR = 20
 _comments = Brake()
+_mails = Brake()
 
 
 class VariantIn(BaseModel):
@@ -61,6 +69,10 @@ class ReviewIn(BaseModel):
     sender: str = Field(default="", max_length=120)
     message: str = Field(default="", max_length=1000)
     days: int = Field(default=30, ge=1, le=365)
+    #: Where the link goes by mail; empty: nowhere, the link is copied.
+    email: str = Field(default="", max_length=255)
+    #: The language the person sees the app in, for the mail when the account has none of its own.
+    language: str = Field(default="", max_length=16)
 
 
 class CommentIn(BaseModel):
@@ -89,10 +101,20 @@ def _comments_of(db: Any, review: Review) -> list[dict[str, Any]]:
              "agency": c.agency, "at": c.created_at.isoformat()} for c in rows]
 
 
-def _view(db: Any, request: Request, review: Review) -> dict[str, Any]:
+def _clean_name(value: str) -> str:
+    """The client's name on the page: spaces gathered, no control or format characters (a right-to-left override
+    lets a name read other than it is, as for the display names of accounts)."""
+    if any(ord(char) < 32 or ord(char) == 127 or unicodedata.category(char) == "Cf" for char in value):
+        raise error("invalid_name", "A name cannot hold control or invisible characters.", 422)
+    return " ".join(value.split())[:80]
+
+
+def _view(db: Any, request: Request, review: Review, account: Any, role: str | None) -> dict[str, Any]:
     return {
         "id": review.id,
-        "link": link(db, request, f"/r/{review.token}"),
+        # The link is the key to choosing for the client: for those who write only.
+        "link": link(db, request, f"/r/{review.token}") if rights.at_least(role, WRITE) else None,
+        "mine": review.created_by == account.id,
         "version_id": review.version_id,
         "label": review.label,
         "sender": review.sender,
@@ -118,18 +140,41 @@ def _review(db: DbSession, account: Any, client_id: str, review_id: int, need: s
     return client, review
 
 
-@router.get("/clients/{client_id}/reviews", summary="The reviews of a client, with their comments")
+def _role(db: Any, account: Any, client: Client) -> str | None:
+    return rights.role_in(db, account, client.space_id)
+
+
+@router.get("/clients/{client_id}/reviews", summary="The reviews of a client, with their comments (links: writers)")
 def list_reviews(client_id: ClientId, request: Request, account: Account, db: DbSession) -> list[dict[str, Any]]:
     client = _client(db, account, client_id, READ)
+    role = _role(db, account, client)
     rows = db.scalars(select(Review).where(Review.client_id == client.id).order_by(Review.created_at.desc()))
-    return [_view(db, request, row) for row in rows]
+    return [_view(db, request, row, account, role) for row in rows]
 
 
-@router.post("/clients/{client_id}/reviews", status_code=201, summary="Put a draft before the client (managers)")
+def _mail_to(db: Any, account: Any, email: str) -> str:
+    """The address the link is to go to, checked before anything is made; empty: no mail."""
+    email = email.strip()
+    if not email:
+        return ""
+    if not accounts.EMAIL_PATTERN.match(email):
+        raise error("invalid_email", "This is not a mail address.", 422)
+    if not mailer.configured(db):
+        raise error("mail_off", "No mail server is set up.", 409)
+    # The link in a mail is the public address's, never one the request made up (the Host header).
+    if not settings_service.public_url(db):
+        raise error("public_url_missing", "Mail needs the public address of nexbrand; the operator sets it.", 409)
+    if _mails.wait_seconds(f"review-mail:{account.id}", free=MAILS_PER_HOUR):
+        raise error("too_many_attempts", "Too many mails. Try again later.", 429)
+    return email
+
+
+@router.post("/clients/{client_id}/reviews", status_code=201, summary="Put a draft before the client (writers)")
 def make_review(client_id: ClientId, payload: ReviewIn, request: Request, account: Account, db: DbSession) -> dict:
     if not settings_service.get(db, "shares_allowed"):
         raise error("shares_off", "The operator has not allowed public pages.", 403)
-    client = _client(db, account, client_id, MANAGE)
+    client = _client(db, account, client_id, WRITE)
+    email = _mail_to(db, account, payload.email)
     try:
         version = brands.version_for(db, client, payload.version_id)
     except brands.BrandError as exc:
@@ -157,33 +202,48 @@ def make_review(client_id: ClientId, payload: ReviewIn, request: Request, accoun
     db.commit()
     logger.info("Review made client=%s version=%s directions=%s by=%s", client.id, version.id, len(variants),
                 account.name)
-    return _view(db, request, review)
+    view = _view(db, request, review, account, _role(db, account, client))
+    if not email:
+        return view
+    # The review stands whatever the mail does: its link is in the app to copy.
+    _mails.failed(f"review-mail:{account.id}")
+    try:
+        mailer.send_review(db, email, view["link"], client=client.name,
+                           sender=review.sender or account.display_name or account.name, message=review.message,
+                           language=account.language or payload.language)
+    except mailer.MailError as exc:
+        return {**view, "mailed": False, "mail_problem": exc.code}
+    logger.info("Review link mailed client=%s by=%s", client.id, account.name)
+    return {**view, "mailed": True, "mail_problem": None}
 
 
 @router.post("/clients/{client_id}/reviews/{review_id}/comments", status_code=201,
              summary="A comment from the agency's side (writers)")
 def agency_comment(client_id: ClientId, review_id: int, payload: CommentIn, request: Request, account: Account,
                    db: DbSession) -> dict[str, Any]:
-    _, review = _review(db, account, client_id, review_id, WRITE)
+    client, review = _review(db, account, client_id, review_id, WRITE)
     _comment(db, review, payload.variant, account.display_name or account.name, payload.text, agency=True,
              sample=payload.sample)
     # Answering is reading: what the client said before is no longer new.
     review.seen_at = utcnow()
     db.commit()
-    return _view(db, request, review)
+    return _view(db, request, review, account, _role(db, account, client))
 
 
 @router.post("/clients/{client_id}/reviews/{review_id}/seen", summary="Somebody of the agency looked at the review")
 def seen(client_id: ClientId, review_id: int, request: Request, account: Account, db: DbSession) -> dict[str, Any]:
-    _, review = _review(db, account, client_id, review_id, READ)
+    client, review = _review(db, account, client_id, review_id, READ)
     review.seen_at = utcnow()
     db.commit()
-    return _view(db, request, review)
+    return _view(db, request, review, account, _role(db, account, client))
 
 
-@router.delete("/clients/{client_id}/reviews/{review_id}", status_code=204, summary="Withdraw a review (managers)")
+@router.delete("/clients/{client_id}/reviews/{review_id}", status_code=204,
+               summary="Withdraw a review (whoever put it forward, or a manager)")
 def withdraw(client_id: ClientId, review_id: int, account: Account, db: DbSession) -> None:
-    _, review = _review(db, account, client_id, review_id, MANAGE)
+    client, review = _review(db, account, client_id, review_id, WRITE)
+    if review.created_by != account.id and not rights.at_least(_role(db, account, client), MANAGE):
+        raise error("forbidden", "Whoever put the draft forward, or a manager of the client, withdraws it.", 403)
     if review.status == "open":
         review.status = "closed"
         db.commit()
@@ -205,7 +265,7 @@ def _comment(db: Any, review: Review, variant: str, author: str, text: str, *, a
     if not clean or any(ord(char) < 32 and char not in "\n\t" for char in clean):
         raise error("invalid_input", "The input is not valid.", 422)
     db.add(ReviewComment(review_id=review.id, variant=variant, sample=sample or None,
-                         author=" ".join(author.split())[:80] or "-", text=clean, agency=agency))
+                         author=" ".join(author.split())[:80], text=clean, agency=agency))
     db.commit()
 
 
@@ -278,7 +338,7 @@ def client_comment(token: Token, payload: CommentIn, request: Request) -> dict[s
     with SessionLocal() as db:
         review, client = _open(db, token)
         _slow_down(request, review)
-        _comment(db, review, payload.variant, payload.author or "-", payload.text, agency=False,
+        _comment(db, review, payload.variant, _clean_name(payload.author), payload.text, agency=False,
                  sample=payload.sample)
         return _page(db, review, client)
 
@@ -289,6 +349,7 @@ def choose(token: Token, payload: ChooseIn, request: Request) -> dict[str, Any]:
         review, client = _open(db, token)
         if review.status != "open":
             raise error("review_closed", "This review is closed.", 409)
+        who = _clean_name(payload.author)
         _slow_down(request, review)
         variant = next((v for v in review.variants if v["id"] == payload.variant), None)
         version = db.get(BrandVersion, review.version_id)
@@ -297,7 +358,6 @@ def choose(token: Token, payload: ChooseIn, request: Request) -> dict[str, Any]:
         if version.status != DRAFT:
             # Published in the meantime by the agency: the choice has nothing left to write into.
             raise error("review_closed", "This review is closed.", 409)
-        who = " ".join(payload.author.split())[:80]
         try:
             version.data = brandset.clean(variant["data"], db, client.space_id)
         except brandset.SetError as exc:

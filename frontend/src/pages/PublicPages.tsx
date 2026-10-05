@@ -1,11 +1,12 @@
 /** The two pages for people outside: a public page of a design set (/s/…) and a review for the client (/r/…).
  * Neither needs an account; neither shows the agency's app around it. */
-import { CircleCheck, Lock, MessageSquare, Send } from 'lucide-react'
+import { CircleCheck, Code2, Lock, MessageSquare, Send } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router-dom'
 
 import { ApiError, pageMediaUrl, reviewsApi, sharesApi, type PublicPageInfo, type ReviewPageInfo } from '../api/client'
+import { ExportDialog } from '../components/brand/ExportDialog'
 import { LogoView } from '../components/brand/LogoView'
 import { SetView } from '../components/brand/SetView'
 import { SampleGallery } from '../components/brand/SampleGallery'
@@ -17,6 +18,7 @@ import { schemeOf } from '../lib/brand'
 import { textOn } from '../lib/color'
 import { errorText } from '../lib/errors'
 import { fontStack } from '../lib/fonts'
+import { shownAuthor } from '../lib/review'
 
 function Footer() {
   const { t } = useTranslation()
@@ -34,6 +36,7 @@ export function PublicPage() {
   const [gone, setGone] = useState(false)
   const [password, setPassword] = useState('')
   const [problem, setProblem] = useState<string | null>(null)
+  const [code, setCode] = useState(false)
   useEffect(() => {
     sharesApi.page(token).then(setPage).catch(() => setGone(true))
   }, [token])
@@ -71,16 +74,23 @@ export function PublicPage() {
         {logo ? <LogoView logo={logo} fonts={page.design.fonts} fileUrl={fileUrl} className="h-20" /> : <span className="text-4xl font-bold text-black">{page.client}</span>}
       </header>
       <main className="mx-auto max-w-6xl space-y-5 px-4 py-8">
-        <div>
-          <h1 className="text-2xl font-bold">{t('public.title', { name: page.client })}</h1>
-          <p className="text-sm text-mist-500">
-            {t('public.version', { label: page.version.label, from: new Date(page.version.valid_from).toLocaleDateString(i18n.language) })}
-            {page.label && <> · {t('public.for', { label: page.label })}</>}
-          </p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold">{t('public.title', { name: page.client })}</h1>
+            <p className="text-sm text-mist-500">
+              {t('public.version', { label: page.version.label, from: new Date(page.version.valid_from).toLocaleDateString(i18n.language) })}
+              {page.label && <> · {t('public.for', { label: page.label })}</>}
+            </p>
+          </div>
+          {/* For a developer: the same code as the export in the app, fonts kept in the house by name only (F27). */}
+          <button type="button" className="nc-btn nc-btn-ghost" onClick={() => setCode(true)}>
+            <Code2 className="h-4 w-4" /> {t('public.asCode')}
+          </button>
         </div>
         <SetView set={page.design} fileUrl={fileUrl} files={page.files} publicMode />
       </main>
       <Footer />
+      {code && <ExportDialog source={{ page: token }} title={`${page.client} ${page.version.label}`} onClose={() => setCode(false)} />}
     </div>
   )
 }
@@ -116,10 +126,13 @@ export function ReviewPage() {
     }
   }
   const fileUrl = useCallback((id: string) => pageMediaUrl('review', token, id), [token])
-  const fail = (error: unknown) => setProblem(error instanceof ApiError ? error.code : 'internal_error')
+  // A review withdrawn or deleted meanwhile: the page says it is gone, not that something failed (F5).
+  const fail = (error: unknown) => (error instanceof ApiError && error.status === 404 ? setGone(true) : setProblem(error instanceof ApiError ? error.code : 'internal_error'))
   if (gone) return <p className="p-10 text-center text-mist-400">{t('public.reviewGone')}</p>
   if (!page) return <main aria-busy="true" />
   const chosen = page.variants.find((v) => v.id === page.chosen)
+  // One draft is "the draft", not a direction with a name of its own (F31).
+  const one = page.variants.length === 1
   return (
     <div className="min-h-dvh">
       <main className="mx-auto max-w-6xl space-y-6 px-4 py-8">
@@ -132,7 +145,7 @@ export function ReviewPage() {
         {chosen && (
           <div className="flex items-center gap-3 rounded-2xl border border-ok-500/40 bg-ok-500/8 px-5 py-4" role="status">
             <CircleCheck className="h-5 w-5 text-ok-500" />
-            <span>{t('review.thanks', { label: chosen.label })}</span>
+            <span>{one ? t('review.thanksOne') : t('review.thanks', { label: chosen.label })}</span>
           </div>
         )}
         {page.status === 'open' && (
@@ -143,7 +156,7 @@ export function ReviewPage() {
         )}
         {problem && <p role="alert" className="text-sm text-bad-500">{errorText(problem)}</p>}
         {/* Two directions side by side only while there are no designs of the agency's own: those want the width. */}
-        <div className={'grid gap-5 ' + (page.variants.length > 1 && page.variants.every((v) => !v.data.samples.length) ? 'lg:grid-cols-2' : '')}>
+        <div className={'grid grid-cols-[minmax(0,1fr)] gap-5 ' + (page.variants.length > 1 && page.variants.every((v) => !v.data.samples.length) ? 'lg:grid-cols-2' : '')}>
           {page.variants.map((v) => {
             const logo = v.data.logos.find((l) => !l.compact)
             const comments = page.comments.filter((c) => c.variant === v.id)
@@ -155,9 +168,9 @@ export function ReviewPage() {
             const counts: Record<string, number> = {}
             for (const c of comments) if (c.sample) counts[c.sample] = (counts[c.sample] ?? 0) + 1
             return (
-              <article key={v.id} className={'space-y-3 rounded-2xl border bg-ink-900 p-4 ' + (page.chosen === v.id ? 'border-ok-500' : 'border-ink-700')}>
+              <article key={v.id} className={'min-w-0 space-y-3 rounded-2xl border bg-ink-900 p-4 ' + (page.chosen === v.id ? 'border-ok-500' : 'border-ink-700')}>
                 <div className="flex items-baseline justify-between gap-2">
-                  <h2 className="text-lg font-semibold">{v.label}</h2>
+                  <h2 className="text-lg font-semibold">{one ? t('review.theDraft') : v.label}</h2>
                   <span className="text-xs text-mist-500">{v.data.fonts.map((f) => f.family).join(' / ')}</span>
                 </div>
                 {samples.length > 0 && <SampleGallery samples={samples} files={page.files} fileUrl={fileUrl} index={index} onIndex={(i) => setAt({ ...at, [v.id]: i })} counts={counts} />}
@@ -179,7 +192,7 @@ export function ReviewPage() {
                 <ul className="space-y-2">
                   {comments.map((c, i) => (
                     <li key={i} className={'rounded-xl px-3 py-2 text-sm ' + (c.agency ? 'bg-accent-500/10' : 'bg-ink-850')}>
-                      <span className="text-xs font-semibold text-mist-300">{c.author}</span> <span className="text-[11px] text-mist-600">{new Date(c.at).toLocaleString(i18n.language)}</span>
+                      <span className="text-xs font-semibold text-mist-300">{shownAuthor(c.author, t('review.noName'))}</span> <span className="text-[11px] text-mist-600">{new Date(c.at).toLocaleString(i18n.language)}</span>
                       {c.sample && samples.some((x) => x.media === c.sample) && (
                         <button type="button" className="ml-1.5 text-[11px] text-accent-400 hover:underline" onClick={() => setAt({ ...at, [v.id]: samples.findIndex((x) => x.media === c.sample) })}>
                           {t('review.onSample', { name: samples.find((x) => x.media === c.sample)?.name ?? '' })}
@@ -215,7 +228,7 @@ export function ReviewPage() {
                       </label>
                     )}
                     <button type="button" className="nc-btn nc-btn-accent" onClick={() => setConfirm(v.id)}>
-                      <Send className="h-4 w-4" /> {t('review.choose')}
+                      <Send className="h-4 w-4" /> {one ? t('review.chooseOne') : t('review.choose')}
                     </button>
                   </>
                 )}
@@ -226,7 +239,7 @@ export function ReviewPage() {
       </main>
       <Footer />
       {confirm && (
-        <Dialog title={t('review.chooseTitle')} onClose={() => setConfirm(null)}>
+        <Dialog title={one ? t('review.chooseOneTitle') : t('review.chooseTitle')} onClose={() => setConfirm(null)}>
           <p className="text-sm text-mist-300">{t('review.chooseText')}</p>
           <div className="mt-4 flex justify-end gap-2">
             <button type="button" className="nc-btn nc-btn-ghost" onClick={() => setConfirm(null)}>

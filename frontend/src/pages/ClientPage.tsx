@@ -3,6 +3,7 @@
  * own, or both (`lib/inherit.ts`); the page shows what that makes, and the editor where each part comes from. */
 import { ArrowRight, ArrowUpCircle, CalendarClock, Copy, Download, FilePlus2, FolderKanban, GitCompare, Globe, History, MessagesSquare, Pencil, Plus, Send, Sparkles, Star, Trash2, Upload, Users, UsersRound, Wand2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
@@ -74,7 +75,6 @@ export function ClientPage() {
   const shown = versions.find((v) => v.id === chosenId) ?? current ?? versions[0]
   const editing = shown?.status === 'draft' && params.get('edit') === '1' && (whole?.role === 'write' || whole?.role === 'manage')
   const canWrite = whole?.role === 'write' || whole?.role === 'manage'
-  const canManage = whole?.role === 'manage'
 
   const own = pid ? project?.versions.find((v) => v.id === shown?.id) : undefined
   const base = own?.base_id ? whole?.versions.find((v) => v.id === own.base_id) : undefined
@@ -311,7 +311,7 @@ export function ClientPage() {
                   <GitCompare className="h-4 w-4" /> {t('client.compare')}
                 </button>
               )}
-              {canManage && !openReview && (
+              {canWrite && !openReview && (
                 <button type="button" className="nc-btn nc-btn-ghost" onClick={() => setDialog('review')}>
                   <Send className="h-4 w-4" /> {t('client.toClient')}
                 </button>
@@ -397,8 +397,8 @@ export function ClientPage() {
               { value: 'ui', label: t('ui.tab'), icon: Copy, content: <UiElements set={shown.data} name={project?.name ?? whole.name} fileUrl={fileUrl} /> },
               ...(project ? [] : [{ value: 'projects', label: t('client.tabProjects', { count: whole.projects.length }), icon: FolderKanban, content: <Projects whole={whole} canWrite={canWrite} reload={load} /> }]),
               { value: 'history', label: t('client.tabHistory'), icon: History, content: <HistoryPanel versions={versions} start={shown} canWrite={canWrite} onDelete={() => setDialog('deleteDraft')} /> },
-              { value: 'pages', label: t('client.tabPages'), icon: Globe, content: <SharesPanel client={whole.id} versions={versions} canManage={canManage} project={project?.id} /> },
-              { value: 'reviews', label: whole.news ? t('client.tabReviewsNews', { count: whole.news }) : t('client.tabReviews'), icon: MessagesSquare, content: <ReviewsPanel client={whole.id} versions={versions} only={[...mine]} canWrite={canWrite} canManage={canManage} onChange={load} /> },
+              { value: 'pages', label: t('client.tabPages'), icon: Globe, content: <SharesPanel client={whole.id} versions={versions} role={whole.role} project={project?.id} /> },
+              { value: 'reviews', label: whole.news ? t('client.tabReviewsNews', { count: whole.news }) : t('client.tabReviews'), icon: MessagesSquare, content: <ReviewsPanel client={whole.id} versions={versions} only={[...mine]} role={whole.role} onChange={load} /> },
             ]}
           />
           </div>
@@ -420,7 +420,7 @@ export function ClientPage() {
         <LiftProject whole={whole} project={project} from={own} to={clientCurrent} onClose={() => setDialog(null)} onMade={(v) => (setDialog(null), void load().then(() => choose(v.id)))} />
       )}
       {dialog === 'publish' && <Publish whole={whole} version={shown} onClose={() => setDialog(null)} onDone={() => (setDialog(null), void load().then(() => (brands.refresh(), choose(shown.id))))} />}
-      {dialog === 'export' && <ExportDialog client={whole.id} version={shown.id} title={`${project ? `${whole.name}, ${project.name}` : whole.name} ${shown.label}`} onClose={() => setDialog(null)} />}
+      {dialog === 'export' && <ExportDialog source={{ client: whole.id, version: shown.id }} title={`${project ? `${whole.name}, ${project.name}` : whole.name} ${shown.label}`} onClose={() => setDialog(null)} />}
       {dialog === 'review' && <NewReview whole={whole} version={own ?? shown} versions={project ? project.versions : undefined} onClose={() => setDialog(null)} onMade={() => (setDialog(null), void load().then(() => choose(shown.id, { tab: 'reviews' })))} />}
       {dialog === 'trash' && project && (
         <Confirm title={t('projects.delete')} text={t('projects.deleteText', { name: project.name })} confirm={t('projects.delete')} danger onCancel={() => setDialog(null)} onConfirm={async () => (await clientsApi.deleteProject(whole.id, project.id), navigate(`/c/${whole.id}?tab=projects`))} />
@@ -431,12 +431,12 @@ export function ClientPage() {
       {dialog === 'deleteDraft' && (
         <Confirm
           title={t('client.deleteDraft')}
-          text={t('client.deleteDraftText', { label: shown.label })}
+          text={[t('client.deleteDraftText', { label: shown.label }), deleteDraftWarning(whole.reviews, shown.id, t)].filter(Boolean).join(' ')}
           confirm={t('client.deleteDraft')}
           danger
           onCancel={() => setDialog(null)}
           onConfirm={async () => {
-            await clientsApi.deleteDraft(whole.id, shown.id)
+            await clientsApi.deleteDraft(whole.id, shown.id, !!openReview)
             setDialog(null)
             setParams({})
             await load()
@@ -445,6 +445,14 @@ export function ClientPage() {
       )}
     </main>
   )
+}
+
+/** What goes with a draft that is or was before the client (F5): an open review closes, the client's comments go. */
+function deleteDraftWarning(reviews: ClientWhole['reviews'], version: string, t: TFunction): string {
+  const own = reviews.filter((r) => r.version_id === version)
+  const said = own.reduce((sum, r) => sum + r.comments, 0)
+  if (own.some((r) => r.status === 'open')) return said ? t('client.deleteDraftOpen', { count: said }) : t('client.deleteDraftOpenQuiet')
+  return said ? t('client.deleteDraftComments', { count: said }) : ''
 }
 
 /** Who has access: the people (with invitations) and the teams. A client nexsuite keeps shows them, changed there. */

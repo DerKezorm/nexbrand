@@ -27,13 +27,13 @@ frame here: accounts, second factor, sign-in through a provider, log, languages 
   touch of the main colour, a font pair, sizes from a base and a ratio. A sample page and the checks run next to it
   while you work. Until a logo exists, a word mark from the name keeps developers going.
 - **Review with the client.** A link without an account shows the directions as sample pages; the client comments
-  and picks one, and the choice becomes version 1.0.
+  and picks one, and the choice becomes version 1.0. With a mail server set up, nexbrand mails the link as well.
 - **Collect from what exists.** A website, a GitHub repository or a PDF style guide gives its colours, fonts and logos.
   The values are always measured; rules or your own AI service sort them. The result is a draft, or a check of a site
   against the CI that finds the nearly right shades and the foreign fonts.
 - **As code.** Every version as CSS variables, a Tailwind 4 theme, SCSS or design tokens (JSON), with scales, fonts and
   sizes. Public pages show a design set read only, a fixed version or always the current one, with an end date and a
-  password if you like.
+  password if you like, and give a developer the same code without an account.
 - **For programs and AI tools.** API tokens read design sets over [`/api/v1`](docs/api.md) and over MCP, so an AI in an
   editor builds with the right colours. A token of the level "draft" writes a redesign back, as a draft; publishing
   stays with a person.
@@ -168,11 +168,15 @@ draft. Off until the operator switches it on; every account then makes its own t
 - Every changing request needs the header `X-Nexbrand-Client`, which a page on another site cannot send.
 - A client somebody may not see answers exactly like one that does not exist, in every route.
 - A published version never changes; drafts from tokens or collecting stay drafts until a person publishes them.
-- Fonts marked internal never leave as a file: not on public pages, not through a token or MCP.
+- Fonts marked internal never leave as a file: not on public pages, not through a token or MCP, not as an example
+  or a logo download either.
+- The links of public pages and reviews are keys: from the right to write for a client up a person sees, copies and
+  makes them; readers only see that there are some.
 - Collecting fetches only public addresses, resolved and checked by nexbrand itself, every redirect again, with size
-  limits. An AI service in the own network needs the operator to name its host.
+  limits; a key for GitHub never follows a redirect to another host. An AI service in the own network needs the operator to name its host.
 - Files are served with their own sandboxing policy; whatever a browser would not show by itself is a download.
-  SVG logos are shown as pictures, never as pages.
+  SVG logos are shown as pictures, never as pages, and an SVG with a script, an event attribute, a `javascript:`
+  address, embedded HTML or a DOCTYPE is refused on upload. A picture's pixels are counted before it is decoded.
 - The log never contains a client's design, passwords, keys or tokens.
 
 ## Development

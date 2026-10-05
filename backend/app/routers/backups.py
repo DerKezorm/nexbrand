@@ -82,11 +82,13 @@ def download(name: BackupName, body: DownloadIn, request: Request, operator: Ope
     """The archive holds everything: the database, every note, ``secret.key``. A stolen session alone must not be
     enough to carry it away, so the password is asked again and counted like a sign-in."""
     with SessionLocal() as db:
-        confirm_operator(request, db, operator, body.password)
         from ..services import suite
 
+        # Refused before the password is asked: an operator from nexsuite gets the reason, not a password prompt
+        # (and a wrong guess never counts against an account that may not do this anyway).
         suite.refuse_unless_keeper(db, operator, "backups_emergency_only",
                                    "Connected, backups are carried away or deleted by the emergency account.")
+        confirm_operator(request, db, operator, body.password)
     try:
         path = backups.path_of(name)
     except backups.BackupError as exc:
@@ -100,11 +102,13 @@ def download(name: BackupName, body: DownloadIn, request: Request, operator: Ope
 def delete(name: BackupName, body: PasswordIn, request: Request, operator: OperatorAccount) -> None:
     """Asks for the password again: a stolen session must not throw every copy away (review before 1.0.0)."""
     with SessionLocal() as db:
-        confirm_operator(request, db, operator, body.password)
         from ..services import suite
 
+        # Refused before the password is asked: an operator from nexsuite gets the reason, not a password prompt
+        # (and a wrong guess never counts against an account that may not do this anyway).
         suite.refuse_unless_keeper(db, operator, "backups_emergency_only",
                                    "Connected, backups are carried away or deleted by the emergency account.")
+        confirm_operator(request, db, operator, body.password)
     try:
         backups.remove(name)
     except backups.BackupError as exc:

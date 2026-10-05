@@ -1,7 +1,11 @@
 """Public read-only pages of a client's design set, for a printer, a photographer or the client itself.
 
-* **Closed until the operator opens it** (``shares_allowed``); only managers of the space make a page.
-* **The link is the key**: a long random token, kept so it can be copied again; it opens this one client only.
+* **Closed until the operator opens it** (``shares_allowed``); from write up a person of the agency makes a page;
+  whoever made it, or a manager, changes it or takes it down.
+* **The link is the key**: a long random token, kept so it can be copied again; it opens this one client only. Readers
+  see that there are pages, never their links: they could hand the client's design set out unnoticed (A3).
+* **As code too**: CSS, Tailwind, SCSS and design tokens, the same text as the export in the app, for a developer
+  without an account.
 * **A version fixed, or always the current one**: a print job keeps what it was ordered with.
 * **An end date and a password** can be set; a wrong password counts on a brake per page and sender.
 * **Only what the page shows leaves**: the files the shown version names, never a font kept in the house (it shows
@@ -19,7 +23,7 @@ import secrets
 from datetime import timedelta
 from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 from fastapi import Path as PathParam
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -28,9 +32,9 @@ from ..config import get_settings
 from ..db import SessionLocal
 from ..deps import Account, DbSession, client_ip
 from ..errors import detail, error
-from ..models import MANAGE, PUBLISHED, READ, BrandVersion, Client, Media, Project, Share, Space, utcnow
+from ..models import MANAGE, PUBLISHED, READ, WRITE, BrandVersion, Client, Media, Project, Share, Space, utcnow
 from ..security import Brake, hash_password, verify_password
-from ..services import brands, brandset, rights, settings_service
+from ..services import brands, brandset, rights, settings_service, tokens
 from .media import deliver
 
 logger = logging.getLogger("nexbrand.shares")
@@ -76,13 +80,15 @@ def link(db: Any, request: Request, path: str) -> str:
     return f"{base}{path}"
 
 
-def _view(db: DbSession, request: Request, share: Share) -> dict[str, Any]:
+def _view(db: DbSession, request: Request, share: Share, account: Any, role: str | None) -> dict[str, Any]:
     version = db.get(BrandVersion, share.version_id) if share.version_id else None
     return {
         "id": share.id,
         "project_id": share.project_id,
         "label": share.label,
-        "link": link(db, request, f"/s/{share.token}"),
+        # The link is the key: for those who write only.
+        "link": link(db, request, f"/s/{share.token}") if rights.at_least(role, WRITE) else None,
+        "mine": share.created_by == account.id,
         "version_id": share.version_id,
         "version_label": version.label if version else None,
         "views": share.views,
@@ -99,26 +105,35 @@ def _client(db: DbSession, account: Any, client_id: str, need: str) -> Client:
         raise error(exc.code, exc.text, exc.status) from exc
 
 
-def _share(db: DbSession, account: Any, share_id: int) -> Share:
+def _role(db: DbSession, account: Any, client: Client) -> str | None:
+    return rights.role_in(db, account, client.space_id)
+
+
+def _share(db: DbSession, account: Any, share_id: int) -> tuple[Share, str | None]:
+    """A page the account may change: one it made (writing still), or any of a client it manages."""
     share = db.get(Share, share_id)
     if share is None:
         raise error("not_found", "Not found.", 404)
-    _client(db, account, share.client_id, MANAGE)
-    return share
+    client = _client(db, account, share.client_id, WRITE)
+    role = _role(db, account, client)
+    if share.created_by != account.id and not rights.at_least(role, MANAGE):
+        raise error("forbidden", "Whoever made the page, or a manager of the client, changes it.", 403)
+    return share, role
 
 
-@router.get("/clients/{client_id}/shares", summary="The public pages of a client")
+@router.get("/clients/{client_id}/shares", summary="The public pages of a client (links: writers)")
 def list_shares(client_id: ClientId, request: Request, account: Account, db: DbSession) -> list[dict[str, Any]]:
     client = _client(db, account, client_id, READ)
+    role = _role(db, account, client)
     rows = db.scalars(select(Share).where(Share.client_id == client.id).order_by(Share.created_at.desc()))
-    return [_view(db, request, row) for row in rows]
+    return [_view(db, request, row, account, role) for row in rows]
 
 
-@router.post("/clients/{client_id}/shares", status_code=201, summary="A new public page of a client (managers)")
+@router.post("/clients/{client_id}/shares", status_code=201, summary="A new public page of a client (writers)")
 def make_share(client_id: ClientId, payload: ShareIn, request: Request, account: Account, db: DbSession) -> dict:
     if not settings_service.get(db, "shares_allowed"):
         raise error("shares_off", "The operator has not allowed public pages.", 403)
-    client = _client(db, account, client_id, MANAGE)
+    client = _client(db, account, client_id, WRITE)
     if len(db.scalars(select(Share.id).where(Share.client_id == client.id)).all()) >= MAX_SHARES:
         raise error("too_many_shares", "This client has as many public pages as it may.", 409)
     try:
@@ -147,12 +162,12 @@ def make_share(client_id: ClientId, payload: ShareIn, request: Request, account:
     guarded = bool(payload.password)
     logger.info("Public page made client=%s fixed=%s ends=%s guarded=%s by=%s", client.id, bool(share.version_id),
                 payload.days or "-", guarded, account.name)
-    return _view(db, request, share)
+    return _view(db, request, share, account, _role(db, account, client))
 
 
-@router.patch("/shares/{share_id}", summary="Change a public page's name, end or password (managers)")
+@router.patch("/shares/{share_id}", summary="Change a public page's name, end or password (its maker, managers)")
 def change_share(share_id: int, payload: ShareChange, request: Request, account: Account, db: DbSession) -> dict:
-    share = _share(db, account, share_id)
+    share, role = _share(db, account, share_id)
     if payload.label is not None:
         share.label = " ".join(payload.label.split())[:120]
     if payload.forever:
@@ -164,12 +179,12 @@ def change_share(share_id: int, payload: ShareChange, request: Request, account:
     elif payload.password:
         share.password_hash = hash_password(payload.password)
     db.commit()
-    return _view(db, request, share)
+    return _view(db, request, share, account, role)
 
 
-@router.delete("/shares/{share_id}", status_code=204, summary="Take a public page down (managers)")
+@router.delete("/shares/{share_id}", status_code=204, summary="Take a public page down (its maker, managers)")
 def delete_share(share_id: int, account: Account, db: DbSession) -> None:
-    share = _share(db, account, share_id)
+    share, _ = _share(db, account, share_id)
     db.delete(share)
     db.commit()
 
@@ -257,6 +272,30 @@ def unlock(token: Token, payload: UnlockIn, request: Request, response: Response
         response.set_cookie(COOKIE, _pass(share), httponly=True, samesite="lax", path=f"/api/public/{share.token}",
                             secure=request.url.scheme == "https")
         return _page(db, share, client, version)
+
+
+@router.get("/public/{token}/code", response_model=None, summary="A public page's design set as code")
+def public_code(
+    token: Token, request: Request,
+    format: Annotated[str, Query(pattern="^(css|tailwind|scss|json)$")] = "css",
+    download: bool = False,
+) -> Response:
+    """The same text as the export in the app, of what the page shows: fonts kept in the house by name only."""
+    with SessionLocal() as db:
+        share, client, version = _open(db, token)
+        if not _unlocked(request, share):
+            raise error("not_found", "Not found.", 404)
+        project = db.get(Project, share.project_id) if share.project_id else None
+        title = f"{client.name}, {project.name}" if project else client.name
+        text = tokens.render(brandset.for_public(brands.effective(db, version)), format,
+                             title=f"{title} {version.label}")
+        name = f"{tokens.slug(title)}-{tokens.slug(version.label)}"
+    ending = {"css": "css", "tailwind": "css", "scss": "scss", "json": "tokens.json"}[format]
+    headers = {"Cache-Control": "no-store"}
+    if download:
+        headers["Content-Disposition"] = f'attachment; filename="{name}.{ending}"'
+    return Response(text, media_type="application/json" if format == "json" else "text/plain; charset=utf-8",
+                    headers=headers)
 
 
 @router.get("/public/{token}/media/{media_id}", response_model=None, summary="A file of a public page")

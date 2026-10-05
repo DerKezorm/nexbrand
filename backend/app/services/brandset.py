@@ -387,10 +387,23 @@ def internal_media(data: Any) -> set[str]:
 
 
 def for_public(data: dict[str, Any]) -> dict[str, Any]:
-    """What a page outside sees: fonts kept in the house by name only, without their files."""
+    """What a page outside sees: fonts kept in the house by name only, without their files, their licence note or
+    where they came from. Their files go nowhere else either: not as an example, not as a logo's download, not in a
+    free font's files (A4: the same file named twice came out the other way)."""
     copy = {key: dict(value) if isinstance(value, dict) else [dict(item) for item in value]
             for key, value in data.items() if value is not None}
+    kept = internal_media(data)
     for font in copy.get("fonts", []):
         if font.get("license") != "free":
             font["files"] = []
+            font["license_note"] = ""
+            font["source"] = ""
+        else:
+            font["files"] = [item for item in font.get("files") or [] if item not in kept]
+    for logo in copy.get("logos", []):
+        logo["files"] = [item for item in logo.get("files") or [] if item not in kept]
+        if logo.get("media") in kept:
+            logo["media"] = ""
+    if "samples" in copy:
+        copy["samples"] = [sample for sample in copy["samples"] if sample.get("media") not in kept]
     return copy

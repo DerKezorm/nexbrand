@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 
 from ..config import get_settings
 from ..models import Account, Media
-from . import media, settings_service
+from . import avatars, media, settings_service
 
 logger = logging.getLogger("nexbrand.media")
 
@@ -53,6 +53,10 @@ class MediaError(Exception):
         self.code = code
         self.text = text
         self.status = status
+
+    def values(self) -> dict[str, int]:
+        """What the message names, for the page to say it in its language."""
+        return {"max_million": MAX_PIXELS // 1_000_000} if self.code == "too_many_pixels" else {}
 
 
 @dataclass
@@ -162,11 +166,95 @@ def is_svg(head: bytes) -> bool:
     return text.startswith((b"<?xml", b"<svg", b"<!--", b"<!doctype svg")) and b"<svg" in text
 
 
+#: Pixels a picture may have, the same line as for profile pictures: a PNG of a few kilobytes can open as gigabytes.
+MAX_PIXELS = avatars.MAX_PIXELS
+#: The SVG a logo may be is read whole; larger is no drawing anybody made by hand or in a program.
+MAX_SVG_BYTES = 8 * 1024 * 1024
+#: Inside an SVG, elements that run or embed something other than a drawing.
+SVG_REFUSED = {"script", "foreignobject", "iframe", "embed", "object", "handler", "listener"}
+
+
+def _pixels(path: Path, kind: str) -> int:
+    """Width times height from the picture's header, before a pixel is decoded; 0 when it cannot be read."""
+    try:
+        from PIL import Image
+
+        if kind in ("heic", "avif"):
+            import pillow_heif
+
+            pillow_heif.register_heif_opener()
+        with Image.open(path) as image:
+            return int(image.width) * int(image.height)
+    except Exception as exc:  # noqa: BLE001 - a broken picture fails in the decoder's own way
+        # Pillow refuses a header beyond twice its own limit before reading on: as many pixels as that, at least.
+        if type(exc).__name__ == "DecompressionBombError":
+            return MAX_PIXELS + 1
+        return 0
+
+
+def svg_problem(data: bytes) -> str | None:
+    """Why an SVG may not come in, or None. Refused, never mended (A12): a script, an event attribute (``on…``), a
+    ``javascript:`` address, embedded HTML (``foreignObject``), a DOCTYPE or entity, or XML that does not read.
+    A logo travels into the client's websites and design systems; there it would run."""
+    from xml.etree import ElementTree
+
+    lowered = data.lower()
+    if b"<!doctype" in lowered or b"<!entity" in lowered:
+        return "doctype"
+    try:
+        root = ElementTree.fromstring(data)
+    except (ElementTree.ParseError, ValueError):
+        return "unreadable"
+    for element in root.iter():
+        tag = str(element.tag).rsplit("}", 1)[-1].lower()
+        if tag in SVG_REFUSED:
+            return tag
+        for key, value in element.attrib.items():
+            if key.rsplit("}", 1)[-1].lower().startswith("on"):
+                return "event"
+            # Browsers drop control characters and blanks inside a scheme: "java\tscript:" runs as well; and an
+            # animation's list of values ("x;javascript:…") sets the address one after another.
+            plain = "".join(char for char in value if ord(char) > 32).lower()
+            if any(scheme in plain for scheme in ("javascript:", "vbscript:", "data:text/html")):
+                return "javascript"
+    return None
+
+
+def _svg_bytes(path: Path) -> bytes:
+    """The text of an SVG, unpacked when it is an SVGZ; more than ``MAX_SVG_BYTES`` is refused."""
+    import gzip
+
+    with open(path, "rb") as handle:
+        data = handle.read(MAX_SVG_BYTES + 1)
+    if data.startswith(b"\x1f\x8b"):
+        try:
+            with gzip.open(path, "rb") as packed:
+                data = packed.read(MAX_SVG_BYTES + 1)
+        except (OSError, EOFError):
+            return b""
+    if len(data) > MAX_SVG_BYTES:
+        raise MediaError("svg_too_large", "This SVG is larger than a logo can be.", 413)
+    return data
+
+
 def finish(db: Session, account: Account, space_id: int, received: Path, name: str) -> Stored:
-    """The file at ``received`` (a temporary file in the media folder) becomes a media file, or is found as one."""
+    """The file at ``received`` (a temporary file in the media folder) becomes a media file, or is found as one.
+    ``MediaError`` for a file refused: an SVG that could run something, a picture of too many pixels."""
     with open(received, "rb") as handle:
         head = handle.read(1024)
     kind = media.sniff(head[:64]) or ("svg" if is_svg(head) else "file")
+    # Named an SVG and holding one, but not starting as one (junk in front, packed): checked all the same, it opens as
+    # one elsewhere. A text that holds no drawing stays a file.
+    named_svg = kind == "file" and name.lower().rstrip(" .").endswith((".svg", ".svgz"))
+    text = _svg_bytes(received) if kind == "svg" or named_svg else b""
+    if kind == "svg" or (named_svg and b"<svg" in text.lower()):
+        problem = svg_problem(text)
+        if problem is not None:
+            logger.info("SVG refused why=%s by=%s", problem, account.name)
+            raise MediaError("svg_unsafe", "This SVG holds a script, an event, embedded HTML or a DOCTYPE; save it "
+                             "as a plain drawing and upload it again.", 422)
+    if kind in IMAGES | {"heic", "avif"} and _pixels(received, kind) > MAX_PIXELS:
+        raise MediaError("too_many_pixels", "This picture has more pixels than nexbrand takes.", 422)
     removed: set[str] = set()
     if kind in IMAGES | media.VIDEOS | {"heic"} and settings_service.get(db, "strip_location"):
         removed = media.strip(received, kind)

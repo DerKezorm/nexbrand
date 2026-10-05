@@ -156,10 +156,10 @@
     "twoFactor": "Zweiter Faktor",
     "twoFactorRequired": "Zweiten Faktor verlangen",
     "public": "Öffentliche Seiten",
-    "publicHint": "Ab Werk aus. Wenn an, dürfen Verwalter eines Kunden eine Fassung als Leseseite freigeben und Entwürfe dem Kunden zur Abstimmung vorlegen.",
+    "publicHint": "Ab Werk aus. Wenn an, dürfen alle, die bei einem Kunden schreiben, eine Fassung als Leseseite freigeben und Entwürfe dem Kunden zur Abstimmung vorlegen.",
     "publicAllowed": "Öffentliche Seiten erlauben",
     "backups": "Sicherung",
-    "backupsHint": "Kunden, Fassungen, Dateien und Datenbank in einem Archiv. Wiederherstellen zeigt zuerst einen Probelauf.",
+    "backupsHint": "Kunden, Fassungen, Dateien und Datenbank in einem Archiv.",
     "schedule": "Automatisch",
     "off": "aus",
     "daily": "jede Nacht",
@@ -319,7 +319,7 @@
       "run": "Einrichten",
       "blueprint": "Stattdessen Blueprint herunterladen"
     },
-    "publicAllowedHint": "Verwalter eines Kunden dürfen dann Leseseiten und Abstimmungen anlegen. Abgeschaltet antwortet jeder Link, als hätte es ihn nie gegeben.",
+    "publicAllowedHint": "Wer bei einem Kunden schreibt, darf dann Leseseiten und Abstimmungen anlegen. Abgeschaltet antwortet jeder Link, als hätte es ihn nie gegeben.",
     "files": "Dateien",
     "filesHint": "Logos, Schriften und Beispieldateien: wie groß sie sein dürfen und was beim Hochladen herausfällt.",
     "smtpPort": "Port",
@@ -364,7 +364,8 @@
       "hosts": "Rechner im eigenen Netz, auf denen ein KI-Dienst laufen darf",
       "hostsHint": "Ein Name oder eine Adresse je Zeile, gern mit Port, etwa für Ollama zu Hause. Alles andere im eigenen Netz bleibt gesperrt.",
       "githubNone": "Kein Token gespeichert"
-    }
+    },
+    "backupsDryRun": "Wiederherstellen zeigt zuerst einen Probelauf."
   },
   "errors": {
     "avatar_not_a_picture": "Das ist kein Bild, das nexbrand annimmt (JPEG, PNG, WebP, GIF, HEIC oder AVIF).",
@@ -558,7 +559,10 @@
     "client_twice": "Jeder Kunde in nexsuite lässt sich nur einmal zuordnen.",
     "collect_name_first": "Erst den Namen des neuen Kunden eintragen.",
     "licence_not_confirmed": "Erst bestätigen, dass ihr die Lizenz für diese Schrift habt.",
-    "invalid_links": "Eine Adresse beginnt mit http:// oder https://, höchstens zehn."
+    "invalid_links": "Eine Adresse beginnt mit http:// oder https://, höchstens zehn.",
+    "svg_unsafe": "Diese SVG enthält ein Skript, ein Ereignis, eingebettetes HTML oder einen DOCTYPE. Speichere sie als einfache Zeichnung und lade sie noch einmal hoch.",
+    "svg_too_large": "Diese SVG ist größer, als ein Logo sein kann.",
+    "too_many_pixels": "Das Bild hat mehr Pixel, als nexbrand annimmt (höchstens 50 Millionen)."
   },
   "auth": {
     "name": "Name",
@@ -607,7 +611,8 @@
     "title": "{{name}}: Markenrichtlinien",
     "version": "Fassung {{label}}, gültig seit {{from}}",
     "for": "freigegeben für {{label}}",
-    "reviewGone": "Diese Abstimmung gibt es nicht mehr. Bitte die Agentur nach einem neuen Link fragen."
+    "reviewGone": "Diese Abstimmung gibt es nicht mehr. Bitte die Agentur nach einem neuen Link fragen.",
+    "asCode": "Als Code"
   },
   "roles": {
     "read": "Lesen",
@@ -1032,7 +1037,12 @@
     "reviewNews_other": "{{count}} Neuigkeiten vom Kunden in der Abstimmung.",
     "reviewNewsShort_one": "1 neu",
     "reviewNewsShort_other": "{{count}} neu",
-    "tabReviewsNews": "Abstimmung · {{count}} neu"
+    "tabReviewsNews": "Abstimmung · {{count}} neu",
+    "deleteDraftOpenQuiet": "Er liegt dem Kunden gerade vor; mit dem Löschen schließt seine Abstimmung.",
+    "deleteDraftOpen_one": "Er liegt dem Kunden gerade vor; mit dem Löschen schließt seine Abstimmung, und der Kommentar darauf geht verloren.",
+    "deleteDraftOpen_other": "Er liegt dem Kunden gerade vor; mit dem Löschen schließt seine Abstimmung, und die {{count}} Kommentare darauf gehen verloren.",
+    "deleteDraftComments_one": "Der Kommentar aus seiner Abstimmung geht mit verloren.",
+    "deleteDraftComments_other": "Die {{count}} Kommentare aus seiner Abstimmung gehen mit verloren."
   },
   "projects": {
     "text": "Ein Projekt ist eine App, ein Produkt oder eine Kampagne von {{client}} mit eigener CI. Jeder Teil kommt von {{client}}, von {{client}} plus Eigenem, oder ist ganz eigen.",
@@ -1298,9 +1308,8 @@
     "note": "Mit Abstufungen 50 bis 950 für jede Farbe mit Aufgabe. Das JSON folgt den W3C Design Tokens; Figma, Style Dictionary und Tokens Studio lesen es."
   },
   "shares": {
-    "text": "Ein Link für Druckerei, Fotografin oder den Kunden selbst: nur lesen, ohne Konto. Schriften mit interner Lizenz erscheinen nur mit Namen, Prüfhinweise nie.",
+    "text": "Ein Link für Druckerei, Fotografin, Entwickler oder den Kunden selbst: nur lesen, ohne Konto, auch als Code. Schriften mit interner Lizenz erscheinen nur mit Namen, Prüfhinweise nie.",
     "new": "Neue Freigabe",
-    "off": "Der Betreiber hat öffentliche Seiten nicht erlaubt (Einstellungen, Server, Öffentliche Seiten).",
     "needPublished": "Freigeben lässt sich erst eine veröffentlichte Fassung.",
     "unnamed": "Ohne Namen",
     "fixed": "fest auf {{label}}",
@@ -1324,7 +1333,11 @@
     "password": "Passwort (leer: keines)",
     "passwordHint": "Wer den Link hat, braucht dann noch das Passwort.",
     "internalHidden": "Schriften mit interner Lizenz erscheinen nur mit Namen, nie als Datei.",
-    "make": "Anlegen"
+    "make": "Anlegen",
+    "offYou": "Öffentliche Seiten sind aus, damit auch Freigaben und Abstimmungen.",
+    "offWhere": "Einschalten unter Einstellungen → Server → Öffentliche Seiten.",
+    "offAsk": "Der Betreiber hat öffentliche Seiten nicht erlaubt, damit gibt es weder Freigaben noch Abstimmungen. Frag ihn, ob er sie unter Einstellungen → Server → Öffentliche Seiten einschaltet.",
+    "linkWriters": "Den Link sehen alle, die bei diesem Kunden schreiben dürfen."
   },
   "reviews": {
     "none": "Noch keine Abstimmung. Ein Entwurf geht mit „Dem Kunden vorlegen“ an den Kunden.",
@@ -1353,7 +1366,18 @@
     "onlyOne": "Weitere Entwürfe dieses Kunden lassen sich als Alternativen mitschicken.",
     "runs": "Link gilt",
     "make": "Vorlegen",
-    "onSample": "zu „{{name}}“"
+    "onSample": "zu „{{name}}“",
+    "heading": "Entwurf {{draft}}, nach der Wahl {{label}}",
+    "linkWriters": "Den Link sehen alle, die bei diesem Kunden schreiben dürfen.",
+    "directionName": "Richtung {{letter}}",
+    "directionLabel": "Name der Richtung aus Entwurf {{label}}",
+    "fromDraft": "aus Entwurf {{label}}",
+    "draftAlong": "Entwurf {{label}} mitschicken",
+    "email": "Link per Mail an (freiwillig)",
+    "emailHint": "nexbrand schickt den Link in deiner Sprache. Leer lassen, wenn du ihn selbst weitergibst.",
+    "noMail": "Per Mail verschickt nexbrand den Link, sobald ein Mailserver eingerichtet ist. Bis dahin kopierst du ihn im Reiter Abstimmung.",
+    "makeAndMail": "Vorlegen und Mail schicken",
+    "mailFailed": "Die Abstimmung steht, aber die Mail ging nicht raus: {{reason}} Kopier den Link im Reiter Abstimmung und schick ihn selbst."
   },
   "preview": {
     "label": "Beispielseite mit dieser CI",
@@ -1604,7 +1628,7 @@
     "alongText": "Unverändert als Vergleich mitschicken.",
     "stillHints_one": "Die Prüfung hat noch {{count}} Hinweis. Anlegen geht trotzdem; der Kunde sieht ihn nicht.",
     "stillHints_other": "Die Prüfung hat noch {{count}} Hinweise. Anlegen geht trotzdem; der Kunde sieht sie nicht.",
-    "noReview": "Eine Abstimmung braucht das Recht, den Kunden zu verwalten, und öffentliche Seiten, die der Betreiber erlaubt hat.",
+    "noReview": "Eine Abstimmung braucht Schreibrecht an diesem Kunden.",
     "onlyDraft": "Nur als Entwurf anlegen",
     "withReview": "Anlegen und dem Kunden vorlegen",
     "back": "Zurück",
@@ -1640,7 +1664,7 @@
     "textMany": "Hier sind {{count}} Richtungen, jeweils an einer Beispielseite gezeigt. Schreiben Sie dazu, was Ihnen gefällt und was nicht. Wenn eine passt, wählen Sie sie aus; daraus wird Ihre verbindliche CI.",
     "textOne": "Hier ist der Entwurf, an einer Beispielseite gezeigt. Schreiben Sie dazu, was Ihnen gefällt und was nicht. Wenn er passt, wählen Sie ihn aus; daraus wird Ihre verbindliche CI.",
     "thanks": "Danke! Sie haben „{{label}}“ gewählt. Das ist jetzt Ihre CI; die Agentur arbeitet damit weiter.",
-    "yourName": "Ihr Name, für die Kommentare",
+    "yourName": "Ihr Name (freiwillig)",
     "say": "Was fällt Ihnen auf?",
     "sayOn": "Kommentar zu {{label}}",
     "send": "Senden",
@@ -1652,7 +1676,12 @@
     "samplePage": "Und so wirkt die CI auf einer Beispielseite",
     "onSample": "zu „{{name}}“",
     "sayOnSample": "Was fällt Ihnen an „{{name}}“ auf?",
-    "aboutThis": "Kommentar gilt „{{name}}“ (sonst dem ganzen Entwurf)"
+    "aboutThis": "Kommentar gilt „{{name}}“ (sonst dem ganzen Entwurf)",
+    "noName": "Ohne Namen",
+    "theDraft": "Der Entwurf",
+    "chooseOne": "Diesen Entwurf nehmen",
+    "chooseOneTitle": "Diesen Entwurf verbindlich wählen?",
+    "thanksOne": "Danke! Sie haben den Entwurf gewählt. Das ist jetzt Ihre CI; die Agentur arbeitet damit weiter."
   },
   "ai": {
     "title": "KI",

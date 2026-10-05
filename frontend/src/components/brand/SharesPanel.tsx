@@ -1,15 +1,38 @@
 import { Eye, Globe, Lock, Plus, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 
 import { sharesApi, type ShareInfo, type VersionInfo } from '../../api/client'
+import { linkRights } from '../../lib/review'
 import { Button, CopyLink, Feedback, Input, Select, useAction } from '../../pages/settings/ui'
 import { useAuth } from '../../state/auth'
 import { Dialog } from '../Dialog'
 
-/** The public pages of a client: for a printer, a photographer, the client. Managers make them. */
+/** Public pages and reviews are off: says so, and where they are switched on (a link for the operator). */
+export function SharesOff() {
+  const { t } = useTranslation()
+  const { me } = useAuth()
+  return (
+    <p className="rounded-xl border border-warn-500/40 bg-warn-500/8 px-3 py-2 text-sm text-mist-200">
+      {me?.role === 'operator' ? (
+        <>
+          {t('shares.offYou')}{' '}
+          <Link to="/settings?tab=server&sub=shares" className="text-accent-400 hover:underline">
+            {t('shares.offWhere')}
+          </Link>
+        </>
+      ) : (
+        t('shares.offAsk')
+      )}
+    </p>
+  )
+}
+
+/** The public pages of a client: for a printer, a photographer, a developer, the client. From write up a person makes
+ *  one and sees the links; readers see that there are pages, not their addresses (A3). */
 /** `project`: the pages of one project; none: of the client's own design set. */
-export function SharesPanel({ client, versions, canManage, project }: { client: string; versions: VersionInfo[]; canManage: boolean; project?: string }) {
+export function SharesPanel({ client, versions, role, project }: { client: string; versions: VersionInfo[]; role: 'read' | 'write' | 'manage' | null; project?: string }) {
   const { t, i18n } = useTranslation()
   const { me } = useAuth()
   const [shares, setShares] = useState<ShareInfo[]>([])
@@ -22,13 +45,13 @@ export function SharesPanel({ client, versions, canManage, project }: { client: 
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="max-w-2xl text-sm text-mist-500">{t('shares.text')}</p>
-        {canManage && allowed && published.length > 0 && (
+        {linkRights(role, false).make && allowed && published.length > 0 && (
           <button type="button" className="nc-btn nc-btn-accent" onClick={() => setMaking(true)}>
             <Plus className="h-4 w-4" /> {t('shares.new')}
           </button>
         )}
       </div>
-      {!allowed && <p className="rounded-xl border border-warn-500/40 bg-warn-500/8 px-3 py-2 text-sm text-mist-200">{t('shares.off')}</p>}
+      {!allowed && <SharesOff />}
       {allowed && !published.length && <p className="text-sm text-mist-500">{t('shares.needPublished')}</p>}
       {shares.map((s) => (
         <article key={s.id} className="space-y-2 rounded-xl border border-ink-700 bg-ink-900 p-3">
@@ -39,16 +62,18 @@ export function SharesPanel({ client, versions, canManage, project }: { client: 
               {s.version_label ? t('shares.fixed', { label: s.version_label }) : t('shares.current')} · {s.expires_at ? t('shares.until', { date: new Date(s.expires_at).toLocaleDateString(i18n.language) }) : t('shares.forever')} · {t('shares.views', { count: s.views })}
             </span>
             {s.password && <Lock className="h-3.5 w-3.5 text-mist-500" aria-label={t('shares.guarded')} />}
-            <a href={new URL(s.link).pathname} target="_blank" rel="noreferrer" className="nc-btn nc-btn-ghost !px-2.5 !py-0.5 !text-xs">
-              <Eye className="h-3.5 w-3.5" /> {t('shares.look')}
-            </a>
-            {canManage && (
+            {s.link && (
+              <a href={new URL(s.link).pathname} target="_blank" rel="noreferrer" className="nc-btn nc-btn-ghost !px-2.5 !py-0.5 !text-xs">
+                <Eye className="h-3.5 w-3.5" /> {t('shares.look')}
+              </a>
+            )}
+            {linkRights(role, s.mine).end && (
               <button type="button" aria-label={t('shares.remove')} className="rounded-full p-1.5 text-mist-500 hover:text-bad-500" onClick={() => void sharesApi.remove(s.id).then(load)}>
                 <Trash2 className="h-4 w-4" />
               </button>
             )}
           </div>
-          <CopyLink value={s.link} label={t('shares.link')} />
+          {s.link ? <CopyLink value={s.link} label={t('shares.link')} /> : <p className="text-xs text-mist-500">{t('shares.linkWriters')}</p>}
         </article>
       ))}
       {making && <NewShare client={client} project={project} versions={published} onClose={() => setMaking(false)} onMade={() => (setMaking(false), load())} />}

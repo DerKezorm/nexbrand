@@ -48,6 +48,15 @@ def _sizes(data: dict[str, Any]) -> list[tuple[str, str]]:
     return [(name, f"{float(step['size']) / 16:g}rem") for name, step in zip(names, steps, strict=True)]
 
 
+def _comment(text: str) -> str:
+    """A name inside ``/* … */``: on one line, and never ending the comment (A6: ``*/`` in a client's name made the
+    code after it count)."""
+    line = " ".join("".join(char if ord(char) >= 32 and ord(char) != 127 else " " for char in text).split())
+    while "*/" in line:
+        line = line.replace("*/", "* /")
+    return line
+
+
 def render(data: dict[str, Any], fmt: str, *, color_list: list[dict[str, Any]] | None = None, title: str = "") -> str:
     """``color_list`` stands in for the set's colours (a project's own come along that way)."""
     if fmt not in FORMATS:
@@ -61,7 +70,7 @@ def render(data: dict[str, Any], fmt: str, *, color_list: list[dict[str, Any]] |
         for step, value in colors.scale(color["hex"])
     ]
     fonts = _font_names(data.get("fonts", []))
-    head = f"/* {title} */\n" if title and fmt != "json" else ""
+    head = f"/* {_comment(title)} */\n" if title and fmt != "json" else ""
     # The dark mode as names pointing at the colours above: (part, colour token name). A name gone is left out.
     slug_of = {color["name"].lower(): name for name, color in zip(names, items, strict=True)}
     dark = [(part.replace("_", "-"), slug_of[str(value).lower()]) for part, value in (data.get("dark") or {}).items()

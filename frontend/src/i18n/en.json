@@ -156,10 +156,10 @@
     "twoFactor": "Second factor",
     "twoFactorRequired": "Require a second factor",
     "public": "Public pages",
-    "publicHint": "Off out of the box. When on, those who manage a client may share a version as a read-only page and put drafts to the client for review.",
+    "publicHint": "Off out of the box. When on, those who may write for a client may share a version as a read-only page and put drafts to the client for review.",
     "publicAllowed": "Allow public pages",
     "backups": "Backup",
-    "backupsHint": "Clients, versions, files and the database in one archive. Restoring shows a dry run first.",
+    "backupsHint": "Clients, versions, files and the database in one archive.",
     "schedule": "Automatically",
     "off": "off",
     "daily": "every night",
@@ -319,7 +319,7 @@
       "run": "Set up",
       "blueprint": "Download blueprint instead"
     },
-    "publicAllowedHint": "Those who manage a client may then make read-only pages and reviews. Switched off, every link answers as if it had never existed.",
+    "publicAllowedHint": "Those who may write for a client may then make read-only pages and reviews. Switched off, every link answers as if it had never existed.",
     "files": "Files",
     "filesHint": "Logos, fonts and example files: how large they may be and what is taken out when uploading.",
     "smtpPort": "Port",
@@ -364,7 +364,8 @@
       "hosts": "Machines in the own network an AI service may run on",
       "hostsHint": "One name or address per line, with a port if you like, for Ollama at home for example. Everything else in the own network stays blocked.",
       "githubNone": "No token saved"
-    }
+    },
+    "backupsDryRun": "Restoring shows a dry run first."
   },
   "errors": {
     "avatar_not_a_picture": "That is not a picture nexbrand takes (JPEG, PNG, WebP, GIF, HEIC or AVIF).",
@@ -558,7 +559,10 @@
     "client_twice": "Each client in nexsuite can be chosen once only.",
     "collect_name_first": "Enter the name of the new client first.",
     "licence_not_confirmed": "Confirm first that you hold the licence for this font.",
-    "invalid_links": "An address starts with http:// or https://, ten at most."
+    "invalid_links": "An address starts with http:// or https://, ten at most.",
+    "svg_unsafe": "This SVG holds a script, an event, embedded HTML or a DOCTYPE. Save it as a plain drawing and upload it again.",
+    "svg_too_large": "This SVG is larger than a logo can be.",
+    "too_many_pixels": "This picture has more pixels than nexbrand takes (50 million at most)."
   },
   "auth": {
     "name": "Name",
@@ -607,7 +611,8 @@
     "title": "{{name}}: brand guidelines",
     "version": "Version {{label}}, valid since {{from}}",
     "for": "shared for {{label}}",
-    "reviewGone": "This review does not exist any more. Please ask the agency for a new link."
+    "reviewGone": "This review does not exist any more. Please ask the agency for a new link.",
+    "asCode": "As code"
   },
   "roles": {
     "read": "Read",
@@ -1032,7 +1037,12 @@
     "reviewNews_other": "{{count}} new things from the client in the review.",
     "reviewNewsShort_one": "1 new",
     "reviewNewsShort_other": "{{count}} new",
-    "tabReviewsNews": "Review · {{count}} new"
+    "tabReviewsNews": "Review · {{count}} new",
+    "deleteDraftOpenQuiet": "It is before the client right now; deleting it closes its review.",
+    "deleteDraftOpen_one": "It is before the client right now; deleting it closes its review, and the comment on it is lost.",
+    "deleteDraftOpen_other": "It is before the client right now; deleting it closes its review, and the {{count}} comments on it are lost.",
+    "deleteDraftComments_one": "The comment from its review is lost with it.",
+    "deleteDraftComments_other": "The {{count}} comments from its review are lost with it."
   },
   "projects": {
     "text": "A project is an app, a product or a campaign of {{client}} with a CI of its own. Each part comes from {{client}}, from {{client}} plus its own, or is its own.",
@@ -1298,9 +1308,8 @@
     "note": "With steps 50 to 950 for every colour with a job. The JSON follows the W3C design tokens format; Figma, Style Dictionary and Tokens Studio read it."
   },
   "shares": {
-    "text": "A link for a printer, a photographer or the client: read only, no account. Fonts kept in-house show by name only, the checks never.",
+    "text": "A link for a printer, a photographer, a developer or the client: read only, no account, as code too. Fonts kept in-house show by name only, the checks never.",
     "new": "New public page",
-    "off": "The operator has not allowed public pages (Settings, Server, Public pages).",
     "needPublished": "Only a published version can be shared.",
     "unnamed": "Unnamed",
     "fixed": "fixed on {{label}}",
@@ -1324,7 +1333,11 @@
     "password": "Password (empty: none)",
     "passwordHint": "Whoever has the link needs the password as well.",
     "internalHidden": "Fonts kept in-house show by name only, never as a file.",
-    "make": "Create"
+    "make": "Create",
+    "offYou": "Public pages are off, and with them public links and reviews.",
+    "offWhere": "Switch them on under Settings → Server → Public pages.",
+    "offAsk": "The operator has not allowed public pages, so there are no public links or reviews. Ask them to switch them on under Settings → Server → Public pages.",
+    "linkWriters": "Everyone who may write for this client sees the link."
   },
   "reviews": {
     "none": "No review yet. A draft goes to the client with “Put before the client”.",
@@ -1353,7 +1366,18 @@
     "onlyOne": "Other drafts of this client can go along as alternatives.",
     "runs": "Link runs",
     "make": "Put before the client",
-    "onSample": "on “{{name}}”"
+    "onSample": "on “{{name}}”",
+    "heading": "Draft {{draft}}, once chosen {{label}}",
+    "linkWriters": "Everyone who may write for this client sees the link.",
+    "directionName": "Direction {{letter}}",
+    "directionLabel": "Name of the direction from draft {{label}}",
+    "fromDraft": "from draft {{label}}",
+    "draftAlong": "Send draft {{label}} along",
+    "email": "Mail the link to (optional)",
+    "emailHint": "nexbrand sends the link in your language. Leave it empty to pass the link on yourself.",
+    "noMail": "nexbrand mails the link once a mail server is set up. Until then you copy it from the Review tab.",
+    "makeAndMail": "Put before the client and mail",
+    "mailFailed": "The review is ready, but the mail did not go out: {{reason}} Copy the link from the Review tab and send it yourself."
   },
   "preview": {
     "label": "Sample page in this CI",
@@ -1604,7 +1628,7 @@
     "alongText": "Send along unchanged, for comparison.",
     "stillHints_one": "The checks still have {{count}} hint. Creating works anyway; the client does not see it.",
     "stillHints_other": "The checks still have {{count}} hints. Creating works anyway; the client does not see them.",
-    "noReview": "A review needs the right to manage the client, and public pages the operator has allowed.",
+    "noReview": "A review needs the right to write for this client.",
     "onlyDraft": "Create as a draft only",
     "withReview": "Create and put before the client",
     "back": "Back",
@@ -1640,7 +1664,7 @@
     "textMany": "Here are {{count}} directions, each shown on a sample page. Say what you like and what you don't. When one fits, choose it; it becomes your binding CI.",
     "textOne": "Here is the draft, shown on a sample page. Say what you like and what you don't. When it fits, choose it; it becomes your binding CI.",
     "thanks": "Thank you! You chose “{{label}}”. This is your CI now; the agency works on with it.",
-    "yourName": "Your name, for the comments",
+    "yourName": "Your name (optional)",
     "say": "What strikes you?",
     "sayOn": "Comment on {{label}}",
     "send": "Send",
@@ -1652,7 +1676,12 @@
     "samplePage": "And this is the CI on a sample page",
     "onSample": "on “{{name}}”",
     "sayOnSample": "What do you notice about “{{name}}”?",
-    "aboutThis": "Comment is about “{{name}}” (otherwise the whole draft)"
+    "aboutThis": "Comment is about “{{name}}” (otherwise the whole draft)",
+    "noName": "No name",
+    "theDraft": "The draft",
+    "chooseOne": "Choose this draft",
+    "chooseOneTitle": "Choose this draft for good?",
+    "thanksOne": "Thank you! You chose the draft. This is your CI now; the agency works on with it."
   },
   "ai": {
     "title": "AI",

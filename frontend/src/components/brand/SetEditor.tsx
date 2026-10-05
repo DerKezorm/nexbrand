@@ -53,7 +53,8 @@ function useUpload(ctx: Ctx) {
       ctx.addFile(made)
       return made
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.code : 'internal_error')
+      // The sentence itself, with what it names (the largest size, the most pixels).
+      setProblem(error instanceof ApiError ? errorText(error.code, error.values) : errorText('internal_error'))
       return null
     } finally {
       setBusy(false)
@@ -325,7 +326,7 @@ function FontsEditor({ fonts, onChange, ctx }: { fonts: BrandFont[]; onChange: (
         </button>
       </div>
       <p className="text-xs text-mist-500">{t('editor.fontLicenseNote')}</p>
-      {upload.problem && <p role="alert" className="text-sm text-bad-500">{errorText(upload.problem)}</p>}
+      {upload.problem && <p role="alert" className="text-sm text-bad-500">{upload.problem}</p>}
     </div>
   )
 }
@@ -445,7 +446,7 @@ function LogosEditor({ logos, colors, fonts, name, onChange, ctx }: { logos: Bra
         </button>
       </div>
       <p className="text-xs text-mist-500">{t('editor.logoNote')}</p>
-      {upload.problem && <p role="alert" className="text-sm text-bad-500">{errorText(upload.problem)}</p>}
+      {upload.problem && <p role="alert" className="text-sm text-bad-500">{upload.problem}</p>}
     </div>
   )
 }
@@ -808,7 +809,7 @@ function SamplesEditor({ samples, onChange, ctx }: { samples: BrandSet['samples'
           })()
         }
       />
-      {upload.problem && <p role="alert" className="text-sm text-bad-500">{errorText(upload.problem)}</p>}
+      {upload.problem && <p role="alert" className="text-sm text-bad-500">{upload.problem}</p>}
     </div>
   )
 }

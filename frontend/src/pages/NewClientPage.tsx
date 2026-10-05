@@ -8,6 +8,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { aiApi, ApiError, clientsApi, mediaApi, mediaUrl, reviewsApi, type ClientWhole, type MediaInfo } from '../api/client'
 import { HintList, Matrix } from '../components/brand/Checks'
 import { LogoView } from '../components/brand/LogoView'
+import { SharesOff } from '../components/brand/SharesPanel'
 import { ColorsEditor, useNames } from '../components/brand/SetEditor'
 import { WebPreview } from '../components/brand/WebPreview'
 import { Dialog } from '../components/Dialog'
@@ -83,8 +84,9 @@ export function NewClientPage() {
   const hints = useMemo(() => (current.colors.length ? check(current).filter((h) => h.level !== 'info') : []), [current])
   const allowed = presetId ? !!existing && (existing.role === 'write' || existing.role === 'manage') : !!me?.may_create_clients
   const canNext = step === 'who' ? !!name.trim() && allowed : step === 'start' ? true : step === 'colors' ? current.colors.length > 0 : true
-  // Whoever makes a client manages it; for one that exists, its right counts.
-  const reviewPossible = (existing ? existing.role === 'manage' : true) && me?.shares_allowed !== false
+  // Whoever makes a client manages it; for one that exists, its right counts: from write up (A2).
+  const reviewRight = existing ? existing.role === 'write' || existing.role === 'manage' : true
+  const reviewPossible = reviewRight && me?.shares_allowed !== false
 
   /** The client to put the design set and its files into: the one given, or a new one, made once. */
   const ensure = async (): Promise<{ id: string; space_id: number }> => {
@@ -313,7 +315,7 @@ export function NewClientPage() {
                   </label>
                 ))}
                 {hints.length > 0 && <p className="rounded-xl border border-warn-500/40 bg-warn-500/8 px-3 py-2 text-sm text-mist-200">{t('wizard.stillHints', { count: hints.length })}</p>}
-                {!reviewPossible && <p className="text-xs text-mist-500">{t('wizard.noReview')}</p>}
+                {me?.shares_allowed === false ? <SharesOff /> : !reviewRight && <p className="text-xs text-mist-500">{t('wizard.noReview')}</p>}
                 <Feedback problem={problem} />
                 <div className="flex flex-wrap justify-end gap-2">
                   <button type="button" className="nc-btn nc-btn-ghost" disabled={busy} onClick={() => void finish(false)}>

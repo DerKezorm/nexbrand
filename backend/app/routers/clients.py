@@ -18,7 +18,21 @@ from sqlalchemy import func, select
 
 from ..deps import Account, DbSession
 from ..errors import error
-from ..models import DRAFT, MANAGE, READ, WRITE, BrandVersion, Client, Favorite, Media, Project, Review, Share, Visit
+from ..models import (
+    DRAFT,
+    MANAGE,
+    READ,
+    WRITE,
+    BrandVersion,
+    Client,
+    Favorite,
+    Media,
+    Project,
+    Review,
+    ReviewComment,
+    Share,
+    Visit,
+)
 from ..models import Account as AccountRow
 from ..services import brands, brandset, rights, tokens
 
@@ -250,8 +264,13 @@ def whole(db: DbSession, account: AccountRow, client: Client) -> dict[str, Any]:
     client_current = brands.current(db, client)
     view["projects"] = [project_view(db, p, client_current) for p in projects]
     view["shares"] = int(db.scalar(select(func.count()).select_from(Share).where(Share.client_id == client.id)) or 0)
+    # How much the client said on each review: deleting a draft names what goes with it.
+    said = dict(db.execute(
+        select(ReviewComment.review_id, func.count()).join(Review, Review.id == ReviewComment.review_id)
+        .where(Review.client_id == client.id).group_by(ReviewComment.review_id)
+    ).all())
     view["reviews"] = [
-        {"id": r.id, "version_id": r.version_id, "status": r.status, "chosen": r.chosen}
+        {"id": r.id, "version_id": r.version_id, "status": r.status, "chosen": r.chosen, "comments": said.get(r.id, 0)}
         for r in db.scalars(select(Review).where(Review.client_id == client.id).order_by(Review.created_at))
     ]
     return view
@@ -373,10 +392,19 @@ def publish(
 
 
 @router.delete("/clients/{client_id}/versions/{version_id}", status_code=204, summary="Delete a draft")
-def delete_version(client_id: ClientId, version_id: VersionId, account: Account, db: DbSession) -> None:
+def delete_version(client_id: ClientId, version_id: VersionId, account: Account, db: DbSession,
+                   with_review: bool = False) -> None:
+    """A draft before the client goes only when asked to take its review along (``with_review``): the client's page
+    closes and the comments on it go with the draft (F5)."""
     client = client_of(db, account, client_id, WRITE)
+    row = _version(db, client, version_id)
+    open_review = db.scalar(select(func.count()).select_from(Review).where(Review.version_id == row.id,
+                                                                            Review.status == "open"))
+    if open_review and not with_review:
+        raise error("review_open", "This draft is before the client. Deleting it closes the review and its comments "
+                    "go with it.", 409)
     try:
-        brands.delete_draft(db, account, client, _version(db, client, version_id))
+        brands.delete_draft(db, account, client, row)
     except brands.BrandError as exc:
         raise _fail(exc) from exc
 

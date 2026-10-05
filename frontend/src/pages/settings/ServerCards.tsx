@@ -674,7 +674,8 @@ export function BackupsCard({ server }: { server: Server }) {
   const size = (bytes: number) => (bytes > 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`)
   const icon = 'rounded-lg p-1.5 text-mist-500 hover:bg-ink-800 hover:text-mist-100'
   return (
-    <Card id="backups" icon={History} title={t('server.backups')} text={t('server.backupsHint')}>
+    // The dry run is promised only where restoring is offered (not while connected to nexsuite).
+    <Card id="backups" icon={History} title={t('server.backups')} text={offer.restore ? `${t('server.backupsHint')} ${t('server.backupsDryRun')}` : t('server.backupsHint')}>
       <div className="flex flex-wrap items-end gap-2">
         <Select
           label={t('server.schedule')}

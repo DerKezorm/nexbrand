@@ -265,7 +265,8 @@ export type ClientInfo = {
   face: ClientFace
 }
 
-export type ReviewBrief = { id: number; version_id: string; status: 'open' | 'chosen' | 'closed'; chosen: string }
+/** `comments`: how many there are, from both sides. */
+export type ReviewBrief = { id: number; version_id: string; status: 'open' | 'chosen' | 'closed'; chosen: string; comments: number }
 
 export type ClientWhole = Omit<ClientInfo, 'projects'> & {
   note: string
@@ -279,7 +280,10 @@ export type ShareInfo = {
   id: number
   project_id: string | null
   label: string
-  link: string
+  /** The page's address; none for readers (it is the key to the page). */
+  link: string | null
+  /** Made by this account: it may change or end it without managing the client. */
+  mine: boolean
   version_id: string | null
   version_label: string | null
   views: number
@@ -293,7 +297,13 @@ export type ReviewComment = { id?: number; variant: string; sample?: string | nu
 
 export type ReviewInfo = {
   id: number
-  link: string
+  /** The client's page; none for readers (with it they could choose for the client). */
+  link: string | null
+  /** Put forward by this account: it may withdraw it without managing the client. */
+  mine: boolean
+  /** Only when made with an address: whether the mail went out, and why not. */
+  mailed?: boolean
+  mail_problem?: string | null
   version_id: string
   label: string
   sender: string
@@ -481,7 +491,9 @@ export const clientsApi = {
     api<VersionInfo>(`/api/clients/${id}/versions/${version}`, { method: 'PUT', body: change }),
   publish: (id: string, version: string, body: { valid_from?: string; label?: string }) =>
     api<VersionInfo>(`/api/clients/${id}/versions/${version}/publish`, { method: 'POST', body }),
-  deleteDraft: (id: string, version: string) => api<void>(`/api/clients/${id}/versions/${version}`, { method: 'DELETE' }),
+  /** `withReview`: the draft is before the client, and its review goes with it. */
+  deleteDraft: (id: string, version: string, withReview = false) =>
+    api<void>(`/api/clients/${id}/versions/${version}${withReview ? '?with_review=true' : ''}`, { method: 'DELETE' }),
   exportText: (id: string, query: { format: ExportFormat; version?: string; project?: string }) =>
     fetch(`/api/clients/${encodeURIComponent(id)}/export?` + new URLSearchParams(Object.entries(query).filter(([, v]) => v) as [string, string][]).toString(), {
       headers: { 'X-Nexbrand-Client': tabId() },
@@ -505,11 +517,16 @@ export const sharesApi = {
   remove: (id: number) => api<void>(`/api/shares/${id}`, { method: 'DELETE' }),
   page: (token: string) => api<PublicPageInfo>(`/api/public/${token}`),
   unlock: (token: string, password: string) => api<PublicPageInfo>(`/api/public/${token}`, { method: 'POST', body: { password } }),
+  codeText: (token: string, format: ExportFormat) =>
+    fetch(`/api/public/${encodeURIComponent(token)}/code?format=${format}`, { credentials: 'same-origin' }).then((r) =>
+      r.ok ? r.text() : Promise.reject(new ApiError(r.status, 'internal_error')),
+    ),
+  codeUrl: (token: string, format: ExportFormat) => `/api/public/${encodeURIComponent(token)}/code?format=${format}&download=true`,
 }
 
 export const reviewsApi = {
   list: (client: string) => api<ReviewInfo[]>(`/api/clients/${client}/reviews`),
-  create: (client: string, body: { version_id: string; variants: Variant[]; label: string; sender?: string; message?: string; days?: number }) =>
+  create: (client: string, body: { version_id: string; variants: Variant[]; label: string; sender?: string; message?: string; days?: number; email?: string; language?: string }) =>
     api<ReviewInfo>(`/api/clients/${client}/reviews`, { method: 'POST', body }),
   comment: (client: string, review: number, variant: string, text: string) =>
     api<ReviewInfo>(`/api/clients/${client}/reviews/${review}/comments`, { method: 'POST', body: { variant, text } }),
