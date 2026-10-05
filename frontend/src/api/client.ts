@@ -146,6 +146,8 @@ export type Me = {
   whats_new_seen: string
   shares_allowed?: boolean
   mail?: boolean
+  /** The public address is set: without it no mail carries a link. */
+  public_url?: boolean
   second_factor_setup_required?: boolean
   upload_max_mb?: number
   preferences?: Preferences

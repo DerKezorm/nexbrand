@@ -386,13 +386,14 @@ def internal_media(data: Any) -> set[str]:
     return found
 
 
-def for_public(data: dict[str, Any]) -> dict[str, Any]:
+def for_public(data: dict[str, Any], elsewhere: set[str] | frozenset[str] = frozenset()) -> dict[str, Any]:
     """What a page outside sees: fonts kept in the house by name only, without their files, their licence note or
     where they came from. Their files go nowhere else either: not as an example, not as a logo's download, not in a
-    free font's files (A4: the same file named twice came out the other way)."""
+    free font's files (A4: the same file named twice came out the other way). ``elsewhere``: files kept in the house
+    by other versions of the client (``brands.kept_in_house``), left out the same way."""
     copy = {key: dict(value) if isinstance(value, dict) else [dict(item) for item in value]
             for key, value in data.items() if value is not None}
-    kept = internal_media(data)
+    kept = internal_media(data) | set(elsewhere)
     for font in copy.get("fonts", []):
         if font.get("license") != "free":
             font["files"] = []

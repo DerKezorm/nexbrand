@@ -1,7 +1,7 @@
 """What programs and AI may ask of nexbrand, once for both ways in: ``/api/v1`` (``routers/v1.py``) and MCP
 (``routers/mcp.py``). Every function takes the caller of a token and goes through the same rights as the interface.
 
-What leaves here is the design set as a page outside sees it (``brandset.for_public``): fonts kept in the house by
+What leaves here is the design set as a page outside sees it (``brands.for_public``): fonts kept in the house by
 name only. Files travel by an address under ``/api/v1/files``, which asks for the token again.
 """
 
@@ -136,7 +136,8 @@ def find_client(db: Session, caller: Caller, key: str, need: str = READ) -> Clie
 
 
 def files_of(db: Session, data: dict[str, Any], base: str) -> dict[str, dict[str, Any]]:
-    """What the files a design set names are, with an address each (only those a program may have)."""
+    """What the files a design set names are, with an address each. ``data`` as a program sees it
+    (``brands.for_public``): what it names is what a program may have."""
     ids = brandset.media_of(data) - brandset.internal_media(data)
     if not ids:
         return {}
@@ -152,7 +153,7 @@ def brand(
     client = find_client(db, caller, client_key)
     row, chosen_project = _chosen(db, client, version=version, at=at, project=project)
     shown = brands.effective(db, row)
-    data = brandset.for_public(shown)
+    data = brands.for_public(db, shown, client.space_id)
     current = brands.project_current(db, chosen_project) if chosen_project else brands.current(db, client)
     return {
         "client": {"id": client.id, "name": client.name, "sector": client.sector},
@@ -160,7 +161,7 @@ def brand(
         "version": version_summary(row),
         "current": row.status == "published" and current is not None and current.id == row.id,
         "design": data,
-        "files": files_of(db, shown, base),
+        "files": files_of(db, data, base),
         "checks": checks.check(shown),
     }
 

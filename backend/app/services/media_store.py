@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import re
 import secrets
 from dataclasses import dataclass
 from pathlib import Path
@@ -171,6 +172,11 @@ MAX_PIXELS = avatars.MAX_PIXELS
 #: The SVG a logo may be is read whole; larger is no drawing anybody made by hand or in a program.
 MAX_SVG_BYTES = 8 * 1024 * 1024
 #: Inside an SVG, elements that run or embed something other than a drawing.
+#: Encodings an SVG may name in its XML declaration: the checks read the bytes as UTF-8.
+PLAIN_ENCODINGS = {"utf-8", "utf8", "us-ascii", "ascii"}
+XML_ENCODING = re.compile(rb"""^\s*<\?xml[^>]*?encoding\s*=\s*["']([^"']*)["']""", re.IGNORECASE)
+BOM_UTF8 = b"\xef\xbb\xbf"
+WIDE_ENCODINGS = ("utf-16-le", "utf-16-be", "utf-32-le", "utf-32-be")
 SVG_REFUSED = {"script", "foreignobject", "iframe", "embed", "object", "handler", "listener"}
 
 
@@ -199,6 +205,10 @@ def svg_problem(data: bytes) -> str | None:
     from xml.etree import ElementTree
 
     lowered = data.lower()
+    declared = XML_ENCODING.match(data.lstrip(BOM_UTF8))
+    if declared and declared.group(1).decode("ascii", "replace").lower() not in PLAIN_ENCODINGS:
+        # Read here as UTF-8, opened elsewhere in the encoding it names: what is checked is not what runs.
+        return "encoding"
     if b"<!doctype" in lowered or b"<!entity" in lowered:
         return "doctype"
     try:
@@ -237,18 +247,32 @@ def _svg_bytes(path: Path) -> bytes:
     return data
 
 
+def _wide_svg(path: Path) -> bool:
+    """A drawing written in UTF-16 or UTF-32 (with a byte order mark or without): stored as a plain file it would
+    still open as an SVG elsewhere, and its script would run, while the byte checks here read past it."""
+    with open(path, "rb") as handle:
+        data = handle.read(MAX_SVG_BYTES * 4 + 4)
+    if b"\x00" not in data[:1024] and not data.startswith((b"\xfe\xff", b"\xff\xfe")):
+        return False
+    return any("<svg" in data.decode(encoding, errors="ignore").lower() for encoding in WIDE_ENCODINGS)
+
+
 def finish(db: Session, account: Account, space_id: int, received: Path, name: str) -> Stored:
     """The file at ``received`` (a temporary file in the media folder) becomes a media file, or is found as one.
     ``MediaError`` for a file refused: an SVG that could run something, a picture of too many pixels."""
     with open(received, "rb") as handle:
         head = handle.read(1024)
     kind = media.sniff(head[:64]) or ("svg" if is_svg(head) else "file")
+    if kind == "file" and _wide_svg(received):
+        raise MediaError("svg_encoding", "Save the SVG as UTF-8 and upload it again.", 422)
     # Named an SVG and holding one, but not starting as one (junk in front, packed): checked all the same, it opens as
     # one elsewhere. A text that holds no drawing stays a file.
     named_svg = kind == "file" and name.lower().rstrip(" .").endswith((".svg", ".svgz"))
     text = _svg_bytes(received) if kind == "svg" or named_svg else b""
     if kind == "svg" or (named_svg and b"<svg" in text.lower()):
         problem = svg_problem(text)
+        if problem == "encoding":
+            raise MediaError("svg_encoding", "Save the SVG as UTF-8 and upload it again.", 422)
         if problem is not None:
             logger.info("SVG refused why=%s by=%s", problem, account.name)
             raise MediaError("svg_unsafe", "This SVG holds a script, an event, embedded HTML or a DOCTYPE; save it "

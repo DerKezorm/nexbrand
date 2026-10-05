@@ -409,3 +409,173 @@ def test_connected_an_operator_who_is_not_the_emergency_account_is_refused_befor
         for answer in (anna.post(f"/api/backups/{name}/download", json={"password": "wrong"}),
                        anna.request("DELETE", f"/api/backups/{name}", json={"password": "wrong"})):
             assert answer.status_code == 403 and answer.json()["detail"]["code"] == "backups_emergency_only", answer.text
+
+
+# --- After the check of block 2: what one version keeps in the house, every other way keeps in too (A4) ----------------
+
+
+def _font(media: str, license: str = "internal") -> dict[str, Any]:
+    return {"family": "House", "license": license, "files": [media]}
+
+
+def _publish(client: TestClient, cid: str, data: dict[str, Any], label: str) -> str:
+    made = client.post(f"/api/clients/{cid}/versions", json={"label": label, "data": data})
+    assert made.status_code == 201, made.text
+    vid = made.json()["id"]
+    assert client.post(f"/api/clients/{cid}/versions/{vid}/publish", json={"label": label}).status_code == 200
+    return str(vid)
+
+
+def test_a4_a_second_direction_does_not_carry_the_first_ones_internal_font_out(
+    client: TestClient, operator: Account, space: int
+) -> None:
+    """(a) Direction A keeps the font in the house, direction B shows its file as an example."""
+    _open_pages()
+    house = upload(client, space, "house.woff2", WOFF2)
+    cid, vid = _draft(client, space)
+    a = {**SET, "fonts": [_font(house)]}
+    b = {**SET, "samples": [{"name": "Font sheet", "media": house}]}
+    review = _review(client, cid, vid, variants=[{"id": "a", "label": "A", "data": a},
+                                                 {"id": "b", "label": "B", "data": b}])
+    assert review.status_code == 201, review.text
+    token = _token(review.json()["link"])
+    with new_client() as visitor:
+        page = visitor.get(f"/api/review/{token}").json()
+        assert page["variants"][1]["data"]["samples"] == [] and house not in page["files"]
+        assert visitor.get(f"/api/review/{token}/media/{house}").status_code == 404
+
+
+def test_a4_a_version_without_the_font_does_not_carry_its_file_out(
+    client: TestClient, operator: Account, space: int
+) -> None:
+    """(b) Another version keeps the font in the house; this one names the file only as an example (and a project
+    keeping it in counts as well)."""
+    _open_pages()
+    house = upload(client, space, "house.woff2", WOFF2)
+    sheet = upload(client, space, "other.woff2", WOFF2 + b"o")
+    cid, _ = _draft(client, space)
+    assert client.post(f"/api/clients/{cid}/versions", json={"label": "Kept", "data": {
+        **SET, "fonts": [_font(house)]}}).status_code == 201
+    shown = {**SET, "samples": [{"name": "Font sheet", "media": house}, {"name": "Other", "media": sheet}]}
+    published = _publish(client, cid, shown, "2026")
+    project = client.post(f"/api/clients/{cid}/projects", json={
+        "name": "Web", "version_id": published, "data": {"fonts": [_font(sheet)], "inherit": {"fonts": "own"}}})
+    assert project.status_code == 201, project.text
+    share = client.post(f"/api/clients/{cid}/shares", json={"label": "Printer"}).json()
+    token = _token(share["link"])
+    with new_client() as visitor:
+        page = visitor.get(f"/api/public/{token}").json()
+        assert page["design"]["samples"] == [], "the project keeps the other file in the house too"
+        for media in (house, sheet):
+            assert visitor.get(f"/api/public/{token}/media/{media}").status_code == 404
+
+
+def test_a4_a_newer_version_keeping_the_font_in_closes_an_older_fixed_page(
+    client: TestClient, operator: Account, space: int
+) -> None:
+    """(c) The older version called the font free; a newer one keeps the same file in the house."""
+    _open_pages()
+    house = upload(client, space, "house.woff2", WOFF2)
+    cid, _ = _draft(client, space)
+    older = _publish(client, cid, {**SET, "fonts": [_font(house, "free")]}, "2025")
+    share = client.post(f"/api/clients/{cid}/shares", json={"label": "Printer", "version_id": older}).json()
+    token = _token(share["link"])
+    with new_client() as visitor:
+        assert visitor.get(f"/api/public/{token}/media/{house}").status_code == 200
+    assert client.post(f"/api/clients/{cid}/versions", json={"label": "Next", "data": {
+        **SET, "fonts": [_font(house)]}}).status_code == 201
+    with new_client() as visitor:
+        assert visitor.get(f"/api/public/{token}").json()["design"]["fonts"][0]["files"] == []
+        assert visitor.get(f"/api/public/{token}/media/{house}").status_code == 404
+
+
+# --- A12: an SVG in another encoding than UTF-8 --------------------------------------------------------------------
+
+
+WIDE = '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>alert(2)</script></svg>'
+
+
+@pytest.mark.parametrize(("name", "body"), [
+    ("logo.svg", WIDE.encode("utf-16")),
+    ("logo.svg", WIDE.encode("utf-16-be")),
+    ("logo.svg", WIDE.encode("utf-16-le")),
+    ("logo.svg", WIDE.encode("utf-32")),
+    ("download.bin", WIDE.encode("utf-16")),
+    ("logo.svg", ('<?xml version="1.0" encoding="UTF-16"?>' + WIDE[:-6] + "</svg>").encode("utf-8")),
+], ids=["utf16-bom", "utf16-be", "utf16-le", "utf32-bom", "other-name", "declared"])
+def test_a12_an_svg_not_in_utf8_is_refused(client: TestClient, operator: Account, space: int, name: str,
+                                           body: bytes) -> None:
+    answer = client.post(f"/api/media?space={space}&name={name}", content=body)
+    assert answer.status_code == 422, answer.text
+    assert answer.json()["detail"]["code"] == "svg_encoding"
+
+
+def test_a12_a_binary_file_with_zero_bytes_still_comes_in(client: TestClient, operator: Account, space: int) -> None:
+    answer = client.post(f"/api/media?space={space}&name=data.bin", content=bytes(range(256)) * 16)
+    assert answer.status_code == 201 and answer.json()["kind"] == "file"
+
+
+# --- A7: every kind of picture is counted -------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("kind", ["JPEG", "WEBP", "GIF"])
+def test_a7_jpeg_webp_and_gif_are_counted_too(client: TestClient, operator: Account, space: int,
+                                              monkeypatch: pytest.MonkeyPatch, kind: str) -> None:
+    import io
+
+    from PIL import Image
+
+    monkeypatch.setattr(media_store, "MAX_PIXELS", 1000)
+
+    def picture(side: int) -> bytes:
+        out = io.BytesIO()
+        Image.new("RGB", (side, side), (200, 40, 40)).save(out, kind)
+        return out.getvalue()
+
+    big = client.post(f"/api/media?space={space}&name=big.{kind.lower()}", content=picture(40))
+    assert big.status_code == 422 and big.json()["detail"]["code"] == "too_many_pixels", big.text
+    small = client.post(f"/api/media?space={space}&name=small.{kind.lower()}", content=picture(20))
+    assert small.status_code == 201, small.text
+
+
+# --- The mail brake, the public address, C1 characters ----------------------------------------------------------------
+
+
+def test_f27_twenty_review_mails_then_the_brake(client: TestClient, operator: Account, space: int,
+                                               monkeypatch: pytest.MonkeyPatch) -> None:
+    from app import security
+
+    # The clock stands still: the brake decides by counting, not by how fast the test runs.
+    monkeypatch.setattr(security.time, "monotonic", lambda: 1000.0)
+    monkeypatch.setattr(mailer, "_send", lambda db, message: None)
+    _open_pages()
+    _mail_ready(client)
+    cid, vid = _draft(client, space)
+    for _ in range(20):
+        made = _review(client, cid, vid, email="kunde@example.com")
+        assert made.status_code == 201 and made.json()["mailed"] is True, made.text
+        assert client.delete(f"/api/clients/{cid}/reviews/{made.json()['id']}").status_code == 204
+    braked = _review(client, cid, vid, email="kunde@example.com")
+    assert braked.status_code == 429 and braked.json()["detail"]["code"] == "too_many_attempts"
+    # Without a mail the draft still goes before the client.
+    assert _review(client, cid, vid).status_code == 201
+
+
+def test_f27_the_page_knows_whether_a_mail_can_carry_a_link(client: TestClient, operator: Account) -> None:
+    assert client.get("/api/auth/me").json()["public_url"] is False
+    assert client.put("/api/settings", json={"public_url": "https://brand.example.com"}).status_code == 200
+    assert client.get("/api/auth/me").json()["public_url"] is True
+
+
+@pytest.mark.parametrize("code", [0x80, 0x85, 0x9B, 0x9F])
+def test_a14_c1_control_characters_are_refused_in_names(client: TestClient, operator: Account, space: int,
+                                                        code: int) -> None:
+    profile = client.put("/api/me/profile", json={"display_name": f"Kim{chr(code)}"})
+    assert profile.status_code == 422 and profile.json()["detail"]["code"] == "display_name_invalid"
+    _open_pages()
+    cid, vid = _draft(client, space)
+    token = _token(_review(client, cid, vid).json()["link"])
+    with new_client() as visitor:
+        said = visitor.post(f"/api/review/{token}/comments",
+                            json={"variant": "a", "text": "Nice", "author": f"Kun{chr(code)}din"})
+        assert said.status_code == 422 and said.json()["detail"]["code"] == "invalid_name"

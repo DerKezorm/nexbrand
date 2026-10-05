@@ -562,7 +562,8 @@
     "invalid_links": "An address starts with http:// or https://, ten at most.",
     "svg_unsafe": "This SVG holds a script, an event, embedded HTML or a DOCTYPE. Save it as a plain drawing and upload it again.",
     "svg_too_large": "This SVG is larger than a logo can be.",
-    "too_many_pixels": "This picture has more pixels than nexbrand takes (50 million at most)."
+    "too_many_pixels": "This picture has more pixels than nexbrand takes (50 million at most).",
+    "svg_encoding": "This SVG is not saved as UTF-8. Save it as UTF-8 and upload it again."
   },
   "auth": {
     "name": "Name",
@@ -1377,7 +1378,10 @@
     "emailHint": "nexbrand sends the link in your language. Leave it empty to pass the link on yourself.",
     "noMail": "nexbrand mails the link once a mail server is set up. Until then you copy it from the Review tab.",
     "makeAndMail": "Put before the client and mail",
-    "mailFailed": "The review is ready, but the mail did not go out: {{reason}} Copy the link from the Review tab and send it yourself."
+    "mailFailed": "The review is ready, but the mail did not go out: {{reason}} Copy the link from the Review tab and send it yourself.",
+    "noAddress": "To mail the link nexbrand needs its public address; until then you copy the link from the Review tab.",
+    "noAddressWhere": "Enter it under Settings → Server → Sign-in → Public address.",
+    "noAddressAsk": "To mail the link nexbrand needs its public address. Ask the operator to enter it under Settings → Server → Sign-in; until then you copy the link from the Review tab."
   },
   "preview": {
     "label": "Sample page in this CI",

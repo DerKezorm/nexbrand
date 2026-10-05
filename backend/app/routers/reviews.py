@@ -104,7 +104,8 @@ def _comments_of(db: Any, review: Review) -> list[dict[str, Any]]:
 def _clean_name(value: str) -> str:
     """The client's name on the page: spaces gathered, no control or format characters (a right-to-left override
     lets a name read other than it is, as for the display names of accounts)."""
-    if any(ord(char) < 32 or ord(char) == 127 or unicodedata.category(char) == "Cf" for char in value):
+    # Cc: every control character, C0, DEL and C1 (U+0080 to U+009F); Cf: format characters.
+    if any(unicodedata.category(char) in ("Cc", "Cf") for char in value):
         raise error("invalid_name", "A name cannot hold control or invisible characters.", 422)
     return " ".join(value.split())[:80]
 
@@ -287,16 +288,20 @@ def _open(db: Any, token: str) -> tuple[Review, Client]:
     return review, client
 
 
-def _page(db: Any, review: Review, client: Client) -> dict[str, Any]:
-    # A project's draft keeps only what is its own: the page shows it on the client version it stands on.
+def _variants(db: Any, review: Review, client: Client) -> list[dict[str, Any]]:
+    """The directions as the client sees them: a project's draft on the client version it stands on, without a file
+    the client keeps in the house anywhere (``brands.for_public``), so the page and its files say the same."""
     version = db.get(BrandVersion, review.version_id)
     base = db.get(BrandVersion, version.base_id) if version is not None and version.base_id else None
     from ..services import inherit
 
-    def shown(data: dict[str, Any]) -> dict[str, Any]:
-        return inherit.resolve(base.data, data) if base is not None else data
+    kept = brands.kept_in_house(db, client.space_id)
+    return [{**v, "data": brandset.for_public(inherit.resolve(base.data, v["data"]) if base is not None else v["data"],
+                                             kept)} for v in review.variants]
 
-    variants = [{**v, "data": brandset.for_public(shown(v["data"]))} for v in review.variants]
+
+def _page(db: Any, review: Review, client: Client) -> dict[str, Any]:
+    variants = _variants(db, review, client)
     files: set[str] = set()
     for variant in variants:
         files |= brandset.media_of(variant["data"])
@@ -387,13 +392,8 @@ def review_media(token: Token, media_id: MediaId, request: Request, download: bo
     with SessionLocal() as db:
         review, client = _open(db, token)
         named: set[str] = set()
-        version = db.get(BrandVersion, review.version_id)
-        base = db.get(BrandVersion, version.base_id) if version is not None and version.base_id else None
-        from ..services import inherit
-
-        for variant in review.variants:
-            data = inherit.resolve(base.data, variant["data"]) if base is not None else variant["data"]
-            named |= brandset.media_of(brandset.for_public(data))
+        for variant in _variants(db, review, client):
+            named |= brandset.media_of(variant["data"])
         row = db.get(Media, media_id)
         if row is None or media_id not in named or row.space_id != client.space_id:
             raise error("not_found", "Not found.", 404)

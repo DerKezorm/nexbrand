@@ -228,7 +228,7 @@ def _unlocked(request: Request, share: Share) -> bool:
 def _page(db: Any, share: Share, client: Client, version: BrandVersion) -> dict[str, Any]:
     share.views += 1
     db.commit()
-    data = brandset.for_public(brands.effective(db, version))
+    data = brands.for_public(db, brands.effective(db, version), client.space_id)
     files = brandset.media_of(data)
     project = db.get(Project, share.project_id) if share.project_id else None
     rows = db.scalars(select(Media).where(Media.id.in_(files))) if files else []
@@ -287,7 +287,7 @@ def public_code(
             raise error("not_found", "Not found.", 404)
         project = db.get(Project, share.project_id) if share.project_id else None
         title = f"{client.name}, {project.name}" if project else client.name
-        text = tokens.render(brandset.for_public(brands.effective(db, version)), format,
+        text = tokens.render(brands.for_public(db, brands.effective(db, version), client.space_id), format,
                              title=f"{title} {version.label}")
         name = f"{tokens.slug(title)}-{tokens.slug(version.label)}"
     ending = {"css": "css", "tailwind": "css", "scss": "scss", "json": "tokens.json"}[format]
@@ -305,7 +305,7 @@ def public_media(token: Token, media_id: MediaId, request: Request, download: bo
         share, client, version = _open(db, token)
         if not _unlocked(request, share):
             raise error("not_found", "Not found.", 404)
-        named = brandset.media_of(brandset.for_public(brands.effective(db, version)))
+        named = brandset.media_of(brands.for_public(db, brands.effective(db, version), client.space_id))
         row = db.get(Media, media_id)
         if row is None or media_id not in named or row.space_id != client.space_id:
             raise error("not_found", "Not found.", 404)

@@ -26,7 +26,7 @@ from .. import __version__
 from ..db import SessionLocal
 from ..errors import error
 from ..models import Client, Media
-from ..services import apitokens, brandapi, brandset, checks, logs, media_store, rights, settings_service
+from ..services import apitokens, brandapi, brands, brandset, checks, logs, media_store, rights, settings_service
 from ..services.apitokens import Caller
 from .media import FILE_POLICY
 
@@ -180,12 +180,8 @@ def file(media_id: Annotated[str, PathParam(pattern=r"^[A-Za-z0-9_-]{8,40}$")], 
         if row is None or not rights.at_least(rights.role_in(db, found.account, row.space_id), "read"):
             raise error("not_found", "Not found.", 404)
         # A font kept in the house never leaves through a token, whichever version names it.
-        from ..models import BrandVersion
-
-        clients = select(Client.id).where(Client.space_id == row.space_id)
-        for data in db.scalars(select(BrandVersion.data).where(BrandVersion.client_id.in_(clients))):
-            if media_id in brandset.internal_media(data):
-                raise error("not_found", "Not found.", 404)
+        if media_id in brands.kept_in_house(db, row.space_id):
+            raise error("not_found", "Not found.", 404)
         db.expunge(row)
     path = media_store.path_of(row.id)
     if not path.is_file():

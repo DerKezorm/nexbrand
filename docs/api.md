@@ -23,7 +23,8 @@ its own tokens under **My account → Connections**:
 - The operator sees every token (never the token itself) and can block one for good.
 
 Fonts with the licence **internal** never leave through a token: the design set names them, their files are not
-handed out.
+handed out. A file that any version of the client keeps as an internal font is left out everywhere else as well: as
+an example, as a logo download, as the file of a font another version calls free.
 
 ## Asking
 
@@ -190,8 +191,8 @@ colour of the same hue that reaches it.
 
 ### `GET /api/v1/files/{id}`
 
-A logo, a free font or an example file named in a design set's `files`. Fonts with the licence **internal** answer
-404.
+A logo, a free font or an example file named in a design set's `files`. A file that any version of the client keeps
+as an internal font answers 404.
 
 ## MCP
 

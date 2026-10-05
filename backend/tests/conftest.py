@@ -59,6 +59,11 @@ def clean_db(schema: None) -> Iterator[None]:
     shutil.rmtree(MEDIA, ignore_errors=True)
     MEDIA.mkdir(parents=True)
     brake.forget()
+    # The review page's own brakes (comments per sender, mails per account) start empty for every test as well.
+    from app.routers import reviews
+
+    reviews._comments.forget()
+    reviews._mails.forget()
     totp.forget()
     updates.forget()
     yield

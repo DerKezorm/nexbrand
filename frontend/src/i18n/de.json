@@ -562,7 +562,8 @@
     "invalid_links": "Eine Adresse beginnt mit http:// oder https://, höchstens zehn.",
     "svg_unsafe": "Diese SVG enthält ein Skript, ein Ereignis, eingebettetes HTML oder einen DOCTYPE. Speichere sie als einfache Zeichnung und lade sie noch einmal hoch.",
     "svg_too_large": "Diese SVG ist größer, als ein Logo sein kann.",
-    "too_many_pixels": "Das Bild hat mehr Pixel, als nexbrand annimmt (höchstens 50 Millionen)."
+    "too_many_pixels": "Das Bild hat mehr Pixel, als nexbrand annimmt (höchstens 50 Millionen).",
+    "svg_encoding": "Diese SVG ist nicht als UTF-8 gespeichert. Speichere sie als UTF-8 und lade sie noch einmal hoch."
   },
   "auth": {
     "name": "Name",
@@ -1377,7 +1378,10 @@
     "emailHint": "nexbrand schickt den Link in deiner Sprache. Leer lassen, wenn du ihn selbst weitergibst.",
     "noMail": "Per Mail verschickt nexbrand den Link, sobald ein Mailserver eingerichtet ist. Bis dahin kopierst du ihn im Reiter Abstimmung.",
     "makeAndMail": "Vorlegen und Mail schicken",
-    "mailFailed": "Die Abstimmung steht, aber die Mail ging nicht raus: {{reason}} Kopier den Link im Reiter Abstimmung und schick ihn selbst."
+    "mailFailed": "Die Abstimmung steht, aber die Mail ging nicht raus: {{reason}} Kopier den Link im Reiter Abstimmung und schick ihn selbst.",
+    "noAddress": "Für die Mail braucht nexbrand seine öffentliche Adresse; bis dahin kopierst du den Link im Reiter Abstimmung.",
+    "noAddressWhere": "Eintragen unter Einstellungen → Server → Anmeldung → Öffentliche Adresse.",
+    "noAddressAsk": "Für die Mail braucht nexbrand seine öffentliche Adresse. Frag den Betreiber, ob er sie unter Einstellungen → Server → Anmeldung einträgt; bis dahin kopierst du den Link im Reiter Abstimmung."
   },
   "preview": {
     "label": "Beispielseite mit dieser CI",

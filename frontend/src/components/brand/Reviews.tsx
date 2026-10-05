@@ -1,6 +1,7 @@
 import { Eye, MessagesSquare, Send, Undo2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 
 import { reviewsApi, type ClientWhole, type ReviewComment, type ReviewInfo, type VersionInfo } from '../../api/client'
 import { errorText } from '../../lib/errors'
@@ -211,7 +212,24 @@ export function NewReview({ whole, version, versions = whole.versions, onClose, 
             onChange={setDays}
             options={['7', '14', '30', '90'].map((d) => ({ value: d, label: t('shares.days', { count: Number(d) }) }))}
           />
-          {me?.mail ? <Input label={t('reviews.email')} value={email} onChange={setEmail} type="email" placeholder="kunde@example.com" hint={t('reviews.emailHint')} /> : <p className="self-end text-xs text-mist-500">{t('reviews.noMail')}</p>}
+          {me?.mail && me.public_url !== false ? (
+            <Input label={t('reviews.email')} value={email} onChange={setEmail} type="email" placeholder="kunde@example.com" hint={t('reviews.emailHint')} />
+          ) : me?.mail ? (
+            <p className="self-end text-xs text-mist-500">
+              {me.role === 'operator' ? (
+                <>
+                  {t('reviews.noAddress')}{' '}
+                  <Link to="/settings?tab=server&sub=signin" className="text-accent-400 hover:underline">
+                    {t('reviews.noAddressWhere')}
+                  </Link>
+                </>
+              ) : (
+                t('reviews.noAddressAsk')
+              )}
+            </p>
+          ) : (
+            <p className="self-end text-xs text-mist-500">{t('reviews.noMail')}</p>
+          )}
         </div>
         <Feedback problem={problem} />
         <div className="flex justify-end gap-2">

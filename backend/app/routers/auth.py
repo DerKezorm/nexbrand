@@ -91,7 +91,8 @@ def check_display_name(value: str) -> str:
 
     Format characters (Unicode Cf: the right-to-left override, zero-width spaces) let a name read other than it is.
     """
-    if any(ord(char) < 32 or ord(char) == 127 or unicodedata.category(char) == "Cf" for char in value):
+    # Cc: every control character, C0, DEL and C1 (U+0080 to U+009F); Cf: format characters.
+    if any(unicodedata.category(char) in ("Cc", "Cf") for char in value):
         raise error("display_name_invalid", "A display name cannot hold control or invisible characters.", 422)
     clean = " ".join(value.split())
     if len(clean) > DISPLAY_NAME_MAX:
@@ -311,6 +312,8 @@ def me(account: Account, db: DbSession) -> dict[str, Any]:
         **account_view(account),
         "shares_allowed": bool(settings_service.get(db, "shares_allowed")),
         "mail": mailer.configured(db),
+        # Mail with a link needs the public address (the request's own Host is never put into a mail).
+        "public_url": bool(settings_service.public_url(db)),
         "second_factor_setup_required": totp.setup_required(db, account),
         "upload_max_mb": settings_service.upload_max_mb(db),
         "preferences": preferences_of(account.preferences),

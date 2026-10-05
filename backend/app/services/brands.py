@@ -29,6 +29,7 @@ from ..models import (
     Client,
     Favorite,
     Project,
+    Review,
     Space,
     Visit,
     utcnow,
@@ -282,6 +283,26 @@ def effective(db: Session, row: BrandVersion) -> dict[str, Any]:
         return row.data
     base = db.get(BrandVersion, row.base_id) if row.base_id else None
     return inherit.resolve(base.data if base is not None else brandset.empty(), row.data)
+
+
+def kept_in_house(db: Session, space_id: int) -> set[str]:
+    """Every file that any version, draft or review direction of the client (its projects included) names as a font
+    kept in the house. Such a file never goes out over a public page, a review or a token, whatever else names it: an
+    example, a logo download, an older version that called the same font free (A4)."""
+    clients = select(Client.id).where(Client.space_id == space_id)
+    found: set[str] = set()
+    for data in db.scalars(select(BrandVersion.data).where(BrandVersion.client_id.in_(clients))):
+        found |= brandset.internal_media(data)
+    for variants in db.scalars(select(Review.variants).where(Review.client_id.in_(clients))):
+        for variant in variants or []:
+            found |= brandset.internal_media(variant.get("data") if isinstance(variant, dict) else None)
+    return found
+
+
+def for_public(db: Session, data: dict[str, Any], space_id: int) -> dict[str, Any]:
+    """The design set as a page outside or a program sees it: ``brandset.for_public`` with every file the client
+    keeps in the house (``kept_in_house``)."""
+    return brandset.for_public(data, kept_in_house(db, space_id))
 
 
 def current(db: Session, client: Client) -> BrandVersion | None:
