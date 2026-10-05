@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import asdict
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 import anyio
 from fastapi import APIRouter, Query, Request, Response
@@ -32,6 +32,8 @@ async def upload(
     account: Account,
     space: Annotated[int, Query(ge=1)],
     name: Annotated[str, Query(min_length=1, max_length=255)],
+    #: ``picture`` (a logo) or ``font``: a file of another kind is refused and not kept (F9).
+    expect: Annotated[Literal["picture", "font"] | None, Query()] = None,
 ) -> dict[str, Any]:
     with SessionLocal() as db:
         try:
@@ -58,7 +60,7 @@ async def upload(
 
         def finish() -> media_store.Stored:
             with SessionLocal() as db:
-                return media_store.finish(db, account, space, received, name)
+                return media_store.finish(db, account, space, received, name, expect)
 
         stored = await run_in_threadpool(finish)
     except ClientDisconnect as exc:

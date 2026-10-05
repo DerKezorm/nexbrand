@@ -3,14 +3,17 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ColorField } from '../components/brand/SetEditor'
-import { contrast, formatRatio, hsl, isHex, reach, simulate, VISIONS } from '../lib/color'
+import { contrast, formatRatio, hsl, parseColor, reach, simulate, VISIONS } from '../lib/color'
 
-/** Two colours, every check at once, and the nearest colour of the same hue that passes. */
+/** Two colours, every check at once, and the nearest colour of the same hue that passes. Colours count as they are
+ * typed, in every form the server reads too (`#000`, `000`, `rgb()`, `hsl()`); one that cannot be read is named. */
 export function ContrastPage() {
   const { t, i18n } = useTranslation()
-  const [fg, setFg] = useState('#C23B2E')
-  const [bg, setBg] = useState('#F3E4C8')
-  const ok = isHex(fg) && isHex(bg)
+  const [fgText, setFg] = useState('#C23B2E')
+  const [bgText, setBg] = useState('#F3E4C8')
+  const fg = parseColor(fgText) ?? ''
+  const bg = parseColor(bgText) ?? ''
+  const ok = !!fg && !!bg
   const r = ok ? contrast(fg, bg) : 0
   const better = ok && r < 4.5 ? reach(fg, bg, 4.5) : null
   return (
@@ -24,16 +27,21 @@ export function ContrastPage() {
           <div className="flex flex-wrap items-end gap-3">
             <label className="text-sm">
               <span className="block text-xs font-medium text-mist-400">{t('contrast.text_')}</span>
-              <ColorField value={fg} onChange={setFg} label={t('contrast.text_')} />
+              <ColorField value={fgText} onChange={setFg} label={t('contrast.text_')} lenient invalid="contrast-unread" />
             </label>
             <label className="text-sm">
               <span className="block text-xs font-medium text-mist-400">{t('contrast.ground')}</span>
-              <ColorField value={bg} onChange={setBg} label={t('contrast.ground')} />
+              <ColorField value={bgText} onChange={setBg} label={t('contrast.ground')} lenient invalid="contrast-unread" />
             </label>
-            <button type="button" className="nc-btn nc-btn-ghost" onClick={() => (setFg(bg), setBg(fg))}>
+            <button type="button" className="nc-btn nc-btn-ghost" onClick={() => (setFg(bgText), setBg(fgText))}>
               <ArrowLeftRight className="h-4 w-4" /> {t('contrast.swap')}
             </button>
           </div>
+          {!ok && (
+            <p id="contrast-unread" role="alert" className="mt-3 text-sm text-bad-500">
+              {t('contrast.unread', { value: (fg ? bgText : fgText).trim() || '…' })}
+            </p>
+          )}
           {ok && (
             <>
               <div className="mt-5 grid gap-3 md:grid-cols-[1fr_15rem]">

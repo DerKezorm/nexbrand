@@ -57,10 +57,10 @@ def check(data: dict[str, Any], color_list: list[dict[str, Any]] | None = None) 
             better = sorted((t for t in items if t is not bg and colors.contrast(t["hex"], bg["hex"]) >= 4.5),
                             key=lambda t: -colors.contrast(t["hex"], bg["hex"]))
             hint = {"level": "bad" if ratio < 3 else "warn", "code": "white_on", "colors": [bg["name"]],
-                    "hex": [WHITE, bg["hex"]], "ratio": _r(ratio)}
+                    "hex": [WHITE, bg["hex"]], "ratio": colors.shown_ratio(ratio)}
             if better:
                 hint["better"] = better[0]["name"]
-                hint["better_ratio"] = _r(colors.contrast(better[0]["hex"], bg["hex"]))
+                hint["better_ratio"] = colors.shown_ratio(colors.contrast(better[0]["hex"], bg["hex"]))
             hints.append(hint)
 
     for primary in (c for c in items if c.get("role") == "primary"):
@@ -68,7 +68,7 @@ def check(data: dict[str, Any], color_list: list[dict[str, Any]] | None = None) 
             ratio = colors.contrast(primary["hex"], bg["hex"])
             if ratio < 4.5:
                 hints.append({"level": "warn", "code": "primary_as_text", "colors": [primary["name"], bg["name"]],
-                              "hex": [primary["hex"], bg["hex"]], "ratio": _r(ratio)})
+                              "hex": [primary["hex"], bg["hex"]], "ratio": colors.shown_ratio(ratio)})
 
     for i, a in enumerate(items):
         for b in items[i + 1:]:
@@ -92,7 +92,7 @@ def check(data: dict[str, Any], color_list: list[dict[str, Any]] | None = None) 
             ratio = colors.contrast(value, logo["ground"])
             if ratio < 3:
                 hints.append({"level": "warn", "code": f"logo_{part}", "logo": logo["name"],
-                              "hex": [value, logo["ground"]], "ratio": _r(ratio)})
+                              "hex": [value, logo["ground"]], "ratio": colors.shown_ratio(ratio)})
 
     body = next((step for step in data.get("scale", []) if step.get("use") == "body"), None)
     if body is not None and body["size"] < 16:
@@ -138,7 +138,7 @@ def dark_hints(data: dict[str, Any], items: list[dict[str, Any]]) -> list[dict[s
         ratio = colors.contrast(fg["hex"], bg["hex"])
         if ratio < 4.5:
             hints.append({"level": "bad" if ratio < 3 else "warn", "code": code, "colors": [fg["name"], bg["name"]],
-                          "hex": [fg["hex"], bg["hex"]], "ratio": _r(ratio)})
+                          "hex": [fg["hex"], bg["hex"]], "ratio": colors.shown_ratio(ratio)})
     return hints
 
 
@@ -181,7 +181,7 @@ def rule_hints(data: dict[str, Any], items: list[dict[str, Any]]) -> list[dict[s
                 if ratio < need:
                     hints.append({"level": "bad" if ratio < 3 else "warn", "code": "rule_pair_low", "rule": index,
                                   "colors": [fg["name"], bg["name"]], "hex": [fg["hex"], bg["hex"]],
-                                  "ratio": _r(ratio), "need": need})
+                                  "ratio": colors.shown_ratio(ratio), "need": need})
                 if (fg["name"].lower(), bg["name"].lower()) in forbidden:
                     hints.append({"level": "bad", "code": "rule_conflict", "rule": index,
                                   "colors": [fg["name"], bg["name"]], "hex": [fg["hex"], bg["hex"]]})
@@ -218,7 +218,7 @@ def rule_hints(data: dict[str, Any], items: list[dict[str, Any]]) -> list[dict[s
                         weakest = drawn(logo)[ratios.index(min(ratios))]
                         hints.append({"level": "warn", "code": "rule_logo_contrast", "rule": index,
                                       "logo": logo["name"], "colors": [g["name"]], "hex": [weakest, g["hex"]],
-                                      "ratio": _r(min(ratios))})
+                                      "ratio": colors.shown_ratio(min(ratios))})
         elif kind == "font":
             family = rule["font"]
             if family.lower() not in families:
@@ -246,7 +246,7 @@ def rule_hints(data: dict[str, Any], items: list[dict[str, Any]]) -> list[dict[s
 _VAR_SET = re.compile(r"(--[A-Za-z0-9_-]{1,80})\s*:\s*([^;{}]{1,200})")
 _VAR_USE = re.compile(r"var\(\s*(--[A-Za-z0-9_-]{1,80})\s*(?:,\s*([^()]{0,200}))?\)")
 _HEX = re.compile(r"#([0-9A-Fa-f]{8}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{3,4})\b")
-_RGB = re.compile(r"rgba?\(\s*(\d{1,3})[\s,]+(\d{1,3})[\s,]+(\d{1,3})")
+_FUNCTION = re.compile(r"(?:rgba?|hsla?)\([^()]{0,120}\)", re.IGNORECASE)
 _NAMED = {"white": "#FFFFFF", "black": "#000000"}
 MOST_CSS = 500_000
 
@@ -261,16 +261,15 @@ def css_color(value: str, variables: dict[str, str]) -> str | None:
             break
         value = replaced
     hexed = _HEX.search(value)
-    rgb = _RGB.search(value)
-    if hexed and (not rgb or hexed.start() < rgb.start()):
+    function = _FUNCTION.search(value)
+    if hexed and (not function or hexed.start() < function.start()):
         digits = hexed.group(1)
         if len(digits) in (3, 4):
             digits = "".join(char * 2 for char in digits[:3])
         return "#" + digits[:6].upper()
-    if rgb:
-        parts = [int(rgb.group(n)) for n in (1, 2, 3)]
-        if all(p <= 255 for p in parts):
-            return "#" + "".join(f"{p:02X}" for p in parts)
+    if function:
+        # rgb() and hsl() as ``colors.parse`` reads them everywhere else (F3).
+        return colors.parse(function.group(0))
     word = value.strip().lower()
     return _NAMED.get(word)
 
@@ -348,7 +347,7 @@ def css_audit(css: str, palette: list[dict[str, Any]], rules: list[dict[str, Any
         checked += 1
         a, b = named(fg), named(bg)
         ratio = colors.contrast(fg, bg)
-        item: dict[str, Any] = {"selector": selector, "fg": fg, "bg": bg, "ratio": _r(ratio),
+        item: dict[str, Any] = {"selector": selector, "fg": fg, "bg": bg, "ratio": colors.shown_ratio(ratio),
                                 "fg_name": a["name"] if a else None, "bg_name": b["name"] if b else None}
         rule = forbidden.get((a["name"].lower(), b["name"].lower())) if a and b else None
         if rule is not None:
@@ -362,11 +361,12 @@ def pair(fg: str, bg: str) -> dict[str, Any]:
     """Everything about one pair, for a program asking."""
     ratio = colors.contrast(fg, bg)
     out: dict[str, Any] = {
-        "ratio": _r(ratio),
+        "ratio": colors.shown_ratio(ratio),
         "text": colors.grade(ratio),
         "large_text": colors.grade(ratio, large=True),
         "graphics": "pass" if ratio >= 3 else "fail",
-        "vision": {v: _r(colors.contrast(colors.simulate(fg, v), colors.simulate(bg, v))) for v in colors.VISIONS[1:]},
+        "vision": {v: colors.shown_ratio(colors.contrast(colors.simulate(fg, v), colors.simulate(bg, v)))
+                   for v in colors.VISIONS[1:]},
     }
     if ratio < 4.5:
         out["nearest_passing"] = colors.reach(fg, bg, 4.5)

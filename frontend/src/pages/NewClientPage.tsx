@@ -81,7 +81,9 @@ export function NewClientPage() {
   }
 
   const current = useMemo(() => setOf(bench.colors, bench.head, bench.body), [bench, name]) // eslint-disable-line react-hooks/exhaustive-deps
-  const hints = useMemo(() => (current.colors.length ? check(current).filter((h) => h.level !== 'info') : []), [current])
+  // Before the step with the logos, no hint about a logo: nobody has seen one yet (F24).
+  const logosShown = STEPS.indexOf(step) >= STEPS.indexOf('sizes')
+  const hints = useMemo(() => (current.colors.length ? check(current).filter((h) => h.level !== 'info' && (logosShown || !h.logo)) : []), [current, logosShown])
   const allowed = presetId ? !!existing && (existing.role === 'write' || existing.role === 'manage') : !!me?.may_create_clients
   const canNext = step === 'who' ? !!name.trim() && allowed : step === 'start' ? true : step === 'colors' ? current.colors.length > 0 : true
   // Whoever makes a client manages it; for one that exists, its right counts: from write up (A2).
@@ -117,6 +119,26 @@ export function NewClientPage() {
       setProblem(error instanceof ApiError ? error.code : 'internal_error')
     } finally {
       setBusy(false)
+    }
+  }
+
+  // From the first step on only with a name no other client has (F15): said there, not at the very end.
+  const [checking, setChecking] = useState(false)
+  const nextBusy = useRef(false)
+  const next = async () => {
+    if (nextBusy.current) return
+    nextBusy.current = true
+    try {
+      if (step === 'who' && !existing) {
+        setProblem(null)
+        setChecking(true)
+        const found = await clientsApi.nameCheck(name.trim(), made?.id).catch(() => ({ free: true, code: null }))
+        if (!found.free) return setProblem(found.code ?? 'client_name_taken')
+      }
+      setStep(STEPS[index + 1])
+    } finally {
+      setChecking(false)
+      nextBusy.current = false
     }
   }
 
@@ -204,6 +226,11 @@ export function NewClientPage() {
                     <input value={project} onChange={(e) => setProject(e.target.value)} placeholder={t('wizard.projectHint')} className="nc-field mt-1" />
                   </Labeled>
                 </div>
+                {problem && (
+                  <p role="alert" className="text-sm text-bad-500" data-testid="name-problem">
+                    {errorText(problem)}
+                  </p>
+                )}
                 <Labeled label={t('wizard.brief')}>
                   <textarea value={brief} onChange={(e) => setBrief(e.target.value)} rows={3} placeholder={t('wizard.briefHint')} className="nc-field mt-1" />
                 </Labeled>
@@ -371,7 +398,7 @@ export function NewClientPage() {
                 <ArrowLeft className="h-4 w-4" /> {t('wizard.back')}
               </button>
               {index < STEPS.length - 1 && (
-                <button type="button" className="nc-btn nc-btn-accent" onClick={() => setStep(STEPS[index + 1])} disabled={!canNext}>
+                <button type="button" className="nc-btn nc-btn-accent" onClick={() => void next()} disabled={!canNext || checking}>
                   {t('wizard.next')} <ArrowRight className="h-4 w-4" />
                 </button>
               )}
@@ -651,7 +678,7 @@ function LogoUpload({ ensure, logo, onChange }: { ensure: () => Promise<number>;
             setBusy(true)
             setProblem(null)
             ensure()
-              .then((space) => mediaApi.upload(space, file, file.name))
+              .then((space) => mediaApi.upload(space, file, file.name, undefined, 'picture'))
               .then((m) => (['svg', 'png', 'jpeg', 'webp', 'gif', 'avif'].includes(m.kind) ? onChange(m) : setProblem('not_a_picture')))
               .catch((error) => setProblem(error instanceof ApiError ? error.code : 'internal_error'))
               .finally(() => setBusy(false))

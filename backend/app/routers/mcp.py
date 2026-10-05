@@ -25,7 +25,7 @@ from fastapi.responses import JSONResponse, Response
 
 from .. import __version__
 from ..db import SessionLocal
-from ..services import apitokens, brandapi, brandset, checks, logs, settings_service
+from ..services import apitokens, brandapi, brandset, logs, settings_service
 from ..services.apitokens import Caller
 
 logger = logging.getLogger("nexbrand.mcp")
@@ -72,14 +72,16 @@ TOOLS: list[dict[str, Any]] = [
      "inputSchema": {"type": "object", "properties": {"client": _CLIENT}, "required": ["client"],
                      "additionalProperties": False}},
     {"name": "compare_versions", "level": "read",
-     "description": "What changed between two versions: colours changed (with their distance), added, removed; fonts.",
+     "description": "What changed between two versions: colours changed (with their distance), added, removed; fonts; "
+                    "and in changes every part (colours, fonts, logos, type scale, rules, examples, dark mode), "
+                    "each field with its value before and after.",
      "inputSchema": {"type": "object", "properties": {"client": _CLIENT, "from": _VERSION, "to": _VERSION},
                      "required": ["client", "from", "to"], "additionalProperties": False}},
     {"name": "check_contrast", "level": "read",
      "description": "Contrast of a text colour on a ground (WCAG 2.2), for colour vision deficiencies too, and the "
                     "nearest colour of the same hue that passes when it does not.",
      "inputSchema": {"type": "object", "properties": {
-         "foreground": {"type": "string", "maxLength": 9}, "background": {"type": "string", "maxLength": 9}},
+         "foreground": {"type": "string", "maxLength": 80}, "background": {"type": "string", "maxLength": 80}},
          "required": ["foreground", "background"], "additionalProperties": False}},
     {"name": "audit", "level": "read",
      "description": "Colour values found in code or on a page, against the client's design set: the same, nearly the "
@@ -167,8 +169,7 @@ def _run(caller: Caller, name: str, args: dict[str, Any], base: str) -> Any:
         if name == "compare_versions":
             return brandapi.compare(db, caller, args["client"], args["from"], args["to"])
         if name == "check_contrast":
-            return checks.pair(brandset.color_value(args["foreground"], "foreground"),
-                               brandset.color_value(args["background"], "background"))
+            return brandapi.contrast(args["foreground"], args["background"])
         if name == "audit":
             return brandapi.audit(db, caller, args["client"], [str(c) for c in args.get("colors") or []],
                                   project=args.get("project"), css=args.get("css"))

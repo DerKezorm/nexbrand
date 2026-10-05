@@ -590,7 +590,13 @@
     "client_unknown": "Einen gewählten Kunden gibt es in nexsuite nicht (mehr). Die Liste ist neu geladen, sieh die Auswahl noch einmal an.",
     "team_unknown": "Ein gewähltes Team gibt es in nexsuite nicht (mehr). Die Liste ist neu geladen, sieh die Auswahl noch einmal an.",
     "suite_no_account": "nexbrand kennt dich noch nicht. Versuch es in ein paar Sekunden noch einmal; klappt es dann nicht, frag den Betreiber von nexsuite.",
-    "invite_suite": "Diese Einladung gilt nicht mehr: nexbrand ist jetzt mit nexsuite verbunden, und du meldest dich über nexsuite an."
+    "invite_suite": "Diese Einladung gilt nicht mehr: nexbrand ist jetzt mit nexsuite verbunden, und du meldest dich über nexsuite an.",
+    "not_a_font": "Das ist keine Schriftdatei (WOFF2, WOFF, OTF oder TTF).",
+    "choose_clients": "Wähle die Kunden, die das Token sehen darf, oder ausdrücklich alle.",
+    "client_name_taken": "Einen Kunden mit diesem Namen gibt es schon. Wähle einen anderen Namen.",
+    "client_name_in_bin": "Ein Kunde mit diesem Namen liegt im Papierkorb. Hol ihn zurück oder wähle einen anderen Namen.",
+    "project_name_taken": "Dieser Kunde hat schon ein Projekt mit diesem Namen. Wähle einen anderen Namen.",
+    "team_name_taken": "Ein Team mit diesem Namen gibt es schon. Wähle einen anderen Namen."
   },
   "auth": {
     "name": "Name",
@@ -856,7 +862,8 @@
       "readHint": "Kunden, Fassungen, die CI als Code, die Prüfung. Für Build-Skripte und KI-Werkzeuge, die in der CI bauen.",
       "draft": "Lesen und Entwürfe anlegen",
       "draftHint": "Zusätzlich Fassungen als Entwurf vorschlagen, etwa ein Redesign aus dem Code. Veröffentlichen bleibt bei Menschen in nexbrand."
-    }
+    },
+    "chooseOne": "Wähle mindestens einen Kunden, oder oben alle."
   },
   "teams": {
     "text": "Wer zusammenarbeitet. Ein Team bekommt Zugriff auf Kunden: Gibt ein Kunde einem Team ein Recht, hat es jedes Mitglied.",
@@ -890,7 +897,7 @@
     "backupsRestore": "Zurückspielen geht erst nach dem Trennen von nexsuite.",
     "managedAccounts": "Konten kommen aus nexsuite. Neue Personen, Sperren und Rollen dort.",
     "managedSignIn": "Angemeldet wird über nexsuite. Ob nexsuite selbst prüft oder authentik fragt, stellst du dort ein. Dein eigenes Passwort bleibt als Notzugang.",
-    "managedMail": "Der Mailserver kommt aus nexsuite. Ist dort keiner eingerichtet, verschickt nexbrand keine Mails. Deine eigene Einstellung ist aufbewahrt, falls du trennst.",
+    "managedMail": "Der Mailserver kommt aus nexsuite und wird dort geändert. Deine eigene Einstellung ist aufbewahrt, falls du trennst.",
     "managedTeams": "Teams kommen aus nexsuite und gelten in jeder verbundenen App.",
     "managedProfile": "Profilbild, Name und Adresse kommen aus nexsuite und gelten in jeder verbundenen App. Ändern lassen sie sich dort.",
     "mailTitle": "E-Mail",
@@ -1020,7 +1027,7 @@
     "timeline": "Fassungen",
     "asOf": "Stand am",
     "threeYears": "vor 3 Jahren",
-    "noneThen": "Damals gab es noch keine veröffentlichte Fassung.",
+    "noneThen": "Am {{date}} gab es noch keine veröffentlichte Fassung. Die erste gilt ab {{first}}.",
     "newVersion": "Neue Fassung",
     "current": "aktuell",
     "draft": "Entwurf",
@@ -1096,7 +1103,11 @@
     "deleteDraftOpen_one": "Er liegt dem Kunden gerade vor; mit dem Löschen schließt seine Abstimmung, und der Kommentar darauf geht verloren.",
     "deleteDraftOpen_other": "Er liegt dem Kunden gerade vor; mit dem Löschen schließt seine Abstimmung, und die {{count}} Kommentare darauf gehen verloren.",
     "deleteDraftComments_one": "Der Kommentar aus seiner Abstimmung geht mit verloren.",
-    "deleteDraftComments_other": "Die {{count}} Kommentare aus seiner Abstimmung gehen mit verloren."
+    "deleteDraftComments_other": "Die {{count}} Kommentare aus seiner Abstimmung gehen mit verloren.",
+    "upcoming": "kommt",
+    "upcomingText": "Du siehst die Fassung {{label}}. Sie gilt ab {{from}}, bis dahin gilt {{current}}.",
+    "upcomingNone": "Du siehst die Fassung {{label}}. Sie gilt ab {{from}}, bis dahin gilt noch keine.",
+    "threeYearsTitle": "Die Fassung, die am {{date}} galt"
   },
   "projects": {
     "text": "Ein Projekt ist eine App, ein Produkt oder eine Kampagne von {{client}} mit eigener CI. Jeder Teil kommt von {{client}}, von {{client}} plus Eigenem, oder ist ganz eigen.",
@@ -1107,7 +1118,7 @@
     "nameHint": "etwa Webseite Relaunch",
     "version": "Baut auf",
     "make": "Anlegen",
-    "missing": "Dieses Projekt gibt es nicht mehr.",
+    "missing": "Dieses Projekt gibt es nicht, oder es wurde gelöscht.",
     "rename": "Umbenennen",
     "note": "Notiz",
     "onDraftText": "Das ist ein Entwurf von {{label}}: Änderungen daran sieht das Projekt sofort.",
@@ -1126,7 +1137,8 @@
     "allFromClient": "alles wie {{client}}",
     "ownParts": "Eigen: {{parts}}",
     "allInherited": "Alles wie {{client}}",
-    "draftOnly": "Noch gibt es keine veröffentlichte Fassung von {{project}}; Export und API zeigen solange diesen Entwurf."
+    "draftOnly": "Noch gibt es keine veröffentlichte Fassung von {{project}}; Export und API zeigen solange diesen Entwurf.",
+    "toClient": "Zu den Projekten von {{client}}"
   },
   "set": {
     "tabsLabel": "Teile der CI",
@@ -1341,17 +1353,50 @@
     "clash": "{{pairs}}: kaum zu unterscheiden. Nicht allein über die Farbe unterscheiden."
   },
   "diff": {
-    "nothing": "Keine Unterschiede bei Farben, Schriften und Logos.",
+    "nothing": "Die beiden Fassungen sind gleich.",
     "changed": "geändert",
     "added": "neu",
     "removed": "entfällt",
-    "fontAdded": "Schrift neu",
-    "fontRemoved": "Schrift entfällt",
-    "logos": "Logos geändert",
     "checks": "Prüfung",
     "fixed": "behoben",
     "from": "Von",
-    "to": "Nach"
+    "to": "Nach",
+    "empty": "leer",
+    "file": "eine Datei",
+    "files_one": "{{count}} Datei",
+    "files_other": "{{count}} Dateien",
+    "yes": "ja",
+    "no": "nein",
+    "becomes": "wird zu",
+    "field": {
+      "hex": "Farbwert",
+      "role": "Aufgabe",
+      "pantone": "Pantone",
+      "cmyk": "CMYK",
+      "note": "Notiz",
+      "weights": "Schnitte",
+      "italic": "kursiv",
+      "license": "Lizenz",
+      "license_note": "Lizenzvermerk",
+      "source": "Quelle",
+      "catalog": "Katalog",
+      "files": "Dateien",
+      "fallback": "Ersatzschrift",
+      "name": "Name",
+      "media": "Datei",
+      "wordmark": "Wortmarke",
+      "fg": "Zeichen",
+      "accent": "Akzent",
+      "ground": "Grund",
+      "compact": "kompakt",
+      "min_width": "Mindestbreite",
+      "clear_space": "Schutzzone",
+      "use": "Verwendung",
+      "size": "Größe",
+      "weight": "Gewicht",
+      "font": "Schrift",
+      "line_height": "Zeilenhöhe"
+    }
   },
   "export": {
     "title": "{{name}} als Code",
@@ -1551,7 +1596,10 @@
     "uploadSamples": "Beispiele hochladen",
     "tabScale": "Größen",
     "fontByName": "Nur mit Namen",
-    "newFont": "Neue Schrift"
+    "newFont": "Neue Schrift",
+    "unread_one": "Die Farbe {{names}} hat keinen lesbaren Wert. Die Prüfung lässt sie aus.",
+    "unread_other": "Die Farben {{names}} haben keinen lesbaren Wert. Die Prüfung lässt sie aus.",
+    "quoted": "„{{name}}“"
   },
   "gen": {
     "primary": "Hauptfarbe",
@@ -1717,7 +1765,8 @@
     "better": "Nächste Schriftfarbe mit 4,5:1 auf diesem Grund: {{hex}} ({{ratio}}), gleicher Farbton {{hue}}°.",
     "take": "Übernehmen",
     "vision": "Bei Farbfehlsichtigkeit",
-    "sample": "Klare Worte"
+    "sample": "Klare Worte",
+    "unread": "„{{value}}“ ist keine Farbe, die nexbrand liest. Schreib sie als #RRGGBB, #RGB, rgb() oder hsl()."
   },
   "review": {
     "from": "{{sender}} bittet um Ihre Meinung",
@@ -2024,5 +2073,22 @@
     "badges": "Kennzeichen",
     "draft": "Entwurf",
     "code": "Die Werte stehen unter „Als Code“: CSS, Tailwind, SCSS und JSON, mit dem Dunkelmodus."
+  },
+  "where": {
+    "part": {
+      "colors": "Farbe",
+      "fonts": "Schrift",
+      "logos": "Logo",
+      "scale": "Größe",
+      "rules": "Regel",
+      "samples": "Beispiel",
+      "dark": "Dunkelmodus",
+      "inherit": "Herkunft der Teile"
+    },
+    "named": "{{what}} „{{name}}“",
+    "numbered": "{{what}} {{n}}",
+    "field": "Nicht gespeichert: {{place}}, Feld „{{field}}“ stimmt nicht.",
+    "at": "Nicht gespeichert: {{place}} stimmt nicht.",
+    "twice": "Nicht gespeichert: Zwei Farben heißen „{{name}}“. Gib einer einen anderen Namen."
   }
 }

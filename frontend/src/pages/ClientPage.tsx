@@ -22,9 +22,20 @@ import { textOn } from '../lib/color'
 import { CLIENT_COLORS } from '../lib/palette'
 import { emptySet, type BrandSet } from '../lib/brand'
 import { INHERIT_PARTS, modesOf, type Modes } from '../lib/inherit'
+import { placeOf, type Place } from '../lib/where'
 import { UiElements } from '../components/brand/UiElements'
 import { Button, Confirm, Feedback, Input, Select, useAction } from './settings/ui'
 import { useBrands } from '../state/brands'
+
+/** A value the server refused, with the item and field it is in (F11). */
+function placeText(t: TFunction, place: Place): string {
+  const what = t(`where.part.${place.part}`, { defaultValue: place.part })
+  const name = place.name ? t('where.named', { what, name: place.name }) : place.index !== null ? t('where.numbered', { what, n: place.index + 1 }) : what
+  if (place.twice) return t('where.twice', { name: place.name })
+  if (!place.field) return t('where.at', { place: name })
+  const field = place.part === 'dark' ? t(`dark.part.${place.field}`, { defaultValue: place.field }) : t(`diff.field.${place.field}`, { defaultValue: place.field })
+  return t('where.field', { place: name, field })
+}
 
 const ORIGIN_TONE = { hand: 'border-ink-700 text-mist-500', collect: 'border-gelb-500/50 text-gelb-text', mcp: 'border-magenta-500/50 text-magenta-text', review: 'border-ok-500/40 text-ok-500' }
 
@@ -38,17 +49,28 @@ export function ClientPage() {
   const [project, setProject] = useState<ProjectWhole | null>(null)
   const [modes, setModes] = useState<Modes | null>(null)
   const [missing, setMissing] = useState(false)
+  const [projectMissing, setProjectMissing] = useState(false)
+  const [noneThen, setNoneThen] = useState<string | null>(null)
   const [files, setFiles] = useState<FileMap>({})
   const [draft, setDraft] = useState<BrandSet | null>(null)
   const [dirty, setDirty] = useState(false)
   const [dialog, setDialog] = useState<'edit' | 'version' | 'publish' | 'export' | 'review' | 'trash' | 'deleteDraft' | 'lift' | null>(null)
   const save = useAction()
+  const [refused, setRefused] = useState<Place | null>(null)
 
   const load = useCallback(async () => {
     try {
-      const [client, known, made] = await Promise.all([clientsApi.read(id), clientsApi.files(id), pid ? clientsApi.project(id, pid) : Promise.resolve(null)])
+      // A project that is not there (deleted, a link typed wrong) is said as such, under its client (F21).
+      const asked = pid
+        ? clientsApi.project(id, pid).catch((error: unknown) => {
+            if (error instanceof ApiError && (error.status === 404 || error.status === 422)) return 'missing' as const
+            throw error
+          })
+        : Promise.resolve(null)
+      const [client, known, made] = await Promise.all([clientsApi.read(id), clientsApi.files(id), asked])
       setWhole(client)
-      setProject(made)
+      setProjectMissing(made === 'missing')
+      setProject(made === 'missing' ? null : made)
       setFiles((before) => ({ ...before, ...known }))
       return client
     } catch (error) {
@@ -61,6 +83,7 @@ export function ClientPage() {
     setWhole(null)
     setProject(null)
     setMissing(false)
+    setProjectMissing(false)
     setDraft(null)
     setDirty(false)
     void load()
@@ -70,7 +93,9 @@ export function ClientPage() {
   // A project's versions are shown as they look (resolved); edited as what is their own.
   const versions: VersionInfo[] = useMemo(() => (pid ? (project?.versions ?? []).map((v) => ({ ...v, data: v.resolved })) : (whole?.versions ?? [])), [pid, project, whole])
   const published = versions.filter((v) => v.status === 'published')
-  const current = published[published.length - 1]
+  // The one that holds today, as the server says: a version published to hold from a later day is not it yet (F2).
+  const currentId = pid ? project?.current_id : whole?.current_id
+  const current = published.find((v) => v.id === currentId)
   const chosenId = params.get('v')
   const shown = versions.find((v) => v.id === chosenId) ?? current ?? versions[0]
   const editing = shown?.status === 'draft' && params.get('edit') === '1' && (whole?.role === 'write' || whole?.role === 'manage')
@@ -111,9 +136,16 @@ export function ClientPage() {
 
   const saveDraft = async () => {
     if (!whole || !shown || !draft) return
+    setRefused(null)
     const ok = await save.run(async () => {
       const kept = modes ? Object.fromEntries(INHERIT_PARTS.filter((part) => modes[part] !== 'inherit').map((part) => [part, modes[part]])) : null
-      await clientsApi.saveDraft(whole.id, shown.id, { data: kept ? { ...draft, inherit: kept } : draft })
+      try {
+        await clientsApi.saveDraft(whole.id, shown.id, { data: kept ? { ...draft, inherit: kept } : draft })
+      } catch (error) {
+        // Which colour, which field: the server says where (F11).
+        if (error instanceof ApiError && error.code === 'invalid_set' && typeof error.values.where === 'string') setRefused(placeOf(error.values.where, draft))
+        throw error
+      }
       setDirty(false)
       await load()
     }, t('client.saved'))
@@ -142,6 +174,15 @@ export function ClientPage() {
         </Link>
       </main>
     )
+  if (whole && projectMissing)
+    return (
+      <main className="mx-auto max-w-xl px-4 py-16 text-center" data-testid="project-missing">
+        <p className="text-mist-300">{t('projects.missing')}</p>
+        <Link to={`/c/${whole.id}?tab=projects`} className="nc-btn nc-btn-ghost mt-4">
+          {t('projects.toClient', { client: whole.name })}
+        </Link>
+      </main>
+    )
   if (!whole || (pid && !project)) return <main className="flex-1" aria-busy="true" />
   if (!shown && !project) return <NoDesignYet whole={whole} reload={load} onMade={(v) => choose(v.id, { edit: '1' })} />
   if (!shown) return <main className="flex-1" aria-busy="true" />
@@ -150,8 +191,9 @@ export function ClientPage() {
   const openReview = whole.reviews.find((r) => r.version_id === shown.id && r.status === 'open')
   const next = published.find((v) => v.valid_from > shown.valid_from)
   const face = project ? project.face : whole.face
-  const clientPublished = whole.versions.filter((v) => v.status === 'published')
-  const clientCurrent = clientPublished[clientPublished.length - 1]
+  const clientCurrent = whole.versions.find((v) => v.id === whole.current_id)
+  // Published to hold from a later day than the one that holds now.
+  const upcoming = (v: VersionInfo) => v.status === 'published' && (!current || published.indexOf(v) > published.indexOf(current))
   const mine = new Set(versions.map((v) => v.id))
 
   return (
@@ -219,14 +261,21 @@ export function ClientPage() {
               <History className="h-4 w-4 text-accent-400" /> {t('client.timeline')}
             </h2>
             <div className="flex flex-wrap items-center gap-2 text-xs text-mist-500">
-              <CalendarClock className="h-3.5 w-3.5" />
-              <label className="flex items-center gap-2">
-                {t('client.asOf')}
-                <input type="date" className="h-8 rounded-lg border border-ink-700 bg-ink-850 px-2 text-xs text-mist-100" onChange={(e) => e.target.value && !asOf(e.target.value) && window.alert(t('client.noneThen'))} />
-              </label>
-              <button type="button" className="rounded-full border border-ink-700 px-2.5 py-1 text-mist-300 hover:text-mist-100" onClick={() => !asOf(threeYears) && window.alert(t('client.noneThen'))}>
-                {t('client.threeYears')}
-              </button>
+              {/* Looking back only where there is something to see, said in the page, not in a browser alert (F29). */}
+              {published.length > 0 && (
+                <>
+                  <CalendarClock className="h-3.5 w-3.5" />
+                  <label className="flex items-center gap-2">
+                    {t('client.asOf')}
+                    <input type="date" className="h-8 rounded-lg border border-ink-700 bg-ink-850 px-2 text-xs text-mist-100" onChange={(e) => setNoneThen(e.target.value && !asOf(e.target.value) ? e.target.value : null)} />
+                  </label>
+                  {published.some((v) => v.valid_from <= threeYears) && (
+                    <button type="button" className="rounded-full border border-ink-700 px-2.5 py-1 text-mist-300 hover:text-mist-100" title={t('client.threeYearsTitle', { date: new Date(threeYears).toLocaleDateString(i18n.language) })} onClick={() => (asOf(threeYears), setNoneThen(null))}>
+                      {t('client.threeYears')}
+                    </button>
+                  )}
+                </>
+              )}
               {canWrite && (
                 <button type="button" className="rounded-full border border-accent-500/50 px-2.5 py-1 text-accent-400 hover:bg-accent-500/10" onClick={() => setDialog('version')}>
                   <Plus className="mr-1 inline h-3 w-3" />
@@ -235,6 +284,11 @@ export function ClientPage() {
               )}
             </div>
           </div>
+          {noneThen && (
+            <p role="status" className="mt-2 text-xs text-mist-400" data-testid="none-then">
+              {t('client.noneThen', { date: new Date(noneThen).toLocaleDateString(i18n.language), first: new Date(published[0].valid_from).toLocaleDateString(i18n.language) })}
+            </p>
+          )}
           <ol className="mt-4 flex items-stretch overflow-x-auto pb-1">
             {versions.map((v, i) => {
               const on = v.id === shown.id
@@ -246,6 +300,7 @@ export function ClientPage() {
                     <div className="flex items-center gap-1.5">
                       <span className="truncate font-semibold">{v.label}</span>
                       {v === current && <span className="rounded-full border border-accent-500/40 px-1.5 text-[10px] text-accent-400">{t('client.current')}</span>}
+                      {upcoming(v) && <span className="rounded-full border border-gelb-500/50 px-1.5 text-[10px] text-gelb-text">{t('client.upcoming')}</span>}
                       {isDraft && <span className="rounded-full border border-magenta-500/50 px-1.5 text-[10px] text-magenta-text">{t('client.draft')}</span>}
                     </div>
                     <div className="mt-1 flex gap-0.5">
@@ -330,8 +385,8 @@ export function ClientPage() {
             </div>
           </div>
         ) : shown !== current ? (
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-gelb-500/40 bg-gelb-500/8 px-4 py-3 text-sm text-mist-200">
-            <span className="flex-1">{next ? t('client.olderUntil', { label: shown.label, from: new Date(shown.valid_from).toLocaleDateString(i18n.language), until: new Date(next.valid_from).toLocaleDateString(i18n.language), current: current?.label }) : t('client.older', { label: shown.label })}</span>
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-gelb-500/40 bg-gelb-500/8 px-4 py-3 text-sm text-mist-200" data-testid="other-version">
+            <span className="flex-1">{upcoming(shown) ? (current ? t('client.upcomingText', { label: shown.label, from: new Date(shown.valid_from).toLocaleDateString(i18n.language), current: current.label }) : t('client.upcomingNone', { label: shown.label, from: new Date(shown.valid_from).toLocaleDateString(i18n.language) })) : next ? t('client.olderUntil', { label: shown.label, from: new Date(shown.valid_from).toLocaleDateString(i18n.language), until: new Date(next.valid_from).toLocaleDateString(i18n.language), current: current?.label }) : t('client.older', { label: shown.label })}</span>
             {current && (
               <button type="button" className="nc-btn nc-btn-ghost" onClick={() => choose(current.id)}>
                 {t('client.toCurrent')} <ArrowRight className="h-4 w-4" />
@@ -374,7 +429,13 @@ export function ClientPage() {
             />
             <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-ink-700 bg-ink-900/95 px-4 py-3 shadow-lg backdrop-blur">
               <span className="mr-auto text-sm text-mist-400">{dirty ? t('client.unsaved') : t('client.allSaved')}</span>
-              <Feedback problem={save.problem} />
+              {save.problem === 'invalid_set' && refused ? (
+                <p role="alert" className="text-sm text-bad-500" data-testid="save-refused">
+                  {placeText(t, refused)}
+                </p>
+              ) : (
+                <Feedback problem={save.problem} />
+              )}
               <button type="button" className="nc-btn nc-btn-ghost" onClick={() => (!dirty || window.confirm(t('client.leaveText'))) && (setDirty(false), choose(shown.id))}>
                 {t('client.doneEditing')}
               </button>
@@ -745,7 +806,8 @@ function NewProject({ whole, onClose, onMade }: { whole: ClientWhole; onClose: (
   const { t } = useTranslation()
   const published = whole.versions.filter((v) => v.status === 'published')
   const [name, setName] = useState('')
-  const [version, setVersion] = useState((published[published.length - 1] ?? whole.versions[0]).id)
+  // The version that holds today first; one that holds only from a later day is chosen on purpose (F2).
+  const [version, setVersion] = useState((whole.versions.find((v) => v.id === whole.current_id) ?? published[published.length - 1] ?? whole.versions[0]).id)
   const { busy, problem, run } = useAction()
   return (
     <Dialog title={t('projects.new')} onClose={onClose} medium>

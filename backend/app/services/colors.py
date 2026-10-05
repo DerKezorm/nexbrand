@@ -7,6 +7,7 @@ against ``tests/data/color_cases.json``, so the interface and the server never d
 from __future__ import annotations
 
 import math
+import re
 
 Rgb = tuple[float, float, float]
 
@@ -42,6 +43,71 @@ def luminance(value: str) -> float:
 def contrast(a: str, b: str) -> float:
     high, low = sorted((luminance(a), luminance(b)), reverse=True)
     return (high + 0.05) / (low + 0.05)
+
+
+def shown_ratio(ratio: float) -> float:
+    """A contrast ratio as it is shown: cut, never rounded up, to two places (one from 10:1). 4.4992 is shown as
+    4.49, not as 4.50 beside "fails" (F17): a ratio shown at or above a threshold has reached it."""
+    places = 10 if ratio >= 10 else 100
+    return math.floor(ratio * places + 1e-9) / places
+
+
+_NUMBER = r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)"
+_HEX_TEXT = re.compile(r"#?([0-9a-f]{3}|[0-9a-f]{6})|#([0-9a-f]{4}|[0-9a-f]{8})")
+_FUNCTION = re.compile(r"(rgba?|hsla?)\(\s*([^()]*?)\s*\)")
+_PART = re.compile(rf"({_NUMBER})(%|deg)?")
+
+
+def _parts(text: str) -> list[tuple[float, str]] | None:
+    """The values inside ``rgb(…)`` or ``hsl(…)``: three, by commas or spaces, an alpha after ``/`` or a fourth comma
+    left out."""
+    body, _, _alpha = text.partition("/")
+    items = [item for item in re.split(r"\s*,\s*|\s+", body.strip()) if item]
+    if len(items) == 4 and "," in body:
+        items = items[:3]
+    if len(items) != 3:
+        return None
+    out = []
+    for item in items:
+        match = _PART.fullmatch(item)
+        if match is None:
+            return None
+        out.append((float(match.group(1)), match.group(2) or ""))
+    return out
+
+
+def parse(value: object) -> str | None:
+    """A colour as people and style sheets write it, as ``#RRGGBB``: ``#RGB``, ``#RRGGBB`` (and with alpha, which is
+    left out), the same without ``#``, ``rgb()``/``rgba()`` and ``hsl()``/``hsla()`` with commas or spaces. ``None``:
+    not a colour read here (a name such as ``red`` neither). The same as ``parseColor`` in ``lib/color.ts``."""
+    if not isinstance(value, str):
+        return None
+    text = value.strip().lower()
+    if len(text) > 80:
+        return None
+    hexed = _HEX_TEXT.fullmatch(text)
+    if hexed:
+        digits = hexed.group(1) or hexed.group(2)
+        if len(digits) in (3, 4):
+            digits = "".join(char * 2 for char in digits[:3])
+        return "#" + digits[:6].upper()
+    function = _FUNCTION.fullmatch(text)
+    if function is None:
+        return None
+    parts = _parts(function.group(2))
+    if parts is None:
+        return None
+    if function.group(1).startswith("rgb"):
+        if any(unit == "deg" for _, unit in parts):
+            return None
+        channels = [number * 2.55 if unit == "%" else number for number, unit in parts]
+        if any(channel < 0 or channel > 255 for channel in channels):
+            return None
+        return to_hex((channels[0], channels[1], channels[2]))
+    (hue, hue_unit), (saturation, s_unit), (light, l_unit) = parts
+    if hue_unit == "%" or s_unit == "deg" or l_unit == "deg" or not (0 <= saturation <= 100 and 0 <= light <= 100):
+        return None
+    return from_hsl(hue % 360, saturation, light)
 
 
 def grade(ratio: float, large: bool = False) -> str:

@@ -58,7 +58,7 @@ from ..models import (
     utcnow,
 )
 from ..security import decrypt_secret, encrypt_secret, end_all_sessions
-from . import logs, settings_service
+from . import logs, names, settings_service
 
 logger = logging.getLogger("nexbrand.suite")
 
@@ -218,8 +218,8 @@ def _take_picture(db: Session, row: Account, pid: str, stamp: Any, token: str) -
         row.avatar = avatars.make(picture(_api(db, f"/avatars/{pid}"), token))
         row.avatar_at = wanted
     except (SuiteError, avatars.AvatarError) as exc:
-        logger.info("Profile picture of %s not taken (%s); tried again with the next sync", row.name,
-                    getattr(exc, "code", type(exc).__name__))
+        logger.info("Profile picture not taken (%s); tried again with the next sync name=%s",
+                    getattr(exc, "code", type(exc).__name__), row.name)
 
 
 def _api(db: Session, path: str) -> str:
@@ -451,7 +451,7 @@ def _finish(db: Session, operator: Account, accounts_map: dict[int, str], client
             try:
                 request("POST", _api(db, f"/people/{int(choice)}/email"), token=token, body={"email": row.email})
             except SuiteError:
-                logger.info("nexsuite did not take the address of %s", row.name)
+                logger.info("nexsuite did not take the address name=%s", row.name)
         person_of[row.id] = str(choice)
     if operator.id not in person_of:
         raise SuiteError("operator_unmatched", "Your own account needs a person in nexsuite.", 422)
@@ -505,6 +505,10 @@ def _finish(db: Session, operator: Account, accounts_map: dict[int, str], client
         person = person_of.get(account_id)
         if person is not None:
             row.oidc_subject = person
+        elif row.oidc_subject:
+            # Its own link is set aside until disconnecting: a foreign subject that looks like a person's id of
+            # nexsuite ("2") would otherwise sign that person in as this account, or hand it the person's rights.
+            row.own_subject, row.oidc_subject = row.oidc_subject, ""
         row.suite_person = person or ""
     for account_id, choice in accounts_map.items():
         if choice == "skip" and account_id in accounts_here and account_id != operator.id:
@@ -574,8 +578,9 @@ def _claim_name(db: Session, person: dict[str, Any], present: set[str], keeper: 
         incoming = str(person.get("display_name") or "") or base
         _rename_references(db, holder, old, holder.name, shown if shown and shown == incoming else "")
         renamed.append((old, holder.name))
-        logger.info("Name %s given to a new person from nexsuite; the account of the deleted one is now %s", old,
-                    holder.name)
+        # from= and to= are no names of people to the log (logs.rename_actor): this line keeps the move as it was.
+        logger.info("Name given to a new person from nexsuite; the account of the deleted one moved from=%s to=%s",
+                    old, holder.name)
     return _free_name(db, base)
 
 
@@ -707,9 +712,17 @@ def _moment(text: Any) -> datetime:
     return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
 
 
+def claimants(db: Session, subject: str | None = None) -> list[Account]:
+    """While connected, the accounts whose ``oidc_subject`` is a person of nexsuite: those nexsuite knows
+    (``suite_person``), and, connected before that was kept, those not blocked. A blocked account nexsuite never knew
+    (left out when connecting) never stands for a person, even with a subject that looks like one's id."""
+    query = select(Account).where(Account.oidc_subject != "" if subject is None else Account.oidc_subject == subject)
+    return [row for row in db.scalars(query.order_by(Account.id)) if row.suite_person or row.blocked_at is None]
+
+
 def _apply(db: Session, seen: dict[str, Any], token: str) -> None:
     keeper = int(settings_service.get(db, "suite_emergency_account") or 0)
-    by_subject = {row.oidc_subject: row for row in db.scalars(select(Account).where(Account.oidc_subject != ""))}
+    by_subject = {row.oidc_subject: row for row in claimants(db)}
     present = {str(person["id"]) for person in seen.get("people", [])}
     account_of: dict[str, int] = {}
     signed_out: list[int] = []
@@ -736,7 +749,7 @@ def _apply(db: Session, seen: dict[str, Any], token: str) -> None:
             ended = db.execute(delete(AuthSession).where(AuthSession.account_id == row.id,
                                                          AuthSession.created_at < _moment(person["signed_out"])))
             if ended.rowcount:
-                logger.info("Sessions of %s ended as in nexsuite: %s", row.name, ended.rowcount)
+                logger.info("Sessions ended as in nexsuite name=%s count=%s", row.name, ended.rowcount)
             moment = str(person["signed_out"])[:64]
             if moment != row.suite_signed_out:
                 # And the browsers known before: their device cookies no longer count, as after "sign out
@@ -769,7 +782,9 @@ def _apply(db: Session, seen: dict[str, Any], token: str) -> None:
             team = Team(name=str(item["name"])[:80], source=TEAM_ADMIN, external_id=tid)
             db.add(team)
             db.flush()
-        team.name = str(item["name"])[:80]
+        # A name another team here has gets a number here; nexsuite's own stays as it is (F15).
+        team.name = names.unique(db, "team", str(item["name"])[:80] or "?",
+                                 db.scalars(select(Team.name).where(Team.id != team.id)), 80, tid)
         team.color = str(item.get("color") or team.color)[:16]
         wanted = {account_of[m] for m in item.get("members", []) if m in account_of}
         current = set(db.scalars(select(TeamMember.account_id).where(TeamMember.team_id == team.id)))
@@ -832,7 +847,9 @@ def _apply_clients(db: Session, seen: dict[str, Any], account_of: dict[str, int]
             db.flush()
             client_of[space.id] = client
             logger.info("Client brought by nexsuite id=%s", client.id)
-        client.name = str(item["name"])[:120] or client.name
+        # A name another client here has (one of its own, one in the bin) gets a number here (F15).
+        client.name = names.unique(db, "client", str(item["name"])[:120] or client.name,
+                                   db.scalars(select(Client.name).where(Client.id != client.id)), 120, client.id)
         client.sector = str(item.get("sector") or "")[:120]
         client.contact = str(item.get("contact") or "")[:255]
         space.name = client.name[:80]
@@ -963,7 +980,7 @@ def _disconnect(db: Session, *, tell: bool) -> tuple[list[str], list[str]]:
     if keeper is not None and keeper.blocked_at is not None:
         # Blocked because nexsuite blocked or deleted the person: with nexsuite gone, it is the way in again (D8).
         keeper.blocked_at = None
-        logger.warning("Emergency account %s let in again on disconnecting", keeper.name)
+        logger.warning("Emergency account let in again on disconnecting name=%s", keeper.name)
         db.flush()
     without = []
     for row in db.scalars(select(Account).where(Account.oidc_subject != "")):
@@ -978,6 +995,11 @@ def _disconnect(db: Session, *, tell: bool) -> tuple[list[str], list[str]]:
             row.sign_in = SIGN_IN_PASSWORD
         if not row.password_hash and row.blocked_at is None:
             without.append(row.name)
+    for row in db.scalars(select(Account).where(Account.own_subject != "")):
+        # Left out when connecting: its own link (authentik) is its way in again.
+        if not row.oidc_subject:
+            row.oidc_subject = row.own_subject
+        row.own_subject = ""
     blocked = [row.name for row in
                db.scalars(select(Account).where(Account.blocked_at.is_not(None)).order_by(Account.name))]
     settings_service.save(db, {"suite_former_url": str(settings_service.get(db, "suite_url") or "")})

@@ -181,11 +181,18 @@ _store_read: Callable[[], tuple[str, datetime | None]] | None = None
 _store_write: Callable[[str, datetime | None], None] | None = None
 
 
+#: The keys in a message that name a person (``by=anna``, ``name=anna``). Every line about a person names it under one
+#: of them, never as free text, so a rename finds it; ``family=``, ``label=``, ``team=`` … stay as they are.
+PERSON_KEYS = ("by", "name", "account", "person")
+
+
 def rename_actor(old: str, new: str) -> int:
     """An account moved from ``old`` to ``new`` (``services/suite.py``, B21): its lines in the log name it so too,
-    as ``u:<name>`` and as ``…=<name>`` in a message, so nothing it did reads like whoever gets the old name. Under the
-    handler's lock, so no line is written in between. Returns the lines changed."""
-    pattern = re.compile(r"(u:|=)" + re.escape(old) + r"(?![A-Za-z0-9._@-])")
+    as ``u:<name>`` and under a person's key (``PERSON_KEYS``) in a message, so nothing it did reads like whoever gets
+    the old name; a font family, a label or a team of that name stays. Under the handler's lock, so no line is written
+    in between. Returns the lines changed."""
+    keys = "|".join(re.escape(key) for key in PERSON_KEYS)
+    pattern = re.compile(r"((?<![A-Za-z0-9_])(?:" + keys + r")=|u:)" + re.escape(old) + r"(?![A-Za-z0-9._@-])")
     changed = 0
     lock = _handler.lock if _handler is not None else None
     if lock is not None:

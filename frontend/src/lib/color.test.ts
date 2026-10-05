@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { BrandSet } from './brand'
 import { check } from './checks'
-import { cmyk, contrast, deltaE, hsl, luminance, reach, scaleOf, simulate, type Vision } from './color'
+import { cmyk, contrast, deltaE, formatRatio, hsl, luminance, parseColor, reach, scaleOf, shownRatio, simulate, type Vision } from './color'
 
 // The server's files, read when the tests run (from the frontend folder). A static import would put them into the
 // app's type check, and the image build has no backend/tests: it stopped there on the first deploy (04.10.2026).
@@ -12,7 +12,9 @@ const files = (await import(/* @vite-ignore */ fsName)) as Files
 const read = (name: string): unknown => JSON.parse(files.readFileSync(`../backend/tests/data/${name}`, 'utf-8'))
 const colorCases = read('color_cases.json') as {
   colors: unknown
-  pairs: { a: string; b: string; contrast: number; delta_e: number; reach: string }[]
+  pairs: { a: string; b: string; contrast: number; shown: number; delta_e: number; reach: string }[]
+  parse: Record<string, string | null>
+  shown: Record<string, number>
 }
 const checkCases = read('check_cases.json') as { sets: unknown[]; hints: unknown[] }
 
@@ -34,7 +36,18 @@ describe('colour arithmetic, as the server does it', () => {
       expect(contrast(pair.a, pair.b)).toBeCloseTo(pair.contrast, 6)
       expect(deltaE(pair.a, pair.b)).toBeCloseTo(pair.delta_e, 5)
       expect(reach(pair.a, pair.b, 4.5)).toBe(pair.reach)
+      expect(shownRatio(contrast(pair.a, pair.b))).toBe(pair.shown)
     }
+  })
+
+  it('reads colours as the server does: hex with and without #, rgb() and hsl()', () => {
+    for (const [text, want] of Object.entries(colorCases.parse)) expect(parseColor(text), text).toBe(want)
+  })
+
+  it('shows a ratio cut, never rounded up past a threshold', () => {
+    for (const [ratio, want] of Object.entries(colorCases.shown)) expect(shownRatio(Number(ratio)), ratio).toBe(want)
+    expect(formatRatio(4.4992, 'de')).toBe('4,49:1')
+    expect(formatRatio(12.36, 'en')).toBe('12.3:1')
   })
 })
 

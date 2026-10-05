@@ -26,7 +26,7 @@ from .. import __version__
 from ..db import SessionLocal
 from ..errors import error
 from ..models import Client, Media
-from ..services import apitokens, brandapi, brands, brandset, checks, logs, media_store, rights, settings_service
+from ..services import apitokens, brandapi, brands, logs, media_store, rights, settings_service
 from ..services.apitokens import Caller
 from .media import FILE_POLICY
 
@@ -163,14 +163,14 @@ def propose(client: Key, payload: ProposeIn, found: Reader) -> dict[str, Any]:
 @router.get("/contrast", summary="Contrast of two colours, with grades and the nearest passing colour")
 def contrast(
     found: Reader,
-    fg: Annotated[str, Query(max_length=9)],
-    bg: Annotated[str, Query(max_length=9)],
+    fg: Annotated[str, Query(max_length=80)],
+    bg: Annotated[str, Query(max_length=80)],
 ) -> dict[str, Any]:
     del found
     try:
-        return checks.pair(brandset.color_value(fg, "fg"), brandset.color_value(bg, "bg"))
-    except brandset.SetError as exc:
-        raise error("invalid_input", exc.text, 422, where=exc.where) from exc
+        return brandapi.contrast(fg, bg)
+    except brandapi.ApiError as exc:
+        raise _fail(exc) from exc
 
 
 @router.get("/files/{media_id}", response_model=None, summary="A logo, a free font or an example file")

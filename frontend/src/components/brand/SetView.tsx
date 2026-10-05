@@ -4,7 +4,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { FileInfo } from '../../api/client'
-import { DARK_PARTS, schemeOf, type BrandFont, type BrandLogo, type BrandSet, type Sample, type ScaleStep, type ShownColor } from '../../lib/brand'
+import { DARK_PARTS, purposeBeside, schemeOf, type BrandFont, type BrandLogo, type BrandSet, type Sample, type ScaleStep, type ShownColor } from '../../lib/brand'
 import { check } from '../../lib/checks'
 import { cmyk, contrast, formatRatio, hsl, rgb, slug, textOn } from '../../lib/color'
 import { copyText } from '../../lib/copy'
@@ -212,7 +212,7 @@ function Fonts({ fonts, scale, fileUrl, files, publicMode }: { fonts: BrandFont[
               <div key={s.name} className="flex items-baseline gap-4 py-2.5">
                 <span className="w-36 shrink-0 text-xs text-mist-500">
                   {s.name}
-                  {s.use && <span className="ml-1 text-mist-600">({t(`set.use.${s.use}`)})</span>}
+                  {s.use && purposeBeside(s.name, t(`set.use.${s.use}`)) && <span className="ml-1 text-mist-600">({t(`set.use.${s.use}`)})</span>}
                   <br />
                   <span className="font-mono">
                     {s.size} px · {s.weight} · {s.line_height}

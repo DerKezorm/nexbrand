@@ -374,7 +374,7 @@
      "#FFFFFF",
      "#E9A23B"
     ],
-    "ratio": 2.17,
+    "ratio": 2.16,
     "better": "Kruste",
     "better_ratio": 6.3
    },
@@ -451,7 +451,7 @@
      "#FFFFFF",
      "#E9A23B"
     ],
-    "ratio": 2.17,
+    "ratio": 2.16,
     "better": "Kruste",
     "better_ratio": 6.3
    },
@@ -467,7 +467,7 @@
      "#FFFFFF",
      "#E9A23B"
     ],
-    "ratio": 2.17,
+    "ratio": 2.16,
     "need": 4.5
    },
    {
@@ -583,7 +583,7 @@
      "#F2E3C6",
      "#FFFFFF"
     ],
-    "ratio": 1.27
+    "ratio": 1.26
    },
    {
     "level": "warn",
@@ -597,7 +597,7 @@
      "#F2E3C6",
      "#E9A23B"
     ],
-    "ratio": 1.71
+    "ratio": 1.7
    },
    {
     "level": "warn",
@@ -683,7 +683,7 @@
      "#6B6B6B",
      "#14110F"
     ],
-    "ratio": 3.53
+    "ratio": 3.52
    },
    {
     "level": "warn",
@@ -696,7 +696,7 @@
      "#B8322A",
      "#14110F"
     ],
-    "ratio": 3.16
+    "ratio": 3.15
    }
   ]
  ]

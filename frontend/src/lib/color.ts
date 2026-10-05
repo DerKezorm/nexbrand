@@ -21,11 +21,10 @@ export function isHex(value: string): boolean {
   return /^#[0-9a-fA-F]{6}$/.test(value)
 }
 
-/** `#abc` and `#AABBCC` as `#AABBCC`; anything else as it was (the check refuses it). */
+/** A colour as people write it (`#abc`, `abc`, `rgb(…)`, `hsl(…)`, see `parseColor`) as `#AABBCC`; anything else as
+ * it was (the check refuses it). */
 export function normalHex(value: string): string {
-  const v = value.trim()
-  if (/^#[0-9a-fA-F]{3}$/.test(v)) return ('#' + v.slice(1).split('').map((c) => c + c).join('')).toUpperCase()
-  return isHex(v) ? v.toUpperCase() : v
+  return parseColor(value) ?? value
 }
 
 const toLinear = (v: number) => {
@@ -52,8 +51,63 @@ export function grade(ratio: number, large = false): Grade {
   return ratio >= 7 ? 'AAA' : ratio >= 4.5 ? 'AA' : ratio >= 3 ? 'AA large' : 'fail'
 }
 
+/** A contrast ratio as it is shown: cut, never rounded up, to two places (one from 10:1). 4.4992 is shown as 4.49, not
+ * as 4.50 beside "fails": a ratio shown at or above a threshold has reached it. As `shown_ratio` on the server. */
+export function shownRatio(r: number): number {
+  const places = r >= 10 ? 10 : 100
+  return Math.floor(r * places + 1e-9) / places
+}
+
 export function formatRatio(r: number, locale = 'en'): string {
-  return r.toLocaleString(locale, { minimumFractionDigits: r >= 10 ? 1 : 2, maximumFractionDigits: r >= 10 ? 1 : 2 }) + ':1'
+  const digits = r >= 10 ? 1 : 2
+  return shownRatio(r).toLocaleString(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits }) + ':1'
+}
+
+const NUMBER = /[+-]?(?:\d+(?:\.\d*)?|\.\d+)/.source
+const HEX_TEXT = /^(?:#?([0-9a-f]{3}|[0-9a-f]{6})|#([0-9a-f]{4}|[0-9a-f]{8}))$/
+const FUNCTION = /^(rgba?|hsla?)\(\s*([^()]*?)\s*\)$/
+const PART = new RegExp(`^(${NUMBER})(%|deg)?$`)
+
+function parts(text: string): [number, string][] | null {
+  const body = text.split('/')[0]
+  let items = body.trim().split(/\s*,\s*|\s+/).filter((item) => item)
+  if (items.length === 4 && body.includes(',')) items = items.slice(0, 3)
+  if (items.length !== 3) return null
+  const out: [number, string][] = []
+  for (const item of items) {
+    const match = PART.exec(item)
+    if (!match) return null
+    out.push([parseFloat(match[1]), match[2] ?? ''])
+  }
+  return out
+}
+
+/** A colour as people and style sheets write it, as `#RRGGBB`: `#RGB`, `#RRGGBB` (with alpha, which is left out), the
+ * same without `#`, `rgb()`/`rgba()` and `hsl()`/`hsla()` with commas or spaces. null: not a colour read here (a name
+ * such as `red` neither). The same as `colors.parse` on the server; `color_cases.json` holds both to it. */
+export function parseColor(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const text = value.trim().toLowerCase()
+  if (text.length > 80) return null
+  const hexed = HEX_TEXT.exec(text)
+  if (hexed) {
+    let digits = hexed[1] ?? hexed[2]
+    if (digits.length === 3 || digits.length === 4) digits = digits.slice(0, 3).split('').map((c) => c + c).join('')
+    return '#' + digits.slice(0, 6).toUpperCase()
+  }
+  const fn = FUNCTION.exec(text)
+  if (!fn) return null
+  const found = parts(fn[2])
+  if (!found) return null
+  if (fn[1].startsWith('rgb')) {
+    if (found.some(([, unit]) => unit === 'deg')) return null
+    const channels = found.map(([n, unit]) => (unit === '%' ? n * 2.55 : n))
+    if (channels.some((c) => c < 0 || c > 255)) return null
+    return toHex([channels[0], channels[1], channels[2]])
+  }
+  const [[hue, hueUnit], [saturation, sUnit], [light, lUnit]] = found
+  if (hueUnit === '%' || sUnit === 'deg' || lUnit === 'deg' || saturation < 0 || saturation > 100 || light < 0 || light > 100) return null
+  return fromHsl(((hue % 360) + 360) % 360, saturation, light)
 }
 
 /** Which of near-black and white reads better on this ground. */

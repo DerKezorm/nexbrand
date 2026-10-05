@@ -590,7 +590,13 @@
     "client_unknown": "A client you chose is not in nexsuite (any more). The list is loaded anew; look at the choices again.",
     "team_unknown": "A team you chose is not in nexsuite (any more). The list is loaded anew; look at the choices again.",
     "suite_no_account": "nexbrand does not know you yet. Try again in a few seconds; if it still does not work, ask the operator of nexsuite.",
-    "invite_suite": "This invitation is not valid any more: nexbrand is connected to nexsuite now, and you sign in through nexsuite."
+    "invite_suite": "This invitation is not valid any more: nexbrand is connected to nexsuite now, and you sign in through nexsuite.",
+    "not_a_font": "This is not a font file (WOFF2, WOFF, OTF or TTF).",
+    "choose_clients": "Choose the clients the token may see, or all of them on purpose.",
+    "client_name_taken": "There is a client of this name already. Choose another name.",
+    "client_name_in_bin": "A client of this name is in the bin. Restore it, or choose another name.",
+    "project_name_taken": "This client has a project of this name already. Choose another name.",
+    "team_name_taken": "There is a team of this name already. Choose another name."
   },
   "auth": {
     "name": "Name",
@@ -856,7 +862,8 @@
       "readHint": "Clients, versions, the CI as code, the checks. For build scripts and AI tools that build in the CI.",
       "draft": "Read and propose drafts",
       "draftHint": "Also proposes versions as drafts, e.g. a redesign from the code. Publishing stays with people in nexbrand."
-    }
+    },
+    "chooseOne": "Choose at least one client, or all of them above."
   },
   "teams": {
     "text": "Who works together. A team gets access to clients: when a client gives a team a right, every member has it.",
@@ -890,7 +897,7 @@
     "backupsRestore": "Restoring works once nexbrand is disconnected from nexsuite.",
     "managedAccounts": "Accounts come from nexsuite. New people, blocking and roles there.",
     "managedSignIn": "People sign in through nexsuite. Whether nexsuite checks itself or asks authentik is set there. Your own password stays as the emergency way in.",
-    "managedMail": "The mail server comes from nexsuite. With none set up there, nexbrand sends no mail. Your own setting is kept in case you disconnect.",
+    "managedMail": "The mail server comes from nexsuite and is changed there. Your own setting is kept in case you disconnect.",
     "managedTeams": "Teams come from nexsuite and apply in every connected app.",
     "managedProfile": "Profile picture, name and address come from nexsuite and hold in every connected app. They are changed there.",
     "mailTitle": "Mail",
@@ -1020,7 +1027,7 @@
     "timeline": "Versions",
     "asOf": "As of",
     "threeYears": "3 years ago",
-    "noneThen": "There was no published version back then.",
+    "noneThen": "On {{date}} there was no published version yet. The first holds from {{first}}.",
     "newVersion": "New version",
     "current": "current",
     "draft": "Draft",
@@ -1096,7 +1103,11 @@
     "deleteDraftOpen_one": "It is before the client right now; deleting it closes its review, and the comment on it is lost.",
     "deleteDraftOpen_other": "It is before the client right now; deleting it closes its review, and the {{count}} comments on it are lost.",
     "deleteDraftComments_one": "The comment from its review is lost with it.",
-    "deleteDraftComments_other": "The {{count}} comments from its review are lost with it."
+    "deleteDraftComments_other": "The {{count}} comments from its review are lost with it.",
+    "upcoming": "upcoming",
+    "upcomingText": "You are looking at version {{label}}. It holds from {{from}}; until then, {{current}} holds.",
+    "upcomingNone": "You are looking at version {{label}}. It holds from {{from}}; until then, none holds.",
+    "threeYearsTitle": "The version that held on {{date}}"
   },
   "projects": {
     "text": "A project is an app, a product or a campaign of {{client}} with a CI of its own. Each part comes from {{client}}, from {{client}} plus its own, or is its own.",
@@ -1107,7 +1118,7 @@
     "nameHint": "e.g. Website relaunch",
     "version": "Builds on",
     "make": "Create",
-    "missing": "This project does not exist any more.",
+    "missing": "This project does not exist, or it was deleted.",
     "rename": "Rename",
     "note": "Note",
     "onDraftText": "That is a draft of {{label}}: the project sees changes to it at once.",
@@ -1126,7 +1137,8 @@
     "allFromClient": "everything as {{client}}",
     "ownParts": "Own: {{parts}}",
     "allInherited": "Everything as {{client}}",
-    "draftOnly": "{{project}} has no published version yet; export and API show this draft until then."
+    "draftOnly": "{{project}} has no published version yet; export and API show this draft until then.",
+    "toClient": "To the projects of {{client}}"
   },
   "set": {
     "tabsLabel": "Parts of the CI",
@@ -1341,17 +1353,50 @@
     "clash": "{{pairs}}: hard to tell apart. Never tell things apart by colour alone."
   },
   "diff": {
-    "nothing": "No differences in colours, fonts and logos.",
+    "nothing": "The two versions are the same.",
     "changed": "changed",
     "added": "new",
     "removed": "gone",
-    "fontAdded": "font added",
-    "fontRemoved": "font gone",
-    "logos": "logos changed",
     "checks": "Checks",
     "fixed": "fixed",
     "from": "From",
-    "to": "To"
+    "to": "To",
+    "empty": "empty",
+    "file": "a file",
+    "files_one": "{{count}} file",
+    "files_other": "{{count}} files",
+    "yes": "yes",
+    "no": "no",
+    "becomes": "becomes",
+    "field": {
+      "hex": "value",
+      "role": "role",
+      "pantone": "Pantone",
+      "cmyk": "CMYK",
+      "note": "note",
+      "weights": "weights",
+      "italic": "italic",
+      "license": "licence",
+      "license_note": "licence note",
+      "source": "source",
+      "catalog": "catalogue",
+      "files": "files",
+      "fallback": "fallback",
+      "name": "name",
+      "media": "file",
+      "wordmark": "word mark",
+      "fg": "mark",
+      "accent": "accent",
+      "ground": "ground",
+      "compact": "compact",
+      "min_width": "minimum width",
+      "clear_space": "clear space",
+      "use": "use",
+      "size": "size",
+      "weight": "weight",
+      "font": "font",
+      "line_height": "line height"
+    }
   },
   "export": {
     "title": "{{name}} as code",
@@ -1551,7 +1596,10 @@
     "uploadSamples": "Upload examples",
     "tabScale": "Sizes",
     "fontByName": "By name only",
-    "newFont": "New font"
+    "newFont": "New font",
+    "unread_one": "The colour {{names}} has no value that can be read. The checks leave it out.",
+    "unread_other": "The colours {{names}} have no value that can be read. The checks leave them out.",
+    "quoted": "“{{name}}”"
   },
   "gen": {
     "primary": "Main colour",
@@ -1717,7 +1765,8 @@
     "better": "Nearest text colour with 4.5:1 on this ground: {{hex}} ({{ratio}}), same hue {{hue}}°.",
     "take": "Take it",
     "vision": "With colour vision deficiencies",
-    "sample": "Clear words"
+    "sample": "Clear words",
+    "unread": "“{{value}}” is not a colour nexbrand reads. Write it as #RRGGBB, #RGB, rgb() or hsl()."
   },
   "review": {
     "from": "{{sender}} asks for your opinion",
@@ -2024,5 +2073,22 @@
     "badges": "Badges",
     "draft": "Draft",
     "code": "The values are under “As code”: CSS, Tailwind, SCSS and JSON, with the dark mode."
+  },
+  "where": {
+    "part": {
+      "colors": "Colour",
+      "fonts": "Font",
+      "logos": "Logo",
+      "scale": "Size",
+      "rules": "Rule",
+      "samples": "Example",
+      "dark": "Dark mode",
+      "inherit": "Where the parts come from"
+    },
+    "named": "{{what}} “{{name}}”",
+    "numbered": "{{what}} {{n}}",
+    "field": "Not saved: {{place}}, field “{{field}}” is not valid.",
+    "at": "Not saved: {{place}} is not valid.",
+    "twice": "Not saved: two colours are called “{{name}}”. Give one of them another name."
   }
 }

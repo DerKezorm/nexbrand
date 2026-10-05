@@ -80,10 +80,18 @@ def checked(db: Session, client: Client, data: Any) -> dict[str, Any]:
         raise BrandError("invalid_set", exc.text, where=exc.where) from exc
 
 
+def _local_day() -> str:
+    # The day where the server stands (TZ), not in Greenwich: "published today" in the evening is today.
+    return datetime.now(UTC).astimezone().date().isoformat()
+
+
+#: Today, as ``YYYY-MM-DD``; replaced in the tests.
+today = _local_day
+
+
 def day(value: str | None) -> str:
     if not value:
-        # The day where the server stands (TZ), not in Greenwich: "published today" in the evening is today.
-        return datetime.now(UTC).astimezone().date().isoformat()
+        return today()
     try:
         return date.fromisoformat(value).isoformat()
     except ValueError as exc:
@@ -106,7 +114,18 @@ def create_client(
     color: str | None = None, label: str | None = "1", data: Any = None, origin: str = "hand", author: str = "",
 ) -> tuple[Client, BrandVersion | None]:
     """A client with its own group of rights (the account manages it) and, unless ``label`` is None, a first version as
-    a draft (empty, or the design set given)."""
+    a draft (empty, or the design set given). Its name is not taken by another client (F15)."""
+    from . import names
+
+    with names.lock:
+        return _create_client(db, account, name, sector=sector, contact=contact, note=note, color=color, label=label,
+                              data=data, origin=origin, author=author)
+
+
+def _create_client(
+    db: Session, account: Account, name: str, *, sector: str, contact: str, note: str, color: str | None,
+    label: str | None, data: Any, origin: str, author: str,
+) -> tuple[Client, BrandVersion | None]:
     from . import spaces, suite
 
     if suite.connected(db):
@@ -114,6 +133,7 @@ def create_client(
     if not may_create(db, account):
         raise BrandError("forbidden", "The operator has not allowed members to make clients.", 403)
     clean = _text(name, 120, "invalid_name", required=True)
+    _name_free(db, "client", clean)
     try:
         space = spaces.create(db, account, clean, color, commit=False)
     except spaces.SpaceError as exc:
@@ -164,7 +184,26 @@ def clean_links(value: Any) -> list[dict[str, str]]:
     return out
 
 
+def _name_free(db: Session, kind: str, name: str, own: str | None = None, client_id: str = "") -> None:
+    from . import names
+
+    try:
+        if kind == "client":
+            names.check_client(db, name, own)
+        else:
+            names.check_project(db, client_id, name, own)
+    except names.NameTaken as exc:
+        raise BrandError(exc.code, exc.text, exc.status) from exc
+
+
 def change_client(db: Session, account: Account, client: Client, **fields: Any) -> Client:
+    from . import names
+
+    with names.lock:
+        return _change_client(db, account, client, **fields)
+
+
+def _change_client(db: Session, account: Account, client: Client, **fields: Any) -> Client:
     from . import spaces
 
     kept = {key for key in ("name", "sector", "contact", "color") if fields.get(key) is not None}
@@ -172,7 +211,9 @@ def change_client(db: Session, account: Account, client: Client, **fields: Any) 
         raise BrandError("managed_by_suite", "This is kept in nexsuite now.", 409)
     space = db.get(Space, client.space_id)
     if fields.get("name") is not None:
-        client.name = _text(fields["name"], 120, "invalid_name", required=True)
+        clean = _text(fields["name"], 120, "invalid_name", required=True)
+        _name_free(db, "client", clean, client.id)
+        client.name = clean
         if space is not None:
             space.name = spaces.clean_name(client.name[:spaces.MAX_NAME])
     if fields.get("color") is not None and space is not None:
@@ -270,9 +311,16 @@ def project_versions(db: Session, project: Project) -> list[BrandVersion]:
     return _in_order(list(db.scalars(select(BrandVersion).where(BrandVersion.project_id == project.id))))
 
 
+def _holding(rows: list[BrandVersion], when: str) -> BrandVersion | None:
+    """Of versions in their order, the last published one whose day is not after ``when``: a version published to
+    hold from a later day holds from that day, not before (F2)."""
+    held = [v for v in rows if v.status == PUBLISHED and v.valid_from <= when]
+    return held[-1] if held else None
+
+
 def project_current(db: Session, project: Project) -> BrandVersion | None:
-    published = [v for v in project_versions(db, project) if v.status == PUBLISHED]
-    return published[-1] if published else None
+    """The project's version that holds today."""
+    return _holding(project_versions(db, project), today())
 
 
 def project_shown(db: Session, project: Project) -> BrandVersion | None:
@@ -349,15 +397,13 @@ def for_public(db: Session, data: dict[str, Any], space_id: int) -> dict[str, An
 
 
 def current(db: Session, client: Client) -> BrandVersion | None:
-    published = [v for v in versions(db, client) if v.status == PUBLISHED]
-    return published[-1] if published else None
+    """The client's version that holds today; one published to hold from a later day is not it yet (F2)."""
+    return _holding(versions(db, client), today())
 
 
 def valid_on(db: Session, client: Client, when: str) -> BrandVersion | None:
     """The version that held on a day: the last published one whose day is not after it."""
-    when = day(when)
-    held = [v for v in versions(db, client) if v.status == PUBLISHED and v.valid_from <= when]
-    return held[-1] if held else None
+    return _holding(versions(db, client), day(when))
 
 
 def version_for(db: Session, client: Client, version_id: str) -> BrandVersion:
@@ -502,15 +548,26 @@ def create_project(
     own: Any = None, data: Any = None,
 ) -> Project:
     """A project on a version of the client's, with a first draft that takes everything from it (or the set given,
-    in the shape of ``services/inherit.py``); ``own``: colours of its own on top, as projects had them before."""
+    in the shape of ``services/inherit.py``); ``own``: colours of its own on top, as projects had them before. Its
+    name is not taken by another project of the client (F15)."""
+    from . import names
+
+    with names.lock:
+        return _create_project(db, account, client, name=name, version_id=version_id, note=note, own=own, data=data)
+
+
+def _create_project(
+    db: Session, account: Account, client: Client, *, name: str, version_id: str, note: str, own: Any, data: Any,
+) -> Project:
     count = db.scalar(select(func.count()).select_from(Project).where(Project.client_id == client.id)) or 0
     if count >= MAX_PROJECTS:
         raise BrandError("too_many_projects", "This client has as many projects as it may hold.", 409)
     version = version_for(db, client, version_id)
     if version.project_id is not None:
         raise BrandError("not_found", "Not found.", 404)
-    row = Project(id=new_id(), client_id=client.id, name=_text(name, 120, "invalid_name", required=True),
-                  version_id=version.id, note=_note(note, 500), own=[])
+    clean = _text(name, 120, "invalid_name", required=True)
+    _name_free(db, "project", clean, client_id=client.id)
+    row = Project(id=new_id(), client_id=client.id, name=clean, version_id=version.id, note=_note(note, 500), own=[])
     db.add(row)
     db.flush()
     colors = _own(own)
@@ -540,13 +597,18 @@ def change_project(
 ) -> Project:
     """Its name and note. What it looks like changes in its versions; standing on a newer client version is a new
     draft (``create_version`` with ``base``)."""
-    if name is not None:
-        row.name = _text(name, 120, "invalid_name", required=True)
-    if note is not None:
-        row.note = _note(note, 500)
-    row.updated_at = utcnow()
-    touch(client, account)
-    db.commit()
+    from . import names
+
+    with names.lock:
+        if name is not None:
+            clean = _text(name, 120, "invalid_name", required=True)
+            _name_free(db, "project", clean, row.id, client.id)
+            row.name = clean
+        if note is not None:
+            row.note = _note(note, 500)
+        row.updated_at = utcnow()
+        touch(client, account)
+        db.commit()
     return row
 
 

@@ -45,6 +45,11 @@ SHOWN = {
     "ttf": "font/ttf",
 }
 IMAGES = {"jpeg", "png", "gif", "webp", "avif", "bmp"}
+#: What an upload for a logo, or for a font, has to be (F9): anything else is refused, not stored as a stray file.
+PICTURES = IMAGES | {"svg", "heic"}
+FONTS = {"woff2", "woff", "otf", "ttf"}
+EXPECTED = {"picture": (PICTURES, "not_a_picture", "This is not a picture that works as a logo."),
+            "font": (FONTS, "not_a_font", "This is not a font file (WOFF2, WOFF, OTF or TTF).")}
 MAX_NAME = 200
 
 
@@ -276,9 +281,12 @@ def wide_markup(head: bytes) -> bool:
     return any(_markup_or_blank(whole.decode(encoding, errors="ignore")) for encoding in WIDE_ENCODINGS)
 
 
-def finish(db: Session, account: Account, space_id: int, received: Path, name: str) -> Stored:
+def finish(
+    db: Session, account: Account, space_id: int, received: Path, name: str, expect: str | None = None,
+) -> Stored:
     """The file at ``received`` (a temporary file in the media folder) becomes a media file, or is found as one.
-    ``MediaError`` for a file refused: an SVG that could run something, a picture of too many pixels."""
+    ``MediaError`` for a file refused: an SVG that could run something, a picture of too many pixels, or not the kind
+    ``expect`` asks for (``picture`` for a logo, ``font``)."""
     with open(received, "rb") as handle:
         head = handle.read(WIDE_HEAD)
     kind = media.sniff(head[:64]) or ("svg" if is_svg(head[:1024]) else "file")
@@ -296,6 +304,9 @@ def finish(db: Session, account: Account, space_id: int, received: Path, name: s
             logger.info("SVG refused why=%s by=%s", problem, account.name)
             raise MediaError("svg_unsafe", "This SVG holds a script, an event, embedded HTML or a DOCTYPE; save it "
                              "as a plain drawing and upload it again.", 422)
+    if expect in EXPECTED and kind not in EXPECTED[expect][0]:
+        _, code, text = EXPECTED[expect]
+        raise MediaError(code, text, 422)
     if kind in IMAGES | {"heic", "avif"} and _pixels(received, kind) > MAX_PIXELS:
         raise MediaError("too_many_pixels", "This picture has more pixels than nexbrand takes.", 422)
     removed: set[str] = set()

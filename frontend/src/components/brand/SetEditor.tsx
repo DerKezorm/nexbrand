@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { ApiError, mediaApi, type FileInfo, type MediaInfo } from '../../api/client'
 import { COLOR_ROLES, DARK_PARTS, RULE_TOPICS, RULE_USES, SCALE_USES, schemeOf, type DarkMode, type BrandColor, type BrandFont, type BrandLogo, type BrandSet, type ColorRole, type FontLicense, type Rule, type RuleKind, type RuleTopic, type RuleUse, type ScaleStep } from '../../lib/brand'
 import { check, type Hint } from '../../lib/checks'
-import { contrast, formatRatio, isHex, normalHex, scaleOf } from '../../lib/color'
+import { contrast, formatRatio, isHex, normalHex, parseColor, scaleOf } from '../../lib/color'
 import { errorText } from '../../lib/errors'
 import { CATALOG, catalogEntry, findFont, fontStack } from '../../lib/fonts'
 import { harmonies, neutralsFor, RATIOS, sameRule, startRules, suggestDark, typeScale, wordmarks, type Names } from '../../lib/generate'
@@ -42,19 +42,22 @@ export function useNames(): Names {
   }
 }
 
+/** Uploads one file after another. `first`: the first of a choice (an earlier problem goes). `expect`: the server refuses a file of another kind (a text named `.png` as a logo,
+ * F9) and the editor says which file it was; the others still come. */
 function useUpload(ctx: Ctx) {
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
-  const send = async (file: File): Promise<MediaInfo | null> => {
+  const send = async (file: File, first = true, expect?: 'picture' | 'font'): Promise<MediaInfo | null> => {
     setBusy(true)
-    setProblem(null)
+    if (first) setProblem(null)
     try {
-      const made = await mediaApi.upload(ctx.space, file, file.name)
+      const made = await mediaApi.upload(ctx.space, file, file.name, undefined, expect)
       ctx.addFile(made)
       return made
     } catch (error) {
-      // The sentence itself, with what it names (the largest size, the most pixels).
-      setProblem(error instanceof ApiError ? errorText(error.code, error.values) : errorText('internal_error'))
+      // The sentence itself, with what it names (the largest size, the most pixels), and which file it was.
+      const text = error instanceof ApiError ? errorText(error.code, error.values) : errorText('internal_error')
+      setProblem((before) => [first ? null : before, `${file.name}: ${text}`].filter(Boolean).join(' '))
       return null
     } finally {
       setBusy(false)
@@ -85,11 +88,15 @@ function FileButton({ label, accept, onFiles, busy = false, multiple = false }: 
   )
 }
 
-export function ColorField({ value, onChange, label, transparent = false }: { value: string; onChange: (v: string) => void; label: string; transparent?: boolean }) {
+/** A colour picker beside its value as text. `lenient`: whatever `parseColor` reads counts already while typing
+ * (`000`, `#000`, `rgb(…)`), not only after leaving the field; `invalid` says what is wrong (F16). */
+export function ColorField({ value, onChange, label, transparent = false, lenient = false, invalid }: { value: string; onChange: (v: string) => void; label: string; transparent?: boolean; lenient?: boolean; invalid?: string }) {
+  const read = lenient ? parseColor(value) : isHex(value) ? value : null
+  const fine = read !== null || (transparent && value === 'transparent')
   return (
     <span className="flex items-center gap-1.5">
-      <input type="color" aria-label={label} value={isHex(value) ? value : '#000000'} onChange={(e) => onChange(e.target.value.toUpperCase())} className="h-9 w-10 shrink-0 rounded-lg border border-ink-700 bg-ink-900" disabled={value === 'transparent'} />
-      <input value={value} aria-label={label} onChange={(e) => onChange(e.target.value)} onBlur={(e) => onChange(transparent && e.target.value === 'transparent' ? 'transparent' : normalHex(e.target.value))} className={'h-9 w-24 rounded-lg border bg-ink-900 px-2 font-mono text-sm ' + (isHex(value) || (transparent && value === 'transparent') ? 'border-ink-700' : 'border-bad-500')} />
+      <input type="color" aria-label={label} value={read ?? '#000000'} onChange={(e) => onChange(e.target.value.toUpperCase())} className="h-9 w-10 shrink-0 rounded-lg border border-ink-700 bg-ink-900" disabled={value === 'transparent'} />
+      <input value={value} aria-label={label} aria-invalid={!fine} aria-describedby={!fine && invalid ? invalid : undefined} onChange={(e) => onChange(e.target.value)} onBlur={(e) => onChange(transparent && e.target.value === 'transparent' ? 'transparent' : normalHex(e.target.value))} className={'h-9 w-24 rounded-lg border bg-ink-900 px-2 font-mono text-sm ' + (fine ? 'border-ink-700' : 'border-bad-500')} />
     </span>
   )
 }
@@ -245,8 +252,8 @@ function FontsEditor({ fonts, onChange, ctx }: { fonts: BrandFont[]; onChange: (
   const edit = (i: number, patch: Partial<BrandFont>) => onChange(fonts.map((f, j) => (j === i ? { ...f, ...patch } : f)))
   const addFiles = async (files: File[], into?: number) => {
     const ids: string[] = []
-    for (const file of files) {
-      const made = await upload.send(file)
+    for (const [n, file] of files.entries()) {
+      const made = await upload.send(file, n === 0, 'font')
       if (made && FONT_KINDS.has(made.kind)) ids.push(made.id)
     }
     if (!ids.length) return
@@ -362,8 +369,8 @@ function LogosEditor({ logos, colors, fonts, name, onChange, ctx }: { logos: Bra
   }
   const addPictures = async (files: File[]) => {
     const made: BrandLogo[] = []
-    for (const file of files) {
-      const m = await upload.send(file)
+    for (const [n, file] of files.entries()) {
+      const m = await upload.send(file, n === 0, 'picture')
       if (m && PICTURE_KINDS.has(m.kind))
         made.push({ id: newId('logo-' + (logos.length + made.length + 1)), name: file.name.replace(/\.[^.]+$/, ''), media: m.id, fg: '#000000', accent: '#000000', ground: '#FFFFFF', files: [] })
     }
@@ -908,6 +915,7 @@ export function SetEditor({ value, onChange, name, ctx, inherit }: { value: Bran
     { value: 'samples', label: t('set.tabs.samples'), icon: FileText },
   ]
   const valid = shown.colors.filter((c) => isHex(c.hex))
+  const unread = shown.colors.filter((c) => !isHex(c.hex))
   const scheme = schemeOf(shown.dark, valid)
   const [showDark, setShowDark] = useState(false)
   const head = shown.fonts[0]
@@ -976,10 +984,17 @@ export function SetEditor({ value, onChange, name, ctx, inherit }: { value: Bran
         <section className="rounded-2xl border border-ink-700 bg-ink-900 p-3">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-sm font-semibold">{t('editor.live')}</h3>
-            <span className={'rounded-full border px-2 py-0.5 text-[11px] ' + (serious.length ? 'border-warn-500/40 text-warn-500' : 'border-ok-500/40 text-ok-500')}>{serious.length ? t('editor.hints', { count: serious.length }) : t('editor.allGood')}</span>
+            <span className={'rounded-full border px-2 py-0.5 text-[11px] ' + (serious.length || unread.length ? 'border-warn-500/40 text-warn-500' : 'border-ok-500/40 text-ok-500')}>{serious.length || unread.length ? t('editor.hints', { count: serious.length + unread.length }) : t('editor.allGood')}</span>
           </div>
+          {/* A colour that cannot be read is left out of the checks: "all good" would not be true (F11). */}
+          {unread.length > 0 && (
+            <p role="status" className="mb-2 flex gap-2 rounded-xl border border-warn-500/40 bg-warn-500/8 px-3 py-2 text-sm text-mist-200" data-testid="unread-colors">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warn-500" aria-hidden />
+              {t('editor.unread', { count: unread.length, names: unread.map((c) => t('editor.quoted', { name: c.name || '?' })).join(', ') })}
+            </p>
+          )}
           <div className="nc-scroll max-h-96 overflow-y-auto">
-            <HintList hints={serious} />
+            <HintList hints={serious} empty={!unread.length} />
           </div>
         </section>
       </aside>

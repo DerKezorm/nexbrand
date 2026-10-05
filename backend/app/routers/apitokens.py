@@ -44,14 +44,20 @@ class TokensOut(BaseModel):
     tokens: list[TokenOut]
 
 
+#: How long a new token holds when nothing else is said (F26, decided 05.10.2026).
+DEFAULT_DAYS = 90
+
+
 class TokenIn(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     #: ``read``, or ``draft``: also proposes versions as drafts (MCP, ``/api/v1``).
     level: str = Field(default="read", max_length=8)
-    #: Ids of clients; left out: every client the account may read, now and later.
+    #: Ids of clients the token sees. Needed unless ``all_clients`` (F26: a new token is narrow from the start).
     clients: list[str] | None = Field(default=None, max_length=1000)
-    #: 30, 90 or 365; left out: never runs out.
-    days: int | None = None
+    #: Every client the account may read, now and later, instead of ``clients``; asked for on purpose.
+    all_clients: bool = False
+    #: 30, 90 or 365; ``null`` on purpose: never runs out; left out: 90 (F26).
+    days: int | None = DEFAULT_DAYS
 
 
 class MadeOut(BaseModel):
@@ -85,6 +91,10 @@ def make_token(body: TokenIn, account: Account, db: DbSession) -> MadeOut:
     if not apitokens.allowed(db):
         raise error("api_off", "The operator has not switched API tokens on.", 403)
     groups = None
+    if body.all_clients and body.clients is not None:
+        raise error("invalid_input", "Choose clients, or all of them, not both.", 422)
+    if not body.all_clients and not body.clients:
+        raise error("choose_clients", "Choose the clients the token may see, or all of them on purpose.", 422)
     if body.clients is not None:
         # A client is seen through its group of rights; one that does not exist is refused like one not readable.
         found = {c.id: c.space_id for c in db.scalars(select(Client).where(Client.id.in_(body.clients),

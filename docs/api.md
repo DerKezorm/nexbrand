@@ -15,10 +15,12 @@ stays a person's act in nexbrand.
 API tokens are off until the operator switches them on, under **Settings → Server → API**. Then every account makes
 its own tokens under **My account → Connections**:
 
-- A token reads what its account may read, never more. It can be limited to some clients.
+- A token reads what its account may read, never more. A new one sees only the clients chosen for it; every client the
+  account may read, later ones too, is chosen on purpose.
 - Its level is **read** (the default) or **draft**: a draft token may also propose a version where its account may
-  write.
-- It runs out after 30, 90 or 365 days, or never. The list marks a token a week before it runs out.
+  write. The list says which.
+- It runs out after 90 days, unless 30, 365 days or never is chosen. The list marks a token a week before it runs
+  out.
 - It is shown once, right after it was made. nexbrand keeps only a checksum.
 - The operator sees every token (never the token itself) and can block one for good.
 
@@ -56,7 +58,12 @@ change that would break a program goes to `/api/v2` beside it.
 ## Routes
 
 A client is named by its id or its name (`Example Bakery`, as it is written in nexbrand, any case). A version by its
-id or its label (`2026`, `1.0`). A project by its id or its name.
+id or its label (`2026`, `1.0`). A project by its id or its name. No two clients have the same name, and no two
+projects of one client: nexbrand compares names without capitals and spaces at the ends.
+
+The version that holds today is the published one with the latest day that is not after today. A version published
+to hold from a later day (`valid_from`) holds from that day on, not before: until then `current_version`, the
+standard answer, the code and the audit go by the version before it.
 
 ### `GET /api/v1/me`
 
@@ -111,10 +118,10 @@ The design set as code to paste, with `version`, `at` and `project` as above.
 
 | `format` | What comes |
 |---|---|
-| `css` (default) | CSS variables: every colour with its scale 50 to 950, fonts, text sizes in `rem`. |
-| `tailwind` | A Tailwind 4 `@theme` block. |
-| `scss` | SCSS variables. |
-| `json` | Design tokens (W3C draft format). |
+| `css` (default) | CSS variables: every colour with its scale 50 to 950, fonts, and each step of the type scale: its size in `rem` (`--text-h1`), line height (`--text-h1--line-height`) and weight (`--text-h1--font-weight`). |
+| `tailwind` | A Tailwind 4 `@theme` block, with the same names (Tailwind reads them as one text size). |
+| `scss` | SCSS variables (`$text-h1`, `$text-h1-line-height`, `$text-h1-font-weight`). |
+| `json` | Design tokens (W3C draft format): sizes under `text`, line heights under `lineHeight`, weights under `fontWeight`. |
 
 ### `POST /api/v1/clients/{client}/audit`
 
@@ -123,6 +130,9 @@ Colour values found in code or on a page, against the design set (or a project's
 ```json
 {"colors": ["#c23b2f", "#1a1a1a", "rgb(20, 40, 90)"], "project": null}
 ```
+
+A value may be written as style sheets write it: `#RGB`, `#RRGGBB` (with alpha, which is left out), the same without
+`#`, `rgb()`/`rgba()` and `hsl()`/`hsla()` with commas or spaces. Names such as `red` are not read.
 
 Each value comes back with a `verdict`: `same` (ΔE 2000 below 1), `near` (below 8, mostly a slip: `nearest` and
 `nearest_hex` say what was meant), `foreign`, or `unreadable`. Up to 500 values per request.
@@ -134,7 +144,7 @@ properties. The answer gets a `css` part:
 ```json
 {"checked": 12,
  "pairs": [{"selector": ".badge", "fg": "#FFFFFF", "bg": "#E9A23B", "fg_name": "White", "bg_name": "Honey",
-            "ratio": 2.17, "verdict": "forbidden", "rule": 3}]}
+            "ratio": 2.16, "verdict": "forbidden", "rule": 3}]}
 ```
 
 `forbidden` means a rule of the set forbids the pair (`rule` is its place); `low_contrast` means below 4.5:1. Only a
@@ -185,10 +195,11 @@ nexbrand with the token's name as author; a person publishes it there, or throws
 
 ### `GET /api/v1/contrast?fg=…&bg=…`
 
-Two colours (`#RRGGBB`, `#` written as `%23`):
+Two colours, written as for the audit (`#` as `%23`; `000`, `rgb(0 0 0)` and `hsl(…)` work too):
 `ratio`, `text` and `large_text` (`AAA`, `AA`, `AA large` or `fail`), `graphics` (`pass` or `fail`), `vision`
 (the ratio as people with each colour vision deficiency see it) and, below 4.5:1, `nearest_passing`: the nearest
-colour of the same hue that reaches it.
+colour of the same hue that reaches it. Every `ratio` in the API is cut to two places, never rounded up: 4.4992 is
+4.49, so a ratio shown at or above a threshold has reached it.
 
 ### `GET /api/v1/files/{id}`
 
@@ -212,7 +223,7 @@ configuration of an editor:
 | `get_brand` | read | A client's design set, with `version`, `at` or `project` as in the routes above. |
 | `get_code` | read | The design set as CSS, Tailwind, SCSS or tokens. |
 | `list_versions` | read | Every version, with the day it holds from. |
-| `compare_versions` | read | What changed between two versions: colours (with their distance), fonts. |
+| `compare_versions` | read | What changed between two versions: colours (with their distance), fonts, and in `changes` every part (colours, fonts, logos, type scale, rules, examples, dark mode), each field with its value before and after. |
 | `check_contrast` | read | Contrast of a text colour on a ground, with grades and the nearest passing colour. |
 | `audit` | read | Colour values from code against the design set; with `css`, colour pairs against the rules. |
 | `propose_version` | draft | A redesign written back as a draft. A read token does not see this tool. |

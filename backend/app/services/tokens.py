@@ -41,11 +41,31 @@ def _font_names(fonts: list[dict[str, Any]]) -> list[tuple[str, str]]:
     return list(zip(names, (font_stack(font) for font in fonts), strict=True))
 
 
-def _sizes(data: dict[str, Any]) -> list[tuple[str, str]]:
-    """The type scale as sizes in rem (16 px = 1 rem), named by what each step is for, else by its name."""
+def _steps(data: dict[str, Any]) -> list[tuple[str, str, int | None, float | None]]:
+    """Each step of the type scale, named by what it is for, else by its name: its size in rem (16 px = 1 rem), weight
+    and line height (F18: a step is more than its size). Weight and line height ``None`` where a step has none."""
     steps = data.get("scale", [])
     names = _unique([step.get("use") or slug(step["name"]) for step in steps])
-    return [(name, f"{float(step['size']) / 16:g}rem") for name, step in zip(names, steps, strict=True)]
+    out = []
+    for name, step in zip(names, steps, strict=True):
+        weight = step.get("weight")
+        height = step.get("line_height")
+        out.append((name, f"{float(step['size']) / 16:g}rem", int(weight) if weight else None,
+                    float(height) if height else None))
+    return out
+
+
+def _step_lines(data: dict[str, Any], line: str) -> list[str]:
+    """A size with its line height and weight under Tailwind 4's names (``--text-h1--line-height``), which plain CSS
+    and SCSS take over; ``line`` is the pattern of one line, with ``{name}`` and ``{value}``."""
+    out = []
+    for name, size, weight, height in _steps(data):
+        out.append(line.format(name=name, value=size))
+        if height is not None:
+            out.append(line.format(name=f"{name}--line-height", value=f"{height:g}"))
+        if weight is not None:
+            out.append(line.format(name=f"{name}--font-weight", value=weight))
+    return out
 
 
 def _comment(text: str) -> str:
@@ -79,22 +99,22 @@ def render(data: dict[str, Any], fmt: str, *, color_list: list[dict[str, Any]] |
         lines = [f"  --color-{n}: {h};" for n, h in plain]
         lines += [""] + [f"  --color-{n}: {h};" for n, h in steps] if steps else []
         lines += [""] + [f"  --font-{n}: {s};" for n, s in fonts] if fonts else []
-        sizes = _sizes(data)
-        lines += [""] + [f"  --text-{n}: {v};" for n, v in sizes] if sizes else []
+        sizes = _step_lines(data, "  --text-{name}: {value};")
+        lines += [""] + sizes if sizes else []
         if dark:
             lines += ["", "  /* Dark mode: which colour is what. Map them onto your own variables. */"]
             lines += [f"  --dark-{p}: var(--color-{n});" for p, n in dark]
         return head + ":root {\n" + "\n".join(lines) + "\n}\n"
     if fmt == "tailwind":
         lines = [f"  --color-{n}: {h};" for n, h in plain + steps] + [f"  --font-{n}: {s};" for n, s in fonts]
-        lines += [f"  --text-{n}: {v};" for n, v in _sizes(data)]
+        lines += _step_lines(data, "  --text-{name}: {value};")
         # bg-dark-ground, text-dark-text …, for use with the dark: variant.
         lines += [f"  --color-dark-{p}: var(--color-{n});" for p, n in dark]
         intro = "/* Tailwind 4: in your CSS after @import 'tailwindcss'; */\n"
         return head + intro + "@theme {\n" + "\n".join(lines) + "\n}\n"
     if fmt == "scss":
         lines = [f"$color-{n}: {h};" for n, h in plain + steps] + [f"$font-{n}: {s};" for n, s in fonts]
-        lines += [f"$text-{n}: {v};" for n, v in _sizes(data)]
+        lines += [line.replace("--", "-") for line in _step_lines(data, "$text-{name}: {value};")]
         lines += [f"$dark-{p}: $color-{n};" for p, n in dark]
         return head + "\n".join(lines) + "\n"
     color_tokens: dict[str, Any] = {}
@@ -110,10 +130,18 @@ def render(data: dict[str, Any], fmt: str, *, color_list: list[dict[str, Any]] |
         name: {"$type": "fontFamily", "$value": [font["family"], font.get("fallback") or "sans-serif"]}
         for (name, _), font in zip(fonts, data.get("fonts", []), strict=True)
     }
-    size_tokens = {name: {"$type": "dimension", "$value": value} for name, value in _sizes(data)}
+    steps = _steps(data)
+    size_tokens = {name: {"$type": "dimension", "$value": value} for name, value, _, _ in steps}
     out = {"color": color_tokens, "font": font_tokens}
     if size_tokens:
         out["text"] = size_tokens
+    # Beside the sizes, not inside them: ``text`` keeps the shape programs already read (``/api/v1`` promise).
+    heights = {name: {"$type": "number", "$value": height} for name, _, _, height in steps if height is not None}
+    weights = {name: {"$type": "fontWeight", "$value": weight} for name, _, weight, _ in steps if weight is not None}
+    if heights:
+        out["lineHeight"] = heights
+    if weights:
+        out["fontWeight"] = weights
     if dark:
         out["dark"] = {p: {"$type": "color", "$value": f"{{color.{n}}}"} for p, n in dark}
     return json.dumps(out, indent=2, ensure_ascii=False) + "\n"

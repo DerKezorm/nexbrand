@@ -90,7 +90,7 @@ def init_db() -> None:
         for table_index in table.indexes:
             table_index.create(engine, checkfirst=True)
     # Data from before clients stood on their own: every client gets its own group of rights.
-    from .services import brands, regroup
+    from .services import brands, names, regroup
 
     with SessionLocal() as db:
         regroup.run(db)
@@ -98,6 +98,8 @@ def init_db() -> None:
         brands.adopt_projects(db)
         # Files named as internal fonts before files carried that mark keep it from now on (A4).
         brands.mark_kept_in_house(db)
+        # Clients, projects and teams that share a name from before names were unique get a number (F15).
+        names.number_doubles(db)
 
 
 def _sql_literal(value: Any) -> str:

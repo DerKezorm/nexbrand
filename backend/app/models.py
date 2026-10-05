@@ -145,6 +145,10 @@ class Account(Base):
     #: The person in nexsuite this account belonged to before the last disconnect (B8): connecting again to the same
     #: nexsuite suggests that person first, so an account nexsuite once brought is not made a second time.
     suite_person: Mapped[str] = mapped_column(String(64), default="")
+    #: The sign-in link of its own (a provider such as authentik) of an account left out when connecting, set aside
+    #: while connected and given back on disconnecting: in ``oidc_subject`` it could pass for a person of nexsuite
+    #: whose id looks the same, and take that person's sign-in and rights (Prüfgang 05.10.2026, from nextasks).
+    own_subject: Mapped[str] = mapped_column(String(255), default="")
     #: Not stored. Set on the account an API token acts as when the token may see only some spaces.
     key_spaces: ClassVar[frozenset[int] | None] = None
     #: Not stored. True on the account a token acts as: a program never has the operator's powers over other

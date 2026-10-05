@@ -40,7 +40,7 @@ def test_the_operators_token_has_only_its_own_rights(client: TestClient, operato
     with new_client(anna) as browser:
         hers = new_group(browser, "Workshop")
     own = new_group(client, "Mine")
-    secret = client.post("/api/api-tokens", json={"name": "nexdeck"}).json()["secret"]
+    secret = client.post("/api/api-tokens", json={"name": "nexdeck", "all_clients": True}).json()["secret"]
     from fastapi.testclient import TestClient as Program
 
     from app.main import app

@@ -201,7 +201,7 @@ async def start_link(
     client_id = str(settings_service.get(db, "oidc_client_id"))
     url = oidc.authorization_url(description, client_id, _redirect_uri(db, request), attempt)
     _set_attempt_cookie(response, request, attempt, row.id, None)
-    logger.info("Account %s starts linking to the provider", row.name)
+    logger.info("Account starts linking to the provider name=%s", row.name)
     return {"url": url}
 
 
@@ -399,7 +399,7 @@ def _finish_link(
         current.email = identity.email
     db.commit()
     logs.set_actor(current.name)
-    logger.info("Account %s linked to its OIDC identity by its owner", current.name)
+    logger.info("Account linked to its OIDC identity by its owner name=%s", current.name)
     response = RedirectResponse(f"{ACCOUNT_PAGE}?linked=1", status_code=303)
     _delete_attempt_cookie(response)
     return response
@@ -418,7 +418,7 @@ def unlink(account: Account, db: DbSession) -> None:
     row.oidc_subject = ""
     row.email = ""
     db.commit()
-    logger.info("Account %s unlinked from its OIDC identity", row.name)
+    logger.info("Account unlinked from its OIDC identity name=%s", row.name)
 
 
 def _resolve(db: DbSession, identity: oidc.Identity, auto_create: bool, *, invited: bool = False) -> AccountRow | str:
@@ -434,27 +434,32 @@ def _resolve(db: DbSession, identity: oidc.Identity, auto_create: bool, *, invit
         # An empty subject would match every account that has none; the provider is misconfigured, not us.
         logger.warning("OIDC sign-in refused: the provider sent an empty subject")
         return "oidc_token_invalid"
-    existing = db.scalar(select(AccountRow).where(AccountRow.oidc_subject == identity.subject))
-    if existing is not None:
-        return existing
     if suite.connected(db):
+        # Connected, only an account nexsuite knows stands for a person: a blocked one left out when connecting
+        # with a subject of another provider that looks like the person's id never takes the sign-in.
+        found = suite.claimants(db, identity.subject)
+        if found:
+            return found[-1]
         # Connected, accounts come from nexsuite, found by the person's id only (one made there a moment ago was
         # fetched by the callback, B20).
         return "suite_no_account"
+    existing = db.scalar(select(AccountRow).where(AccountRow.oidc_subject == identity.subject))
+    if existing is not None:
+        return existing
     verified = bool(identity.email and identity.email_verified)
     if verified:
         by_email = db.scalar(select(AccountRow).where(func.lower(AccountRow.email) == identity.email))
         if by_email is not None:
             if by_email.oidc_subject:
                 logger.warning(
-                    "OIDC sign-in refused: the address %s belongs to account %r with a different subject",
+                    "OIDC sign-in refused: the address %s belongs to an account with a different subject name=%s",
                     oidc.masked(identity.email),
                     by_email.name,
                 )
                 return "oidc_email_taken"
             by_email.oidc_subject = identity.subject
             db.commit()
-            logger.info("Account %s linked to its OIDC identity by verified address", by_email.name)
+            logger.info("Account linked to its OIDC identity by verified address name=%s", by_email.name)
             return by_email
     elif not invited:
         # The provider does not vouch for the address (authentik's default since 2025.10, also Keycloak and

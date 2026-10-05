@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..models import READ, WRITE, BrandVersion, Client, Media, Project, Space
-from . import brands, brandset, checks, rights, tokens
+from . import brands, brandset, checks, colors, diff, rights, tokens
 from .apitokens import Caller
 
 
@@ -188,7 +188,6 @@ def compare(db: Session, caller: Caller, client_key: str, older: str, newer: str
     a, b = _version(db, client, older), _version(db, client, newer)
     before = {c["name"].casefold(): c for c in a.data.get("colors", [])}
     after = {c["name"].casefold(): c for c in b.data.get("colors", [])}
-    from . import colors
 
     changed = [{"name": after[k]["name"], "from": before[k]["hex"], "to": after[k]["hex"],
                 "delta_e": round(colors.delta_e(before[k]["hex"], after[k]["hex"]), 2)}
@@ -201,7 +200,20 @@ def compare(db: Session, caller: Caller, client_key: str, older: str, newer: str
         "colors_added": [after[k] for k in after if k not in before],
         "colors_removed": [before[k] for k in before if k not in after],
         "fonts_added": sorted(fonts_b - fonts_a), "fonts_removed": sorted(fonts_a - fonts_b),
+        # Every part, the type scale, rules, examples and the dark mode too (F10), as the interface compares.
+        "changes": diff.diff(brands.effective(db, a), brands.effective(db, b)),
     }
+
+
+def contrast(fg: str, bg: str) -> dict[str, Any]:
+    """Two colours as people write them (``colors.parse``): every grade, and the nearest passing colour."""
+    read = {}
+    for where, raw in (("fg", fg), ("bg", bg)):
+        value = colors.parse(raw)
+        if value is None:
+            raise ApiError("invalid_input", "A colour is written #RRGGBB, #RGB, rgb() or hsl().", where=where)
+        read[where] = value
+    return checks.pair(read["fg"], read["bg"])
 
 
 def audit(
@@ -211,7 +223,6 @@ def audit(
     """Colour values found in code or on a page, against the design set: the same, nearly (a slip?), or foreign.
     With ``css``, its colours join the list and text colour plus ground of each CSS rule are held against the
     forbidden pairs of the set."""
-    from . import colors
 
     if not found and not css:
         raise ApiError("invalid_input", "Give colours, a style sheet or both.")
@@ -224,9 +235,9 @@ def audit(
         found = [*found, *(value for value in sheet.pop("values") if value not in found)]
     out = []
     for raw in found[:500]:
-        try:
-            value = brandset.color_value(raw, "value")
-        except brandset.SetError:
+        # As style sheets write colours: #RGB, #RRGGBB (with alpha), without #, rgb(), hsl() (F3).
+        value = colors.parse(raw)
+        if value is None:
             out.append({"value": raw, "verdict": "unreadable"})
             continue
         if not palette:

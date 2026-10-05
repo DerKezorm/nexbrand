@@ -32,7 +32,7 @@ frame here: accounts, second factor, sign-in through a provider, log, languages 
   The values are always measured; rules or your own AI service sort them. The result is a draft, or a check of a site
   against the CI that finds the nearly right shades and the foreign fonts.
 - **As code.** Every version as CSS variables, a Tailwind 4 theme, SCSS or design tokens (JSON), with scales, fonts and
-  sizes. Public pages show a design set read only, a fixed version or always the current one, with an end date and a
+  the type scale with size, line height and weight. Public pages show a design set read only, a fixed version or always the current one, with an end date and a
   password if you like, and give a developer the same code without an account.
 - **For programs and AI tools.** API tokens read design sets over [`/api/v1`](docs/api.md) and over MCP, so an AI in an
   editor builds with the right colours. A token of the level "draft" writes a redesign back, as a draft; publishing
@@ -164,7 +164,8 @@ archive holds its password and second factor; restoring one waits for the discon
 Build pipelines, scripts, nexdeck and AI tools in an editor read design sets with an API token: as JSON, as CSS,
 Tailwind, SCSS or design tokens, of any version or day, with a project's own colours. Over MCP an AI checks contrast,
 compares versions, audits the colours in code against the CI, and with a draft token writes a redesign back as a
-draft. Off until the operator switches it on; every account then makes its own tokens. Everything is in
+draft. Off until the operator switches it on; every account then makes its own tokens, which see only the clients
+chosen and run out after 90 days unless somebody wants more on purpose. Everything is in
 [docs/api.md](docs/api.md).
 
 ## Security in short
@@ -173,7 +174,8 @@ draft. Off until the operator switches it on; every account then makes its own t
   guessing on top. With a second factor, the password alone opens nothing.
 - Every changing request needs the header `X-Nexbrand-Client`, which a page on another site cannot send.
 - A client somebody may not see answers exactly like one that does not exist, in every route.
-- A published version never changes; drafts from tokens or collecting stay drafts until a person publishes them.
+- A published version never changes; drafts from tokens or collecting stay drafts until a person publishes them. One
+  published to hold from a later day holds from that day on, in the app, the code and the API alike.
 - Fonts marked internal never leave as a file: not on public pages, not through a token or MCP, not as an example
   or a logo download either.
 - The links of public pages and reviews are keys: from the right to write for a client up a person sees, copies and

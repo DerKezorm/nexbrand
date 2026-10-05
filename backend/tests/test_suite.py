@@ -600,7 +600,15 @@ def test_no_person_space_or_team_is_matched_twice(client: TestClient, operator: 
     with SessionLocal() as db:
         db.get(Account, twin.id).email = "anna@example.com"  # type: ignore[union-attr]
         db.commit()
-    client.post("/api/clients", json={"name": "Ideen", "label": ""})  # a second client named like nexsuite's Ideen
+    # A second client named like nexsuite's Ideen: from before names were unique (F15), straight into the database.
+    from app.services import brands
+
+    with SessionLocal() as db:
+        double = Space(name="Ideen")
+        db.add(double)
+        db.flush()
+        db.add(Client(id=brands.new_id(), space_id=double.id, name="Ideen", updated_by="tester"))
+        db.commit()
     found = client.post("/api/suite/start", json={"url": SUITE + "/", "code": "GOOD-CODE-1234"}).json()
     suggested = {a["name"]: a["suggest"] for a in found["accounts"]}
     assert suggested["anna"] == "2" and suggested["anna2"] == "new", "each person is suggested once"

@@ -104,7 +104,7 @@ def change_team(team_id: TeamId, payload: TeamChange, account: Account, db: DbSe
         if lead_only and (payload.name is not None or payload.color is not None or "lead" in payload.model_fields_set):
             raise teams.TeamError("forbidden", "The lead changes the members only.", 403)
         if payload.name is not None:
-            team.name = teams.clean_name(payload.name)
+            teams.rename(db, team, payload.name)
         if payload.color is not None:
             team.color = teams.clean_color(payload.color)
         db.commit()

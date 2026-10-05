@@ -224,6 +224,8 @@ export type ProjectInfo = {
   note: string
   version_id: string
   current: string | null
+  /** The version that holds today; one published to hold from a later day is not it yet. */
+  current_id: string | null
   drafts: number
   base_id: string | null
   base_label: string | null
@@ -264,6 +266,8 @@ export type ClientInfo = {
   opened_at: string | null
   role: Role | null
   current: string | null
+  /** The version that holds today; one published to hold from a later day is not it yet. */
+  current_id: string | null
   drafts: number
   projects: number
   /** What the client did in a review (comments, a choice) that nobody of the agency has looked at yet. */
@@ -466,7 +470,8 @@ export const directoryApi = {
 export type ApiToken = {
   id: number
   name: string
-  level: 'read'
+  /** `read`, or `draft`: also proposes versions as drafts. */
+  level: 'read' | 'draft'
   prefix: string
   created_at: string
   last_used_at: string | null
@@ -480,8 +485,9 @@ export type AnyApiToken = Omit<ApiToken, 'clients'> & { account: string; clients
 /** API tokens for programs (`/api/v1`); reading only. */
 export const apiTokensApi = {
   list: () => api<{ allowed: boolean; tokens: ApiToken[] }>('/api/api-tokens'),
+  /** `clients` null: every client the account may read, now and later, asked for on purpose (`all_clients`). */
   make: (name: string, clients: string[] | null, days: number | null, level: 'read' | 'draft' = 'read') =>
-    api<{ token: ApiToken; secret: string }>('/api/api-tokens', { method: 'POST', body: { name, clients, days, level } }),
+    api<{ token: ApiToken; secret: string }>('/api/api-tokens', { method: 'POST', body: clients === null ? { name, all_clients: true, days, level } : { name, clients, days, level } }),
   remove: (id: number) => api<void>(`/api/api-tokens/${id}`, { method: 'DELETE' }),
   every: () => api<AnyApiToken[]>('/api/admin/api-tokens'),
   block: (id: number) => api<AnyApiToken>(`/api/admin/api-tokens/${id}/block`, { method: 'POST' }),
@@ -492,6 +498,9 @@ export type Invite = { id: number; role: string; email: string; by: string | nul
 export const clientsApi = {
   list: (query: { deleted?: boolean } = {}) => api<ClientInfo[]>('/api/clients', { query }),
   read: (id: string) => api<ClientWhole>(`/api/clients/${id}`),
+  /** Whether no other client has this name (without capitals and spaces at the ends); `own`: the client renamed. */
+  nameCheck: (name: string, own?: string) =>
+    api<{ free: boolean; code: string | null }>(`/api/clients/name-check?${new URLSearchParams(own ? { name, own } : { name })}`),
   /** A client; `label` empty: without a design set yet. */
   create: (body: { name: string; color?: string; sector?: string; contact?: string; note?: string; label: string; data?: BrandSet; project?: string }) =>
     api<ClientWhole>('/api/clients', { method: 'POST', body }),
@@ -558,8 +567,9 @@ export const reviewsApi = {
 }
 
 export const mediaApi = {
-  upload: (space: number, file: File | Blob, name: string, onProgress?: (part: number) => void) =>
-    upload<MediaInfo>('/api/media', { space, name }, file, onProgress),
+  /** `expect`: a logo (`picture`) or a `font`; a file of another kind is refused with `not_a_picture`/`not_a_font`. */
+  upload: (space: number, file: File | Blob, name: string, onProgress?: (part: number) => void, expect?: 'picture' | 'font') =>
+    upload<MediaInfo>('/api/media', expect ? { space, name, expect } : { space, name }, file, onProgress),
 }
 
 const safeId = (id: string) => (/^[A-Za-z0-9_-]{8,40}$/.test(id) ? id : 'invalid0')

@@ -46,10 +46,10 @@ def test_the_operator_decides_whether_members_make_clients(client: TestClient, o
     with new_client(anna) as browser:
         refused = browser.post("/api/clients", json={"name": "Example"})
         assert refused.status_code == 403
-    assert client.post("/api/clients", json={"name": "Example"}).status_code == 201, "the operator always may"
+    assert client.post("/api/clients", json={"name": "Example 1"}).status_code == 201, "the operator always may"
     client.put("/api/settings", json={"members_create_clients": True})
     with new_client(anna) as browser:
-        assert browser.post("/api/clients", json={"name": "Example"}).status_code == 201
+        assert browser.post("/api/clients", json={"name": "Example 2"}).status_code == 201
 
 
 def test_deleting_for_good_takes_the_group_along(client: TestClient, operator, space: int) -> None:

@@ -3,9 +3,10 @@
  * (`/api/v1`). List, make, delete. A token is shown once, right after it was made, with the header line a program
  * needs and a command to try it; afterwards only its first characters.
  *
- * A token only reads (design answer 03.10.2026); it sees every client its account may read or only those chosen; it runs
- * out after 30, 90 or 365 days, or never. A week before, the list marks it. A token the operator blocked stays in the
- * list, marked, until the account deletes it.
+ * A token reads, or reads and proposes drafts; the list says which (F12). A new one sees only the clients chosen and
+ * runs out after 90 days unless somebody picks "all" or "never" on purpose (F26, decided 05.10.2026); 30 and 365 days
+ * are there too. A week before, the list marks it. A token the operator blocked stays in the list, marked, until the
+ * account deletes it.
  */
 import { KeyRound, Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -18,8 +19,9 @@ import { errorText } from '../lib/errors'
 import { useAuth } from '../state/auth'
 import { copyText } from '../lib/copy'
 
-/** Days until a token runs out; null: never (the default). */
+/** Days until a token runs out; null: never. A new one starts at 90 (F26). */
 const LIFETIMES: (number | null)[] = [30, 90, 365, null]
+const DEFAULT_DAYS = 90
 const WEEK = 7 * 24 * 60 * 60 * 1000
 /** What the API offers; the whole description is `docs/api.md`. */
 const ROUTES = ['/api/v1/me', '/api/v1/clients', '/api/v1/clients/{client}', '/api/v1/clients/{client}/code', '/api/v1/clients/{client}/audit', '/api/v1/contrast', 'POST /api/mcp']
@@ -51,9 +53,9 @@ export function ApiTokens() {
   const [state, setState] = useState<{ allowed: boolean; tokens: ApiToken[] } | null>(null)
   const [making, setMaking] = useState(false)
   const [name, setName] = useState('')
-  // null: every client the account may read, later ones too; otherwise the ids chosen.
-  const [chosen, setChosen] = useState<string[] | null>(null)
-  const [days, setDays] = useState<number | null>(null)
+  // null: every client the account may read, later ones too; otherwise the ids chosen. A new token starts narrow (F26).
+  const [chosen, setChosen] = useState<string[] | null>([])
+  const [days, setDays] = useState<number | null>(DEFAULT_DAYS)
   const [level, setLevel] = useState<'read' | 'draft'>('read')
   const [shown, setShown] = useState<{ name: string; secret: string } | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
@@ -74,7 +76,8 @@ export function ApiTokens() {
 
   if (!state) return null
   const day = (value: string) => new Date(value).toLocaleDateString(i18n.language)
-  const moment = (value: string) => new Date(value).toLocaleString(i18n.language, { dateStyle: 'short', timeStyle: 'short' })
+  // The day as everywhere in the app (4.10.2026), with the time (F12).
+  const moment = (value: string) => new Date(value).toLocaleString(i18n.language, { day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
   const title = (
     <h2 id="api-tokens-title" className="mb-1 flex items-center gap-2 font-semibold text-mist-100">
       <KeyRound className={'h-4 w-4 ' + (state.allowed ? 'text-accent-400' : 'text-mist-500')} strokeWidth={1.8} aria-hidden /> {t('apiTokens.title')}
@@ -111,8 +114,8 @@ export function ApiTokens() {
       setCopied(null)
       setMaking(false)
       setName('')
-      setChosen(null)
-      setDays(null)
+      setChosen([])
+      setDays(DEFAULT_DAYS)
       setLevel('read')
       await load()
     } catch (error) {
@@ -163,6 +166,9 @@ export function ApiTokens() {
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <span className="font-medium text-mist-100">{token.name}</span>
                   <code className="font-mono text-xs text-mist-500">{token.prefix}…</code>
+                  <span className={'rounded-full border px-2 py-0.5 text-[11px] ' + (token.level === 'draft' ? 'border-magenta-500/50 text-magenta-text' : 'border-ink-700 text-mist-400')} data-testid="api-token-level">
+                    {t(`apiTokens.levels.${token.level === 'draft' ? 'draft' : 'read'}`)}
+                  </span>
                   <span className="text-xs text-mist-400">
                     {token.clients === null ? t('apiTokens.spacesAll') : token.clients.length ? token.clients.map((c) => c.name).join(', ') : t('apiTokens.spacesNone')}
                   </span>
@@ -250,6 +256,7 @@ export function ApiTokens() {
               <input type="radio" name="api-clients" checked={chosen !== null} onChange={() => setChosen([])} />
               {t('apiTokens.someSpaces')}
             </label>
+            {chosen !== null && chosen.length === 0 && <p className="ml-6 text-xs text-mist-500" data-testid="api-token-choose">{t('apiTokens.chooseOne')}</p>}
             {chosen !== null && (
               <div className="ml-6 flex flex-wrap gap-2">
                 {readable.map((item) => (

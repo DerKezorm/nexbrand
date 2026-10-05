@@ -167,11 +167,15 @@ def project_view(db: DbSession, row: Project, client_current: BrandVersion | Non
         "version_id": row.version_id,
         "note": row.note,
         "current": current.label if current else None,
+        #: The version that holds today; one published to hold from a later day is not it yet (F2).
+        "current_id": current.id if current else None,
         "drafts": sum(1 for v in rows if v.status == DRAFT),
         "base_id": base.id if base else None,
         "base_label": base.label if base else None,
-        # Standing on an older published version of the client than the current one.
-        "behind": bool(base and client_current and base.id != client_current.id and base.status != DRAFT),
+        # Standing on an older published version of the client than the one that holds today.
+        "behind": bool(base and client_current and base.id != client_current.id and base.status != DRAFT
+                       and (base.valid_from, base.published_at or base.created_at)
+                       < (client_current.valid_from, client_current.published_at or client_current.created_at)),
         "inherit": modes,
         "face": _face_of(data),
         "created_at": row.created_at.isoformat(),
@@ -201,7 +205,7 @@ def client_view(db: DbSession, account: AccountRow, client: Client) -> dict[str,
 
     versions = brands.versions(db, client)
     space = db.get(Space, client.space_id)
-    current = next((v for v in reversed(versions) if v.status != DRAFT), None)
+    current = brands.current(db, client)
     shown = current or (versions[0] if versions else None)
     visit = db.get(Visit, (account.id, client.id))
     projects = db.scalar(select(func.count()).select_from(Project).where(Project.client_id == client.id))
@@ -222,12 +226,29 @@ def client_view(db: DbSession, account: AccountRow, client: Client) -> dict[str,
         "opened_at": visit.opened_at.isoformat() if visit else None,
         "role": rights.role_in(db, account, client.space_id),
         "current": current.label if current else None,
+        #: The version that holds today; one published to hold from a later day is not it yet (F2).
+        "current_id": current.id if current else None,
         "drafts": sum(1 for v in versions if v.status == DRAFT),
         "projects": int(projects or 0),
         #: What the client did in a review (comments, a choice) that nobody of the agency has looked at yet.
         "news": brands.review_news(db, client.id),
         "face": _face(shown),
     }
+
+
+@router.get("/clients/name-check", summary="Whether a client name is free (F15), before a form goes further")
+def name_check(
+    account: Account, db: DbSession, name: Annotated[str, Query(min_length=1, max_length=120)],
+    own: Annotated[str | None, Query(max_length=24)] = None,
+) -> dict[str, Any]:
+    from ..services import names
+
+    del account
+    try:
+        names.check_client(db, name, own)
+    except names.NameTaken as exc:
+        return {"free": False, "code": exc.code}
+    return {"free": True, "code": None}
 
 
 @router.get("/clients", summary="The clients the account may see, or those in the bin it may restore")

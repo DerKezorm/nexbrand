@@ -1,0 +1,2120 @@
+{
+ "cases": [
+  {
+   "name": "the same",
+   "a": {
+    "colors": [
+     {
+      "name": "Ofenrot",
+      "hex": "#B8322A",
+      "role": "primary",
+      "pantone": "PMS 7621 C",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Honig",
+      "hex": "#E9A23B",
+      "role": "accent",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Mehl",
+      "hex": "#F2E3C6",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Kruste",
+      "hex": "#3B2A20",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Weiß",
+      "hex": "#FFFFFF",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     }
+    ],
+    "fonts": [
+     {
+      "family": "Fraunces",
+      "role": "Headings",
+      "weights": [
+       400,
+       700
+      ],
+      "italic": false,
+      "license": "free",
+      "license_note": "",
+      "source": "",
+      "catalog": "fraunces",
+      "files": [],
+      "fallback": "serif"
+     }
+    ],
+    "logos": [
+     {
+      "id": "word",
+      "name": "Wortmarke",
+      "media": "",
+      "files": [],
+      "wordmark": {
+       "text": "Morgenrot",
+       "font": "Fraunces"
+      },
+      "fg": "#3B2A20",
+      "accent": "#B8322A",
+      "ground": "#FFFFFF",
+      "compact": false,
+      "min_width": "",
+      "clear_space": ""
+     }
+    ],
+    "scale": [
+     {
+      "name": "Überschrift 1",
+      "use": "h1",
+      "size": 40.0,
+      "weight": 600,
+      "font": "Fraunces",
+      "line_height": 1.15
+     },
+     {
+      "name": "Body",
+      "use": "body",
+      "size": 16.0,
+      "weight": 400,
+      "font": "Fraunces",
+      "line_height": 1.6
+     }
+    ],
+    "rules": [
+     {
+      "type": "text",
+      "kind": "dont",
+      "text": "No white text on Honig.",
+      "topic": ""
+     }
+    ],
+    "samples": []
+   },
+   "b": {
+    "colors": [
+     {
+      "name": "Ofenrot",
+      "hex": "#B8322A",
+      "role": "primary",
+      "pantone": "PMS 7621 C",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Honig",
+      "hex": "#E9A23B",
+      "role": "accent",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Mehl",
+      "hex": "#F2E3C6",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Kruste",
+      "hex": "#3B2A20",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Weiß",
+      "hex": "#FFFFFF",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     }
+    ],
+    "fonts": [
+     {
+      "family": "Fraunces",
+      "role": "Headings",
+      "weights": [
+       400,
+       700
+      ],
+      "italic": false,
+      "license": "free",
+      "license_note": "",
+      "source": "",
+      "catalog": "fraunces",
+      "files": [],
+      "fallback": "serif"
+     }
+    ],
+    "logos": [
+     {
+      "id": "word",
+      "name": "Wortmarke",
+      "media": "",
+      "files": [],
+      "wordmark": {
+       "text": "Morgenrot",
+       "font": "Fraunces"
+      },
+      "fg": "#3B2A20",
+      "accent": "#B8322A",
+      "ground": "#FFFFFF",
+      "compact": false,
+      "min_width": "",
+      "clear_space": ""
+     }
+    ],
+    "scale": [
+     {
+      "name": "Überschrift 1",
+      "use": "h1",
+      "size": 40.0,
+      "weight": 600,
+      "font": "Fraunces",
+      "line_height": 1.15
+     },
+     {
+      "name": "Body",
+      "use": "body",
+      "size": 16.0,
+      "weight": 400,
+      "font": "Fraunces",
+      "line_height": 1.6
+     }
+    ],
+    "rules": [
+     {
+      "type": "text",
+      "kind": "dont",
+      "text": "No white text on Honig.",
+      "topic": ""
+     }
+    ],
+    "samples": []
+   },
+   "changes": []
+  },
+  {
+   "name": "only the type scale (the checker's case)",
+   "a": {
+    "colors": [
+     {
+      "name": "Ofenrot",
+      "hex": "#B8322A",
+      "role": "primary",
+      "pantone": "PMS 7621 C",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Honig",
+      "hex": "#E9A23B",
+      "role": "accent",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Mehl",
+      "hex": "#F2E3C6",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Kruste",
+      "hex": "#3B2A20",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Weiß",
+      "hex": "#FFFFFF",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     }
+    ],
+    "fonts": [
+     {
+      "family": "Fraunces",
+      "role": "Headings",
+      "weights": [
+       400,
+       700
+      ],
+      "italic": false,
+      "license": "free",
+      "license_note": "",
+      "source": "",
+      "catalog": "fraunces",
+      "files": [],
+      "fallback": "serif"
+     }
+    ],
+    "logos": [
+     {
+      "id": "word",
+      "name": "Wortmarke",
+      "media": "",
+      "files": [],
+      "wordmark": {
+       "text": "Morgenrot",
+       "font": "Fraunces"
+      },
+      "fg": "#3B2A20",
+      "accent": "#B8322A",
+      "ground": "#FFFFFF",
+      "compact": false,
+      "min_width": "",
+      "clear_space": ""
+     }
+    ],
+    "scale": [
+     {
+      "name": "Überschrift 1",
+      "use": "h1",
+      "size": 40.0,
+      "weight": 600,
+      "font": "Fraunces",
+      "line_height": 1.15
+     },
+     {
+      "name": "Body",
+      "use": "body",
+      "size": 16.0,
+      "weight": 400,
+      "font": "Fraunces",
+      "line_height": 1.6
+     }
+    ],
+    "rules": [
+     {
+      "type": "text",
+      "kind": "dont",
+      "text": "No white text on Honig.",
+      "topic": ""
+     }
+    ],
+    "samples": []
+   },
+   "b": {
+    "colors": [
+     {
+      "name": "Ofenrot",
+      "hex": "#B8322A",
+      "role": "primary",
+      "pantone": "PMS 7621 C",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Honig",
+      "hex": "#E9A23B",
+      "role": "accent",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Mehl",
+      "hex": "#F2E3C6",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Kruste",
+      "hex": "#3B2A20",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Weiß",
+      "hex": "#FFFFFF",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     }
+    ],
+    "fonts": [
+     {
+      "family": "Fraunces",
+      "role": "Headings",
+      "weights": [
+       400,
+       700
+      ],
+      "italic": false,
+      "license": "free",
+      "license_note": "",
+      "source": "",
+      "catalog": "fraunces",
+      "files": [],
+      "fallback": "serif"
+     }
+    ],
+    "logos": [
+     {
+      "id": "word",
+      "name": "Wortmarke",
+      "media": "",
+      "files": [],
+      "wordmark": {
+       "text": "Morgenrot",
+       "font": "Fraunces"
+      },
+      "fg": "#3B2A20",
+      "accent": "#B8322A",
+      "ground": "#FFFFFF",
+      "compact": false,
+      "min_width": "",
+      "clear_space": ""
+     }
+    ],
+    "scale": [
+     {
+      "name": "Überschrift 1",
+      "use": "h1",
+      "size": 52,
+      "weight": 800,
+      "font": "Fraunces",
+      "line_height": 1.3
+     },
+     {
+      "name": "Body",
+      "use": "body",
+      "size": 18,
+      "weight": 400,
+      "font": "Fraunces",
+      "line_height": 1.6
+     }
+    ],
+    "rules": [
+     {
+      "type": "text",
+      "kind": "dont",
+      "text": "No white text on Honig.",
+      "topic": ""
+     }
+    ],
+    "samples": []
+   },
+   "changes": [
+    {
+     "part": "scale",
+     "change": "changed",
+     "name": "Überschrift 1",
+     "fields": [
+      {
+       "field": "size",
+       "from": 40,
+       "to": 52
+      },
+      {
+       "field": "weight",
+       "from": 600,
+       "to": 800
+      },
+      {
+       "field": "line_height",
+       "from": 1.15,
+       "to": 1.3
+      }
+     ]
+    },
+    {
+     "part": "scale",
+     "change": "changed",
+     "name": "Body",
+     "fields": [
+      {
+       "field": "size",
+       "from": 16,
+       "to": 18
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "a rule reworded and one added",
+   "a": {
+    "colors": [
+     {
+      "name": "Ofenrot",
+      "hex": "#B8322A",
+      "role": "primary",
+      "pantone": "PMS 7621 C",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Honig",
+      "hex": "#E9A23B",
+      "role": "accent",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Mehl",
+      "hex": "#F2E3C6",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Kruste",
+      "hex": "#3B2A20",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Weiß",
+      "hex": "#FFFFFF",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     }
+    ],
+    "fonts": [
+     {
+      "family": "Fraunces",
+      "role": "Headings",
+      "weights": [
+       400,
+       700
+      ],
+      "italic": false,
+      "license": "free",
+      "license_note": "",
+      "source": "",
+      "catalog": "fraunces",
+      "files": [],
+      "fallback": "serif"
+     }
+    ],
+    "logos": [
+     {
+      "id": "word",
+      "name": "Wortmarke",
+      "media": "",
+      "files": [],
+      "wordmark": {
+       "text": "Morgenrot",
+       "font": "Fraunces"
+      },
+      "fg": "#3B2A20",
+      "accent": "#B8322A",
+      "ground": "#FFFFFF",
+      "compact": false,
+      "min_width": "",
+      "clear_space": ""
+     }
+    ],
+    "scale": [
+     {
+      "name": "Überschrift 1",
+      "use": "h1",
+      "size": 40.0,
+      "weight": 600,
+      "font": "Fraunces",
+      "line_height": 1.15
+     },
+     {
+      "name": "Body",
+      "use": "body",
+      "size": 16.0,
+      "weight": 400,
+      "font": "Fraunces",
+      "line_height": 1.6
+     }
+    ],
+    "rules": [
+     {
+      "type": "text",
+      "kind": "dont",
+      "text": "No white text on Honig.",
+      "topic": ""
+     }
+    ],
+    "samples": []
+   },
+   "b": {
+    "colors": [
+     {
+      "name": "Ofenrot",
+      "hex": "#B8322A",
+      "role": "primary",
+      "pantone": "PMS 7621 C",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Honig",
+      "hex": "#E9A23B",
+      "role": "accent",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Mehl",
+      "hex": "#F2E3C6",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Kruste",
+      "hex": "#3B2A20",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Weiß",
+      "hex": "#FFFFFF",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     }
+    ],
+    "fonts": [
+     {
+      "family": "Fraunces",
+      "role": "Headings",
+      "weights": [
+       400,
+       700
+      ],
+      "italic": false,
+      "license": "free",
+      "license_note": "",
+      "source": "",
+      "catalog": "fraunces",
+      "files": [],
+      "fallback": "serif"
+     }
+    ],
+    "logos": [
+     {
+      "id": "word",
+      "name": "Wortmarke",
+      "media": "",
+      "files": [],
+      "wordmark": {
+       "text": "Morgenrot",
+       "font": "Fraunces"
+      },
+      "fg": "#3B2A20",
+      "accent": "#B8322A",
+      "ground": "#FFFFFF",
+      "compact": false,
+      "min_width": "",
+      "clear_space": ""
+     }
+    ],
+    "scale": [
+     {
+      "name": "Überschrift 1",
+      "use": "h1",
+      "size": 40.0,
+      "weight": 600,
+      "font": "Fraunces",
+      "line_height": 1.15
+     },
+     {
+      "name": "Body",
+      "use": "body",
+      "size": 16.0,
+      "weight": 400,
+      "font": "Fraunces",
+      "line_height": 1.6
+     }
+    ],
+    "rules": [
+     {
+      "kind": "dont",
+      "text": "No white text on honey."
+     },
+     {
+      "kind": "do",
+      "text": "Warm photos."
+     }
+    ],
+    "samples": []
+   },
+   "changes": [
+    {
+     "part": "rules",
+     "change": "removed",
+     "name": "",
+     "rule": {
+      "kind": "dont",
+      "text": "No white text on Honig.",
+      "type": "text"
+     },
+     "fields": []
+    },
+    {
+     "part": "rules",
+     "change": "added",
+     "name": "",
+     "rule": {
+      "kind": "dont",
+      "text": "No white text on honey."
+     },
+     "fields": []
+    },
+    {
+     "part": "rules",
+     "change": "added",
+     "name": "",
+     "rule": {
+      "kind": "do",
+      "text": "Warm photos."
+     },
+     "fields": []
+    }
+   ]
+  },
+  {
+   "name": "a dark mode set",
+   "a": {
+    "colors": [
+     {
+      "name": "Ofenrot",
+      "hex": "#B8322A",
+      "role": "primary",
+      "pantone": "PMS 7621 C",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Honig",
+      "hex": "#E9A23B",
+      "role": "accent",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Mehl",
+      "hex": "#F2E3C6",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Kruste",
+      "hex": "#3B2A20",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Weiß",
+      "hex": "#FFFFFF",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     }
+    ],
+    "fonts": [
+     {
+      "family": "Fraunces",
+      "role": "Headings",
+      "weights": [
+       400,
+       700
+      ],
+      "italic": false,
+      "license": "free",
+      "license_note": "",
+      "source": "",
+      "catalog": "fraunces",
+      "files": [],
+      "fallback": "serif"
+     }
+    ],
+    "logos": [
+     {
+      "id": "word",
+      "name": "Wortmarke",
+      "media": "",
+      "files": [],
+      "wordmark": {
+       "text": "Morgenrot",
+       "font": "Fraunces"
+      },
+      "fg": "#3B2A20",
+      "accent": "#B8322A",
+      "ground": "#FFFFFF",
+      "compact": false,
+      "min_width": "",
+      "clear_space": ""
+     }
+    ],
+    "scale": [
+     {
+      "name": "Überschrift 1",
+      "use": "h1",
+      "size": 40.0,
+      "weight": 600,
+      "font": "Fraunces",
+      "line_height": 1.15
+     },
+     {
+      "name": "Body",
+      "use": "body",
+      "size": 16.0,
+      "weight": 400,
+      "font": "Fraunces",
+      "line_height": 1.6
+     }
+    ],
+    "rules": [
+     {
+      "type": "text",
+      "kind": "dont",
+      "text": "No white text on Honig.",
+      "topic": ""
+     }
+    ],
+    "samples": []
+   },
+   "b": {
+    "colors": [
+     {
+      "name": "Ofenrot",
+      "hex": "#B8322A",
+      "role": "primary",
+      "pantone": "PMS 7621 C",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Honig",
+      "hex": "#E9A23B",
+      "role": "accent",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Mehl",
+      "hex": "#F2E3C6",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Kruste",
+      "hex": "#3B2A20",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Weiß",
+      "hex": "#FFFFFF",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     }
+    ],
+    "fonts": [
+     {
+      "family": "Fraunces",
+      "role": "Headings",
+      "weights": [
+       400,
+       700
+      ],
+      "italic": false,
+      "license": "free",
+      "license_note": "",
+      "source": "",
+      "catalog": "fraunces",
+      "files": [],
+      "fallback": "serif"
+     }
+    ],
+    "logos": [
+     {
+      "id": "word",
+      "name": "Wortmarke",
+      "media": "",
+      "files": [],
+      "wordmark": {
+       "text": "Morgenrot",
+       "font": "Fraunces"
+      },
+      "fg": "#3B2A20",
+      "accent": "#B8322A",
+      "ground": "#FFFFFF",
+      "compact": false,
+      "min_width": "",
+      "clear_space": ""
+     }
+    ],
+    "scale": [
+     {
+      "name": "Überschrift 1",
+      "use": "h1",
+      "size": 40.0,
+      "weight": 600,
+      "font": "Fraunces",
+      "line_height": 1.15
+     },
+     {
+      "name": "Body",
+      "use": "body",
+      "size": 16.0,
+      "weight": 400,
+      "font": "Fraunces",
+      "line_height": 1.6
+     }
+    ],
+    "rules": [
+     {
+      "type": "text",
+      "kind": "dont",
+      "text": "No white text on Honig.",
+      "topic": ""
+     }
+    ],
+    "samples": [],
+    "dark": {
+     "ground": "Kruste",
+     "surface": "Kruste",
+     "text": "Mehl",
+     "muted": "Mehl",
+     "primary": "Honig",
+     "on_primary": "Kruste"
+    }
+   },
+   "changes": [
+    {
+     "part": "dark",
+     "change": "added",
+     "name": "",
+     "fields": []
+    }
+   ]
+  },
+  {
+   "name": "a dark mode changed",
+   "a": {
+    "colors": [
+     {
+      "name": "Ofenrot",
+      "hex": "#B8322A",
+      "role": "primary",
+      "pantone": "PMS 7621 C",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Honig",
+      "hex": "#E9A23B",
+      "role": "accent",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Mehl",
+      "hex": "#F2E3C6",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Kruste",
+      "hex": "#3B2A20",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Weiß",
+      "hex": "#FFFFFF",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     }
+    ],
+    "fonts": [
+     {
+      "family": "Fraunces",
+      "role": "Headings",
+      "weights": [
+       400,
+       700
+      ],
+      "italic": false,
+      "license": "free",
+      "license_note": "",
+      "source": "",
+      "catalog": "fraunces",
+      "files": [],
+      "fallback": "serif"
+     }
+    ],
+    "logos": [
+     {
+      "id": "word",
+      "name": "Wortmarke",
+      "media": "",
+      "files": [],
+      "wordmark": {
+       "text": "Morgenrot",
+       "font": "Fraunces"
+      },
+      "fg": "#3B2A20",
+      "accent": "#B8322A",
+      "ground": "#FFFFFF",
+      "compact": false,
+      "min_width": "",
+      "clear_space": ""
+     }
+    ],
+    "scale": [
+     {
+      "name": "Überschrift 1",
+      "use": "h1",
+      "size": 40.0,
+      "weight": 600,
+      "font": "Fraunces",
+      "line_height": 1.15
+     },
+     {
+      "name": "Body",
+      "use": "body",
+      "size": 16.0,
+      "weight": 400,
+      "font": "Fraunces",
+      "line_height": 1.6
+     }
+    ],
+    "rules": [
+     {
+      "type": "text",
+      "kind": "dont",
+      "text": "No white text on Honig.",
+      "topic": ""
+     }
+    ],
+    "samples": [],
+    "dark": {
+     "ground": "Kruste",
+     "surface": "Kruste",
+     "text": "Mehl",
+     "muted": "Mehl",
+     "primary": "Honig",
+     "on_primary": "Kruste"
+    }
+   },
+   "b": {
+    "colors": [
+     {
+      "name": "Ofenrot",
+      "hex": "#B8322A",
+      "role": "primary",
+      "pantone": "PMS 7621 C",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Honig",
+      "hex": "#E9A23B",
+      "role": "accent",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Mehl",
+      "hex": "#F2E3C6",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Kruste",
+      "hex": "#3B2A20",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Weiß",
+      "hex": "#FFFFFF",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     }
+    ],
+    "fonts": [
+     {
+      "family": "Fraunces",
+      "role": "Headings",
+      "weights": [
+       400,
+       700
+      ],
+      "italic": false,
+      "license": "free",
+      "license_note": "",
+      "source": "",
+      "catalog": "fraunces",
+      "files": [],
+      "fallback": "serif"
+     }
+    ],
+    "logos": [
+     {
+      "id": "word",
+      "name": "Wortmarke",
+      "media": "",
+      "files": [],
+      "wordmark": {
+       "text": "Morgenrot",
+       "font": "Fraunces"
+      },
+      "fg": "#3B2A20",
+      "accent": "#B8322A",
+      "ground": "#FFFFFF",
+      "compact": false,
+      "min_width": "",
+      "clear_space": ""
+     }
+    ],
+    "scale": [
+     {
+      "name": "Überschrift 1",
+      "use": "h1",
+      "size": 40.0,
+      "weight": 600,
+      "font": "Fraunces",
+      "line_height": 1.15
+     },
+     {
+      "name": "Body",
+      "use": "body",
+      "size": 16.0,
+      "weight": 400,
+      "font": "Fraunces",
+      "line_height": 1.6
+     }
+    ],
+    "rules": [
+     {
+      "type": "text",
+      "kind": "dont",
+      "text": "No white text on Honig.",
+      "topic": ""
+     }
+    ],
+    "samples": [],
+    "dark": {
+     "ground": "Kruste",
+     "surface": "Kruste",
+     "text": "Mehl",
+     "muted": "Mehl",
+     "primary": "Ofenrot",
+     "on_primary": "Kruste"
+    }
+   },
+   "changes": [
+    {
+     "part": "dark",
+     "change": "changed",
+     "name": "",
+     "fields": [
+      {
+       "field": "primary",
+       "from": "Honig",
+       "to": "Ofenrot"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "a dark mode taken away",
+   "a": {
+    "colors": [
+     {
+      "name": "Ofenrot",
+      "hex": "#B8322A",
+      "role": "primary",
+      "pantone": "PMS 7621 C",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Honig",
+      "hex": "#E9A23B",
+      "role": "accent",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Mehl",
+      "hex": "#F2E3C6",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Kruste",
+      "hex": "#3B2A20",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Weiß",
+      "hex": "#FFFFFF",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     }
+    ],
+    "fonts": [
+     {
+      "family": "Fraunces",
+      "role": "Headings",
+      "weights": [
+       400,
+       700
+      ],
+      "italic": false,
+      "license": "free",
+      "license_note": "",
+      "source": "",
+      "catalog": "fraunces",
+      "files": [],
+      "fallback": "serif"
+     }
+    ],
+    "logos": [
+     {
+      "id": "word",
+      "name": "Wortmarke",
+      "media": "",
+      "files": [],
+      "wordmark": {
+       "text": "Morgenrot",
+       "font": "Fraunces"
+      },
+      "fg": "#3B2A20",
+      "accent": "#B8322A",
+      "ground": "#FFFFFF",
+      "compact": false,
+      "min_width": "",
+      "clear_space": ""
+     }
+    ],
+    "scale": [
+     {
+      "name": "Überschrift 1",
+      "use": "h1",
+      "size": 40.0,
+      "weight": 600,
+      "font": "Fraunces",
+      "line_height": 1.15
+     },
+     {
+      "name": "Body",
+      "use": "body",
+      "size": 16.0,
+      "weight": 400,
+      "font": "Fraunces",
+      "line_height": 1.6
+     }
+    ],
+    "rules": [
+     {
+      "type": "text",
+      "kind": "dont",
+      "text": "No white text on Honig.",
+      "topic": ""
+     }
+    ],
+    "samples": [],
+    "dark": {
+     "ground": "Kruste",
+     "surface": "Kruste",
+     "text": "Mehl",
+     "muted": "Mehl",
+     "primary": "Honig",
+     "on_primary": "Kruste"
+    }
+   },
+   "b": {
+    "colors": [
+     {
+      "name": "Ofenrot",
+      "hex": "#B8322A",
+      "role": "primary",
+      "pantone": "PMS 7621 C",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Honig",
+      "hex": "#E9A23B",
+      "role": "accent",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Mehl",
+      "hex": "#F2E3C6",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Kruste",
+      "hex": "#3B2A20",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Weiß",
+      "hex": "#FFFFFF",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     }
+    ],
+    "fonts": [
+     {
+      "family": "Fraunces",
+      "role": "Headings",
+      "weights": [
+       400,
+       700
+      ],
+      "italic": false,
+      "license": "free",
+      "license_note": "",
+      "source": "",
+      "catalog": "fraunces",
+      "files": [],
+      "fallback": "serif"
+     }
+    ],
+    "logos": [
+     {
+      "id": "word",
+      "name": "Wortmarke",
+      "media": "",
+      "files": [],
+      "wordmark": {
+       "text": "Morgenrot",
+       "font": "Fraunces"
+      },
+      "fg": "#3B2A20",
+      "accent": "#B8322A",
+      "ground": "#FFFFFF",
+      "compact": false,
+      "min_width": "",
+      "clear_space": ""
+     }
+    ],
+    "scale": [
+     {
+      "name": "Überschrift 1",
+      "use": "h1",
+      "size": 40.0,
+      "weight": 600,
+      "font": "Fraunces",
+      "line_height": 1.15
+     },
+     {
+      "name": "Body",
+      "use": "body",
+      "size": 16.0,
+      "weight": 400,
+      "font": "Fraunces",
+      "line_height": 1.6
+     }
+    ],
+    "rules": [
+     {
+      "type": "text",
+      "kind": "dont",
+      "text": "No white text on Honig.",
+      "topic": ""
+     }
+    ],
+    "samples": []
+   },
+   "changes": [
+    {
+     "part": "dark",
+     "change": "removed",
+     "name": "",
+     "fields": []
+    }
+   ]
+  },
+  {
+   "name": "colours, fonts, logos",
+   "a": {
+    "colors": [
+     {
+      "name": "Ofenrot",
+      "hex": "#B8322A",
+      "role": "primary",
+      "pantone": "PMS 7621 C",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Honig",
+      "hex": "#E9A23B",
+      "role": "accent",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Mehl",
+      "hex": "#F2E3C6",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Kruste",
+      "hex": "#3B2A20",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Weiß",
+      "hex": "#FFFFFF",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     }
+    ],
+    "fonts": [
+     {
+      "family": "Fraunces",
+      "role": "Headings",
+      "weights": [
+       400,
+       700
+      ],
+      "italic": false,
+      "license": "free",
+      "license_note": "",
+      "source": "",
+      "catalog": "fraunces",
+      "files": [],
+      "fallback": "serif"
+     }
+    ],
+    "logos": [
+     {
+      "id": "word",
+      "name": "Wortmarke",
+      "media": "",
+      "files": [],
+      "wordmark": {
+       "text": "Morgenrot",
+       "font": "Fraunces"
+      },
+      "fg": "#3B2A20",
+      "accent": "#B8322A",
+      "ground": "#FFFFFF",
+      "compact": false,
+      "min_width": "",
+      "clear_space": ""
+     }
+    ],
+    "scale": [
+     {
+      "name": "Überschrift 1",
+      "use": "h1",
+      "size": 40.0,
+      "weight": 600,
+      "font": "Fraunces",
+      "line_height": 1.15
+     },
+     {
+      "name": "Body",
+      "use": "body",
+      "size": 16.0,
+      "weight": 400,
+      "font": "Fraunces",
+      "line_height": 1.6
+     }
+    ],
+    "rules": [
+     {
+      "type": "text",
+      "kind": "dont",
+      "text": "No white text on Honig.",
+      "topic": ""
+     }
+    ],
+    "samples": []
+   },
+   "b": {
+    "colors": [
+     {
+      "name": "Ofenrot",
+      "hex": "#A02A22",
+      "role": "primary",
+      "pantone": "PMS 7621 C",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Honig",
+      "hex": "#E9A23B",
+      "role": "secondary",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Mehl",
+      "hex": "#F2E3C6",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Kruste",
+      "hex": "#3B2A20",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Weiß",
+      "hex": "#FFFFFF",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     }
+    ],
+    "fonts": [
+     {
+      "family": "Fraunces",
+      "role": "Headings",
+      "weights": [
+       400,
+       600,
+       700
+      ],
+      "italic": false,
+      "license": "free",
+      "license_note": "",
+      "source": "",
+      "catalog": "fraunces",
+      "files": [],
+      "fallback": "serif"
+     }
+    ],
+    "logos": [
+     {
+      "id": "word",
+      "name": "Wortmarke",
+      "media": "",
+      "files": [],
+      "wordmark": {
+       "text": "Morgenrot",
+       "font": "Fraunces"
+      },
+      "fg": "#3B2A20",
+      "accent": "#B8322A",
+      "ground": "transparent",
+      "compact": false,
+      "min_width": "",
+      "clear_space": ""
+     }
+    ],
+    "scale": [
+     {
+      "name": "Überschrift 1",
+      "use": "h1",
+      "size": 40.0,
+      "weight": 600,
+      "font": "Fraunces",
+      "line_height": 1.15
+     },
+     {
+      "name": "Body",
+      "use": "body",
+      "size": 16.0,
+      "weight": 400,
+      "font": "Fraunces",
+      "line_height": 1.6
+     }
+    ],
+    "rules": [
+     {
+      "type": "text",
+      "kind": "dont",
+      "text": "No white text on Honig.",
+      "topic": ""
+     }
+    ],
+    "samples": []
+   },
+   "changes": [
+    {
+     "part": "colors",
+     "change": "changed",
+     "name": "Ofenrot",
+     "fields": [
+      {
+       "field": "hex",
+       "from": "#B8322A",
+       "to": "#A02A22"
+      }
+     ]
+    },
+    {
+     "part": "colors",
+     "change": "changed",
+     "name": "Honig",
+     "fields": [
+      {
+       "field": "role",
+       "from": "accent",
+       "to": "secondary"
+      }
+     ]
+    },
+    {
+     "part": "fonts",
+     "change": "changed",
+     "name": "Fraunces",
+     "fields": [
+      {
+       "field": "weights",
+       "from": [
+        400,
+        700
+       ],
+       "to": [
+        400,
+        600,
+        700
+       ]
+      }
+     ]
+    },
+    {
+     "part": "logos",
+     "change": "changed",
+     "name": "Wortmarke",
+     "fields": [
+      {
+       "field": "ground",
+       "from": "#FFFFFF",
+       "to": "transparent"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "a colour, a step and an example added and removed",
+   "a": {
+    "colors": [
+     {
+      "name": "Ofenrot",
+      "hex": "#B8322A",
+      "role": "primary",
+      "pantone": "PMS 7621 C",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Honig",
+      "hex": "#E9A23B",
+      "role": "accent",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Mehl",
+      "hex": "#F2E3C6",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Kruste",
+      "hex": "#3B2A20",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Weiß",
+      "hex": "#FFFFFF",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     }
+    ],
+    "fonts": [
+     {
+      "family": "Fraunces",
+      "role": "Headings",
+      "weights": [
+       400,
+       700
+      ],
+      "italic": false,
+      "license": "free",
+      "license_note": "",
+      "source": "",
+      "catalog": "fraunces",
+      "files": [],
+      "fallback": "serif"
+     }
+    ],
+    "logos": [
+     {
+      "id": "word",
+      "name": "Wortmarke",
+      "media": "",
+      "files": [],
+      "wordmark": {
+       "text": "Morgenrot",
+       "font": "Fraunces"
+      },
+      "fg": "#3B2A20",
+      "accent": "#B8322A",
+      "ground": "#FFFFFF",
+      "compact": false,
+      "min_width": "",
+      "clear_space": ""
+     }
+    ],
+    "scale": [
+     {
+      "name": "Überschrift 1",
+      "use": "h1",
+      "size": 40.0,
+      "weight": 600,
+      "font": "Fraunces",
+      "line_height": 1.15
+     },
+     {
+      "name": "Body",
+      "use": "body",
+      "size": 16.0,
+      "weight": 400,
+      "font": "Fraunces",
+      "line_height": 1.6
+     }
+    ],
+    "rules": [
+     {
+      "type": "text",
+      "kind": "dont",
+      "text": "No white text on Honig.",
+      "topic": ""
+     }
+    ],
+    "samples": []
+   },
+   "b": {
+    "colors": [
+     {
+      "name": "Honig",
+      "hex": "#E9A23B",
+      "role": "accent",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Mehl",
+      "hex": "#F2E3C6",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Kruste",
+      "hex": "#3B2A20",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Weiß",
+      "hex": "#FFFFFF",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Salbei",
+      "hex": "#7F9C7A",
+      "role": "accent"
+     }
+    ],
+    "fonts": [
+     {
+      "family": "Fraunces",
+      "role": "Headings",
+      "weights": [
+       400,
+       700
+      ],
+      "italic": false,
+      "license": "free",
+      "license_note": "",
+      "source": "",
+      "catalog": "fraunces",
+      "files": [],
+      "fallback": "serif"
+     }
+    ],
+    "logos": [
+     {
+      "id": "word",
+      "name": "Wortmarke",
+      "media": "",
+      "files": [],
+      "wordmark": {
+       "text": "Morgenrot",
+       "font": "Fraunces"
+      },
+      "fg": "#3B2A20",
+      "accent": "#B8322A",
+      "ground": "#FFFFFF",
+      "compact": false,
+      "min_width": "",
+      "clear_space": ""
+     }
+    ],
+    "scale": [
+     {
+      "name": "Überschrift 1",
+      "use": "h1",
+      "size": 40.0,
+      "weight": 600,
+      "font": "Fraunces",
+      "line_height": 1.15
+     }
+    ],
+    "rules": [
+     {
+      "type": "text",
+      "kind": "dont",
+      "text": "No white text on Honig.",
+      "topic": ""
+     }
+    ],
+    "samples": [
+     {
+      "name": "Flyer",
+      "media": "abcdefghijkl"
+     }
+    ]
+   },
+   "changes": [
+    {
+     "part": "colors",
+     "change": "removed",
+     "name": "Ofenrot",
+     "fields": []
+    },
+    {
+     "part": "colors",
+     "change": "added",
+     "name": "Salbei",
+     "fields": []
+    },
+    {
+     "part": "scale",
+     "change": "removed",
+     "name": "Body",
+     "fields": []
+    },
+    {
+     "part": "samples",
+     "change": "added",
+     "name": "Flyer",
+     "fields": []
+    }
+   ]
+  },
+  {
+   "name": "an empty set against a full one",
+   "a": {
+    "colors": [],
+    "fonts": [],
+    "logos": [],
+    "scale": [],
+    "rules": [],
+    "samples": []
+   },
+   "b": {
+    "colors": [
+     {
+      "name": "Ofenrot",
+      "hex": "#B8322A",
+      "role": "primary",
+      "pantone": "PMS 7621 C",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Honig",
+      "hex": "#E9A23B",
+      "role": "accent",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Mehl",
+      "hex": "#F2E3C6",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Kruste",
+      "hex": "#3B2A20",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     },
+     {
+      "name": "Weiß",
+      "hex": "#FFFFFF",
+      "role": "neutral",
+      "pantone": "",
+      "cmyk": "",
+      "note": ""
+     }
+    ],
+    "fonts": [
+     {
+      "family": "Fraunces",
+      "role": "Headings",
+      "weights": [
+       400,
+       700
+      ],
+      "italic": false,
+      "license": "free",
+      "license_note": "",
+      "source": "",
+      "catalog": "fraunces",
+      "files": [],
+      "fallback": "serif"
+     }
+    ],
+    "logos": [
+     {
+      "id": "word",
+      "name": "Wortmarke",
+      "media": "",
+      "files": [],
+      "wordmark": {
+       "text": "Morgenrot",
+       "font": "Fraunces"
+      },
+      "fg": "#3B2A20",
+      "accent": "#B8322A",
+      "ground": "#FFFFFF",
+      "compact": false,
+      "min_width": "",
+      "clear_space": ""
+     }
+    ],
+    "scale": [
+     {
+      "name": "Überschrift 1",
+      "use": "h1",
+      "size": 40.0,
+      "weight": 600,
+      "font": "Fraunces",
+      "line_height": 1.15
+     },
+     {
+      "name": "Body",
+      "use": "body",
+      "size": 16.0,
+      "weight": 400,
+      "font": "Fraunces",
+      "line_height": 1.6
+     }
+    ],
+    "rules": [
+     {
+      "type": "text",
+      "kind": "dont",
+      "text": "No white text on Honig.",
+      "topic": ""
+     }
+    ],
+    "samples": []
+   },
+   "changes": [
+    {
+     "part": "colors",
+     "change": "added",
+     "name": "Ofenrot",
+     "fields": []
+    },
+    {
+     "part": "colors",
+     "change": "added",
+     "name": "Honig",
+     "fields": []
+    },
+    {
+     "part": "colors",
+     "change": "added",
+     "name": "Mehl",
+     "fields": []
+    },
+    {
+     "part": "colors",
+     "change": "added",
+     "name": "Kruste",
+     "fields": []
+    },
+    {
+     "part": "colors",
+     "change": "added",
+     "name": "Weiß",
+     "fields": []
+    },
+    {
+     "part": "fonts",
+     "change": "added",
+     "name": "Fraunces",
+     "fields": []
+    },
+    {
+     "part": "logos",
+     "change": "added",
+     "name": "Wortmarke",
+     "fields": []
+    },
+    {
+     "part": "scale",
+     "change": "added",
+     "name": "Überschrift 1",
+     "fields": []
+    },
+    {
+     "part": "scale",
+     "change": "added",
+     "name": "Body",
+     "fields": []
+    },
+    {
+     "part": "rules",
+     "change": "added",
+     "name": "",
+     "rule": {
+      "kind": "dont",
+      "text": "No white text on Honig.",
+      "type": "text"
+     },
+     "fields": []
+    }
+   ]
+  }
+ ]
+}

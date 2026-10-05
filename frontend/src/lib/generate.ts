@@ -22,10 +22,16 @@ export function harmonies(primary: string): Harmony[] {
 export type Names = { primary: string; accent: string; second: string; paper: string; stone: string; ink: string; white: string; light: string; dark: string }
 
 /** Neutrals tinted with the main hue: an off-white, a mid grey for borders, a dark for text. */
+/** Apart from white so clearly that the checks never call the two "nearly the same" (they warn below ΔE 4; F24: a new
+ * client met that hint about colours nexbrand had made itself). */
+const PAPER_FROM_WHITE = 5
+
 export function neutralsFor(primary: string, names: Names): BrandColor[] {
   const [h] = hsl(primary)
+  let paper = fromHsl(h, 30, 96)
+  for (let light = 96; light > 85 && deltaE(paper, '#FFFFFF') < PAPER_FROM_WHITE; light -= 0.5) paper = fromHsl(h, 30, light)
   return [
-    { name: names.paper, hex: fromHsl(h, 30, 96), role: 'neutral' },
+    { name: names.paper, hex: paper, role: 'neutral' },
     { name: names.stone, hex: fromHsl(h, 8, 62), role: 'neutral' },
     { name: names.ink, hex: fromHsl(h, 25, 13), role: 'neutral' },
   ]
@@ -241,10 +247,13 @@ export function sameRule(a: Rule, b: Rule): boolean {
 export function wordmarks(name: string, colors: BrandColor[], headFamily: string, labels: { positive: string; negative: string; monogram: string }): BrandLogo[] {
   const { primary, light, dark } = pickColors(colors, luminance)
   const mark = { text: name || '?', font: headFamily }
+  // The main colour as the accent only where it stands out from the ground by 3:1 (the logo check); otherwise the mark
+  // keeps one colour. A new client met "word mark negative: 2.38:1" about a logo nexbrand had made (F24).
+  const accentOn = (ground: string, plain: string) => (contrast(primary, ground) >= 3 ? primary : plain)
   return [
-    { id: 'word-positive', name: labels.positive, wordmark: mark, fg: dark, accent: primary, ground: '#FFFFFF', min_width: '30 mm / 120 px' },
-    { id: 'word-negative', name: labels.negative, wordmark: mark, fg: light, accent: primary, ground: dark, min_width: '30 mm / 120 px' },
-    { id: 'monogram', name: labels.monogram, wordmark: mark, fg: textOn(primary), accent: primary, ground: light, compact: true, min_width: '8 mm / 24 px' },
+    { id: 'word-positive', name: labels.positive, wordmark: mark, fg: dark, accent: accentOn('#FFFFFF', dark), ground: '#FFFFFF', min_width: '30 mm / 120 px' },
+    { id: 'word-negative', name: labels.negative, wordmark: mark, fg: light, accent: accentOn(dark, light), ground: dark, min_width: '30 mm / 120 px' },
+    { id: 'monogram', name: labels.monogram, wordmark: mark, fg: textOn(primary), accent: accentOn(light, dark), ground: light, compact: true, min_width: '8 mm / 24 px' },
   ]
 }
 

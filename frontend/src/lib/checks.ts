@@ -6,7 +6,7 @@
  */
 
 import type { BrandColor, BrandLogo, BrandSet, DarkMode, Rule } from './brand'
-import { contrast, deltaE, luminance, simulate, type Vision } from './color'
+import { contrast, deltaE, luminance, shownRatio, simulate, type Vision } from './color'
 
 export type HintLevel = 'bad' | 'warn' | 'info'
 
@@ -77,7 +77,7 @@ export function ruleHints(set: Pick<BrandSet, 'fonts' | 'logos' | 'scale'> & { r
       const ratio = contrast(fg.hex, bg.hex)
       if (rule.kind === 'do') {
         const need = (rule.size ?? 'text') === 'text' ? 4.5 : 3
-        if (ratio < need) hints.push({ level: ratio < 3 ? 'bad' : 'warn', code: 'rule_pair_low', rule: index, colors: [fg.name, bg.name], hex: [fg.hex, bg.hex], ratio: r2(ratio), need })
+        if (ratio < need) hints.push({ level: ratio < 3 ? 'bad' : 'warn', code: 'rule_pair_low', rule: index, colors: [fg.name, bg.name], hex: [fg.hex, bg.hex], ratio: shownRatio(ratio), need })
         if (forbidden.has(fg.name.toLowerCase() + '\u0000' + bg.name.toLowerCase())) hints.push({ level: 'bad', code: 'rule_conflict', rule: index, colors: [fg.name, bg.name], hex: [fg.hex, bg.hex] })
       } else
         for (const logo of set.logos) {
@@ -111,7 +111,7 @@ export function ruleHints(set: Pick<BrandSet, 'fonts' | 'logos' | 'scale'> & { r
           const ratios = values.map((v) => contrast(v, g.hex))
           if (!ratios.length) continue
           const least = Math.min(...ratios)
-          if (least < 3) hints.push({ level: 'warn', code: 'rule_logo_contrast', rule: index, logo: logo.name, colors: [g.name], hex: [values[ratios.indexOf(least)], g.hex], ratio: r2(least) })
+          if (least < 3) hints.push({ level: 'warn', code: 'rule_logo_contrast', rule: index, logo: logo.name, colors: [g.name], hex: [values[ratios.indexOf(least)], g.hex], ratio: shownRatio(least) })
         }
     } else if (rule.type === 'font') {
       const family = rule.font
@@ -154,7 +154,7 @@ export function darkHints(dark: DarkMode | null | undefined, items: BrandColor[]
     const bg = found[bgPart]
     if (!fg || !bg) continue
     const ratio = contrast(fg.hex, bg.hex)
-    if (ratio < 4.5) hints.push({ level: ratio < 3 ? 'bad' : 'warn', code, colors: [fg.name, bg.name], hex: [fg.hex, bg.hex], ratio: r2(ratio) })
+    if (ratio < 4.5) hints.push({ level: ratio < 3 ? 'bad' : 'warn', code, colors: [fg.name, bg.name], hex: [fg.hex, bg.hex], ratio: shownRatio(ratio) })
   }
   return hints
 }
@@ -179,10 +179,10 @@ export function check(set: Pick<BrandSet, 'colors' | 'fonts' | 'logos' | 'scale'
       const better = items
         .filter((t) => t !== bg && contrast(t.hex, bg.hex) >= 4.5)
         .sort((a, b) => contrast(b.hex, bg.hex) - contrast(a.hex, bg.hex))[0]
-      const hint: Hint = { level: ratio < 3 ? 'bad' : 'warn', code: 'white_on', colors: [bg.name], hex: [WHITE, bg.hex], ratio: r2(ratio) }
+      const hint: Hint = { level: ratio < 3 ? 'bad' : 'warn', code: 'white_on', colors: [bg.name], hex: [WHITE, bg.hex], ratio: shownRatio(ratio) }
       if (better) {
         hint.better = better.name
-        hint.better_ratio = r2(contrast(better.hex, bg.hex))
+        hint.better_ratio = shownRatio(contrast(better.hex, bg.hex))
       }
       hints.push(hint)
     }
@@ -190,7 +190,7 @@ export function check(set: Pick<BrandSet, 'colors' | 'fonts' | 'logos' | 'scale'
   for (const primary of items.filter((c) => c.role === 'primary'))
     for (const bg of items.filter((c) => c.role === 'neutral' && luminance(c.hex) > 0.6)) {
       const ratio = contrast(primary.hex, bg.hex)
-      if (ratio < 4.5) hints.push({ level: 'warn', code: 'primary_as_text', colors: [primary.name, bg.name], hex: [primary.hex, bg.hex], ratio: r2(ratio) })
+      if (ratio < 4.5) hints.push({ level: 'warn', code: 'primary_as_text', colors: [primary.name, bg.name], hex: [primary.hex, bg.hex], ratio: shownRatio(ratio) })
     }
 
   for (let i = 0; i < items.length; i++)
@@ -209,7 +209,7 @@ export function check(set: Pick<BrandSet, 'colors' | 'fonts' | 'logos' | 'scale'
     const parts: [string, string][] = [['mark', logo.accent], ...(logo.compact ? [] : ([['word', logo.fg]] as [string, string][]))]
     for (const [part, value] of parts) {
       const ratio = contrast(value, logo.ground)
-      if (ratio < 3) hints.push({ level: 'warn', code: `logo_${part}`, logo: logo.name, hex: [value, logo.ground], ratio: r2(ratio) })
+      if (ratio < 3) hints.push({ level: 'warn', code: `logo_${part}`, logo: logo.name, hex: [value, logo.ground], ratio: shownRatio(ratio) })
     }
   }
 

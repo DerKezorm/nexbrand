@@ -24,7 +24,8 @@ def _tokens_on(client: TestClient, operator: Account) -> Iterator[None]:
 
 
 def _token(client: TestClient, level: str = "read") -> dict[str, str]:
-    answer = client.post("/api/api-tokens", json={"name": "Editor", "level": level})
+    answer = client.post("/api/api-tokens", json={"name": "Editor", "level": level, "all_clients": True,
+                                                  "days": None})
     assert answer.status_code in (200, 201), answer.text
     return {"Authorization": f"Bearer {answer.json()['secret']}"}
 
@@ -152,7 +153,7 @@ def test_contrast_for_programs(client: TestClient, space: int) -> None:
     auth = _token(client)
     with _program() as program:
         answer = program.get("/api/v1/contrast?fg=%23E9A23B&bg=%23FFFFFF", headers=auth).json()
-    assert answer["ratio"] == 2.17 and answer["text"] == "fail" and answer["nearest_passing"]
+    assert answer["ratio"] == 2.16 and answer["text"] == "fail" and answer["nearest_passing"]
 
 
 # --- MCP ------------------------------------------------------------------------------------------------------------

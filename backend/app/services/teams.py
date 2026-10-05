@@ -74,12 +74,36 @@ def view(db: Session, team: Team) -> dict:
     }
 
 
+def _name_free(db: Session, name: str, own_id: int | None = None) -> str:
+    """``name`` cleaned, when no other team has it (F15: without capitals and spaces at the ends)."""
+    from . import names
+
+    clean = clean_name(name)
+    try:
+        names.check_team(db, clean, own_id)
+    except names.NameTaken as exc:
+        raise TeamError(exc.code, exc.text, exc.status) from exc
+    return clean
+
+
 def create(db: Session, name: str, color: str) -> Team:
-    team = Team(name=clean_name(name), color=clean_color(color), source=TEAM_LOCAL)
-    db.add(team)
-    db.commit()
+    from . import names
+
+    with names.lock:
+        team = Team(name=_name_free(db, name), color=clean_color(color), source=TEAM_LOCAL)
+        db.add(team)
+        db.commit()
     logger.info("Team created id=%s", team.id)
     return team
+
+
+def rename(db: Session, team: Team, name: str) -> None:
+    """A new name no other team has; committed."""
+    from . import names
+
+    with names.lock:
+        team.name = _name_free(db, name, team.id)
+        db.commit()
 
 
 def set_members(db: Session, team: Team, account_ids: Iterable[int]) -> None:
