@@ -3,7 +3,7 @@
  * components/TabRow.tsx): whoever knows one app finds the same card, row, field and tab in the other.
  */
 import type { LucideIcon } from 'lucide-react'
-import { useCallback, useId, useState, type ReactNode } from 'react'
+import { useCallback, useId, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ApiError } from '../../api/client'
@@ -231,30 +231,39 @@ export function useAction() {
   return { busy, problem, done, run }
 }
 
-/** "Really?" with the operator's password where the server asks for it again. */
-export function Confirm({ title, text, confirm, danger = false, password = false, onCancel, onConfirm }: {
+/** "Really?" with the operator's password where the server asks for it again. `extra`: more below the text, given the
+ * password typed so far (the open links of an account, with their own button, A15). */
+export function Confirm({ title, text, confirm, danger = false, password = false, extra, onCancel, onConfirm }: {
   title: string
   text: string
   confirm: string
   danger?: boolean
   password?: boolean
+  extra?: (password: string) => ReactNode
   onCancel: () => void
   onConfirm: (password: string) => Promise<void>
 }) {
   const { t } = useTranslation()
   const [value, setValue] = useState('')
   const { busy, problem, run } = useAction()
+  /** One request at a time: a second click before the button shows busy does nothing. */
+  const running = useRef(false)
   return (
     <Dialog title={title} onClose={onCancel}>
       <form
         className="space-y-4"
         onSubmit={(e) => {
           e.preventDefault()
-          void run(() => onConfirm(value))
+          if (running.current) return
+          running.current = true
+          void run(() => onConfirm(value)).finally(() => {
+            running.current = false
+          })
         }}
       >
         <p className="text-sm text-mist-300">{text}</p>
         {password && <input className="nc-field" type="password" value={value} onChange={(e) => setValue(e.target.value)} placeholder={t('settings.ownPassword')} autoComplete="current-password" autoFocus />}
+        {extra?.(value)}
         <Feedback problem={problem} />
         <div className="flex justify-end gap-2">
           <button type="button" className="nc-btn nc-btn-ghost" onClick={onCancel}>

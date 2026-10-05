@@ -184,7 +184,8 @@ def test_f5_the_operator_blocks_an_account_alone_too(client: TestClient, operato
     assert client.post(f"/api/accounts/{operator.id}/block", json={"current_password": PASSWORD}).status_code == 409
     assert client.post(f"/api/accounts/{rita.id}/block", json={"current_password": PASSWORD}).status_code == 204
     with new_client() as stranger:
-        assert stranger.post("/api/auth/login", json={"name": "rita", "password": PASSWORD}).status_code == 401
+        # The right password hears that the account is blocked (A16, decided 05.10.2026).
+        assert stranger.post("/api/auth/login", json={"name": "rita", "password": PASSWORD}).status_code == 403
     assert client.post(f"/api/accounts/{rita.id}/unblock", json={"current_password": PASSWORD}).status_code == 204
     with SessionLocal() as db:
         assert db.get(Account, rita.id).blocked_at is None  # type: ignore[union-attr]
@@ -222,9 +223,10 @@ def test_d8_the_emergency_account_goes_with_the_person_and_comes_back_on_disconn
     with SessionLocal() as db:
         suite.sync(db)
     with new_client() as browser:
-        assert browser.post("/api/auth/login", json={"name": "tester", "password": PASSWORD}).status_code == 401
+        refused = browser.post("/api/auth/login", json={"name": "tester", "password": PASSWORD})
+        assert refused.status_code == 403 and refused.json()["detail"]["code"] == "account_blocked"
     with SessionLocal() as db:
-        _without, blocked = suite.disconnect(db, tell=False)
+        _without, blocked, _back = suite.disconnect(db, tell=False)
     assert "tester" not in blocked
     with new_client() as browser:
         assert browser.post("/api/auth/login", json={"name": "tester", "password": PASSWORD}).status_code == 200

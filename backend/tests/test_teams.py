@@ -37,6 +37,8 @@ def test_the_operator_makes_a_team_and_everybody_sees_everybody(client: TestClie
 def test_the_lead_changes_members_only(client: TestClient, operator: Account) -> None:
     anna, ben = make_account("anna"), make_account("ben")
     team = _team(client, members=[anna.id], lead=anna.id)
+    # Only when the operator allows leads to (D3, off from the start; test_decisions.py has the switch).
+    assert client.put("/api/settings", json={"team_leads_edit": True}).status_code == 200
     with new_client(anna) as browser:
         answer = browser.patch(f"/api/teams/{team['id']}", json={"members": [anna.id, ben.id]})
         assert answer.status_code == 200 and answer.json()["members"] == sorted([anna.id, ben.id])

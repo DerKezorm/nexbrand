@@ -278,6 +278,11 @@
         "title": "{{name}} sperren?",
         "text": "{{name}} kommt danach nirgends mehr hinein: keine Anmeldung, kein API-Token. Freigabe- und Abstimmungslinks, die {{name}} angelegt hat, bleiben offen. Entsperren geht jederzeit.",
         "button": "Sperren"
+      },
+      "links": {
+        "title": "Links von {{name}} zurückziehen?",
+        "text": "Freigaben gehen offline, offene Abstimmungen werden geschlossen. Wer einen Link hat, sieht dort danach nichts mehr.",
+        "button": "Zurückziehen"
       }
     },
     "backupMade": "Sicherung erstellt.",
@@ -383,7 +388,14 @@
     },
     "backupsDryRun": "Wiederherstellen zeigt zuerst einen Probelauf.",
     "block": "Sperren",
-    "proxyUnknown": "Anfragen kommen über einen Proxy, aber NEXBRAND_TRUSTED_PROXIES ist nicht gesetzt. Dann sieht nexbrand alle als einen Absender: Wer oft falsch rät, bremst jeden aus, der sich in einem hier noch nie benutzten Browser anmeldet. Trag die Adresse des Proxys in NEXBRAND_TRUSTED_PROXIES ein. Steht kein Proxy davor, kannst du das ignorieren."
+    "proxyUnknown": "Anfragen kommen über einen Proxy, aber NEXBRAND_TRUSTED_PROXIES ist nicht gesetzt. Dann sieht nexbrand alle als einen Absender: Wer oft falsch rät, bremst jeden aus, der sich in einem hier noch nie benutzten Browser anmeldet. Trag die Adresse des Proxys in NEXBRAND_TRUSTED_PROXIES ein. Steht kein Proxy davor, kannst du das ignorieren.",
+    "openLinks_one": "{{count}} offener Link für Kunden",
+    "openLinks_other": "{{count}} offene Links für Kunden",
+    "linksStay_one": "{{name}} hat einen offenen Link für Kunden (Freigabe oder Abstimmung). Er bleibt gültig, bis du ihn zurückziehst.",
+    "linksStay_other": "{{name}} hat {{count}} offene Links für Kunden (Freigaben und Abstimmungen). Sie bleiben gültig, bis du sie zurückziehst.",
+    "withdrawLinks": "Zurückziehen",
+    "withdrawLinksRow": "Links zurückziehen",
+    "linksWithdrawn": "Links zurückgezogen."
   },
   "errors": {
     "avatar_not_a_picture": "Das ist kein Bild, das nexbrand annimmt (JPEG, PNG, WebP, GIF, HEIC oder AVIF).",
@@ -523,7 +535,7 @@
     "backups_emergency_only": "Im Verbund lädt und löscht nur das Notkonto Sicherungen.",
     "not_connected": "nexbrand ist nicht mit nexsuite verbunden.",
     "emergency_code_wrong": "Dieser Notfallcode gilt nicht.",
-    "account_blocked": "Dieses Konto ist gesperrt.",
+    "account_blocked": "Dieses Konto ist gesperrt. Bitte den Betreiber, es freizugeben.",
     "disconnect_in_suite": "Trennen geht in nexsuite unter Apps, oder mit dem Notkonto dieser App.",
     "person_twice": "Jede Person in nexsuite lässt sich nur einmal zuordnen.",
     "space_twice": "Jeder Kunde in nexsuite lässt sich nur einmal zuordnen.",
@@ -596,7 +608,8 @@
     "client_name_taken": "Einen Kunden mit diesem Namen gibt es schon. Wähle einen anderen Namen.",
     "client_name_in_bin": "Ein Kunde mit diesem Namen liegt im Papierkorb. Hol ihn zurück oder wähle einen anderen Namen.",
     "project_name_taken": "Dieser Kunde hat schon ein Projekt mit diesem Namen. Wähle einen anderen Namen.",
-    "team_name_taken": "Ein Team mit diesem Namen gibt es schon. Wähle einen anderen Namen."
+    "team_name_taken": "Ein Team mit diesem Namen gibt es schon. Wähle einen anderen Namen.",
+    "team_leads_off": "Der Betreiber hat Teamleitungen nicht erlaubt, ihre Teams zu ändern."
   },
   "auth": {
     "name": "Name",
@@ -889,7 +902,9 @@
     "rightsTitle": "Teams mit Zugriff auf {{space}}",
     "rightsText": "Ein Team mit einem Recht gibt es allen seinen Mitgliedern. Wer selbst ein höheres Recht hat, behält es.",
     "rightFor": "Recht von {{team}}",
-    "noRight": "Kein Recht"
+    "noRight": "Kein Recht",
+    "leadsSwitch": "Teamleitungen ändern ihre Teams",
+    "leadsSwitchHint": "Die Leitung eines Teams nimmt Personen auf und heraus. Damit gibt sie ihnen die Rechte des Teams bei allen Kunden. Aus: Nur der Betreiber ändert die Teams."
   },
   "suite": {
     "managed": "Das wird jetzt in nexsuite verwaltet.",
@@ -982,7 +997,12 @@
     "managedPassword": "Passwort und zweiter Faktor änderst du in nexsuite; sie gelten für alle verbundenen Apps.",
     "openSuite": "nexsuite öffnen",
     "mailNone": "In nexsuite ist kein Mailserver eingerichtet, deshalb verschickt nexbrand keine Mails. Deine eigene Einstellung ist aufbewahrt, falls du trennst.",
-    "notSet": "nicht gesetzt"
+    "notSet": "nicht gesetzt",
+    "stillSignedIn": "Wenn du bei nexsuite noch angemeldet bist, kommst du mit dem Knopf ohne Eingabe als dieselbe Person herein.",
+    "someoneElse": "Als jemand anderes anmelden",
+    "someoneElseHint": "nexsuite öffnet sich in einem neuen Tab. Melde dich dort ab und nimm dann hier „Anmelden mit nexsuite“.",
+    "leaveOperators": "Nur durch nexsuite Betreiber, danach wieder Mitglied: {{names}}.",
+    "operatorsBack": "Wieder Mitglied, Betreiber waren sie nur durch nexsuite: {{names}}."
   },
   "origin": {
     "hand": "von Hand",

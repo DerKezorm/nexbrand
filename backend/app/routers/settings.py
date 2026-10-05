@@ -11,11 +11,13 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
+from sqlalchemy import func, select
 
 from ..config import get_settings
 from ..deps import DbSession, OperatorAccount, unknown_proxy_seen
 from ..errors import error
 from ..models import SIGN_IN_PASSWORD
+from ..models import Account as AccountRow
 from ..security import encrypt_secret
 from ..services import accounts, ai, mailer, settings_service, suite
 
@@ -39,6 +41,7 @@ class SettingsOut(BaseModel):
     smtp_from: str
     api_tokens_allowed: bool
     members_create_clients: bool
+    team_leads_edit: bool
     collect_allowed: bool
     collect_github_token_set: bool
     ai_allowed: bool
@@ -67,6 +70,7 @@ class SettingsIn(BaseModel):
     smtp_from: str | None = Field(default=None, max_length=255)
     api_tokens_allowed: bool | None = None
     members_create_clients: bool | None = None
+    team_leads_edit: bool | None = None
     collect_allowed: bool | None = None
     #: Empty removes the token; left out keeps it.
     collect_github_token: str | None = Field(default=None, max_length=500)
@@ -79,6 +83,8 @@ class SettingsIn(BaseModel):
 
 class TestMailIn(BaseModel):
     to: str = Field(max_length=255)
+    #: The language the operator sees the page in, for the mail when neither the receiver nor the operator has one.
+    language: str = Field(default="", max_length=16)
 
 
 def _view(db: DbSession) -> SettingsOut:
@@ -98,6 +104,7 @@ def _view(db: DbSession) -> SettingsOut:
         smtp_from=values["smtp_from"],
         api_tokens_allowed=bool(values["api_tokens_allowed"]),
         members_create_clients=bool(values["members_create_clients"]),
+        team_leads_edit=bool(values["team_leads_edit"]),
         collect_allowed=bool(values["collect_allowed"]),
         collect_github_token_set=bool(values["collect_github_token_enc"]),
         ai_allowed=bool(values["ai_allowed"]),
@@ -122,8 +129,9 @@ def save(payload: SettingsIn, operator: OperatorAccount, db: DbSession) -> Setti
     sent = {key for key, value in payload.model_dump(exclude_unset=True).items() if value is not None}
     mail_managed = bool(settings_service.get(db, "suite_mail")) and any(k.startswith("smtp_") for k in sent)
     # The public address too: nexsuite knows the app by it, and the return address of the sign-in hangs on it (A9).
-    # Who makes clients is nexsuite's too while it keeps them (B22): the switch counts again after a disconnect.
-    kept_there = {"password_login", "two_factor_required", "public_url", "members_create_clients"}
+    # Who makes clients is nexsuite's too while it keeps them (B22): the switch counts again after a disconnect. The
+    # same for what team leads may: nexsuite keeps the teams and has its own switch for it (D3).
+    kept_there = {"password_login", "two_factor_required", "public_url", "members_create_clients", "team_leads_edit"}
     if suite.connected(db) and (sent & kept_there or mail_managed):
         raise error("managed_by_suite", "This is kept in nexsuite now.", 409)
     for key, value in payload.model_dump(exclude_unset=True).items():
@@ -171,11 +179,15 @@ def save(payload: SettingsIn, operator: OperatorAccount, db: DbSession) -> Setti
 
 
 @router.post("/mail-test", status_code=204, summary="Send a test mail through the configured server")
-def mail_test(payload: TestMailIn, _operator: OperatorAccount, db: DbSession) -> None:
+def mail_test(payload: TestMailIn, operator: OperatorAccount, db: DbSession) -> None:
     to = payload.to.strip()
     if not accounts.EMAIL_PATTERN.match(to):
         raise error("invalid_email", "This is not a mail address.", 422)
+    # In the language of whoever receives it, as the invitation: an account with this address, else the operator's
+    # own language, else the page's, else English (decision 8 of 05.10.2026).
+    known = db.scalar(select(AccountRow).where(func.lower(AccountRow.email) == to.lower()).limit(1))
+    language = mailer.mail_language(known.language if known else "", operator.language, payload.language)
     try:
-        mailer.send_test(db, to)
+        mailer.send_test(db, to, language)
     except mailer.MailError as exc:
         raise error(exc.code, str(exc), 502) from exc

@@ -160,6 +160,8 @@ export type Me = {
   suite_emergency?: boolean
   /** Whether "New client" makes one here (not while nexsuite keeps the clients; else the operator's switch). */
   may_create_clients?: boolean
+  /** Whether the lead of a team changes its members (the operator's switch; never while nexsuite keeps teams). */
+  may_edit_led_teams?: boolean
 }
 
 export type Preferences = {
@@ -373,7 +375,8 @@ export type MediaInfo = {
 }
 
 export type SetupState = { needs_setup: boolean; code_required: boolean; signed_in: boolean; version: string; min_password: number }
-export type Methods = { password: boolean; oidc: boolean; oidc_name: string; suite?: boolean }
+/** `suite_url`: connected, where nexsuite opens (signing in as someone else goes through signing out there, B11). */
+export type Methods = { password: boolean; oidc: boolean; oidc_name: string; suite?: boolean; suite_url?: string }
 
 export type AiAccess = { active: boolean; url: string; model: string; key_set: boolean }
 export type AiState = { allowed: boolean; ready: boolean; access: AiAccess }

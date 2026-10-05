@@ -43,6 +43,9 @@ DEFAULTS: dict[str, Any] = {
     "api_tokens_allowed": False,
     #: Whether members make clients (and then manage them), not only the operator. On, as before spaces went.
     "members_create_clients": True,
+    #: Whether the lead of a team changes its members, as in nexsuite: off unless the operator turns it on (Prüfgang
+    #: 05.10.2026 D3, as decided). Taking somebody into a team gives them the team's rights in every client.
+    "team_leads_edit": False,
     #: Collecting from websites and repositories (``services/collect.py``): a way out, closed until opened.
     "collect_allowed": False,
     #: A token for private GitHub repositories when collecting, encrypted; empty: public repositories only.

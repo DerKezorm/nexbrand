@@ -41,10 +41,13 @@ frame here: accounts, second factor, sign-in through a provider, log, languages 
   other with the usual chat interface. It sorts what was collected and proposes directions for a new
   client. Off until the operator allows it; every request is listed word for word for 14 days.
 - **Access per client.** People and teams get access to a client, to read, write or manage it; whoever makes a
-  client manages it, and the operator decides whether members may make clients. A client somebody may not see
+  client manages it, and the operator decides whether members may make clients. Teams are the operator's; the lead
+  of a team changes its members only when the operator allows it (off from the start). A client somebody may not see
   answers like one that does not exist. Clients go to a bin for 30 days.
-- **Around it, as in nexlore.** Accounts by invitation (the mail in the receiver's language when an account with that
-  address has one, else in the inviter's), blocked and let in again by the operator, second factor with recovery codes, sign-in through an OIDC
+- **Around it, as in nexlore.** Accounts by invitation (the mail, like the operator's test mail, in the receiver's
+  language when an account with that address has one, else in the sender's), blocked and let in again by the operator
+  (a blocked account hears so only after its right password; the links it made for clients stay until the operator
+  withdraws them), second factor with recovery codes, sign-in through an OIDC
   provider with a button for authentik, a log in four levels, German and English plus languages the operator adds as
   JSON files, backups of the database together with every file, with a check before going back.
 
@@ -152,12 +155,16 @@ to those there, and from then on people sign in through nexsuite. Clients are ma
 shows up in nexbrand without a CI and gets it here; it is also put in the bin and deleted for good there. A blocked
 person is signed out at once, and a page they still have open goes to the sign-in within seconds, saying why. A link
 to a page survives the sign-in, through nexsuite as through any other provider. Connecting again later suggests each
-account the person it had before and leaves blocked accounts blocked unless the operator chooses otherwise.
+account the person it had before and leaves blocked accounts blocked unless the operator chooses otherwise. Signing
+out of nexbrand leaves nexsuite signed in, as single sign-on does; the sign-in page says so and leads to nexsuite to sign
+out there and come back as someone else.
 
 Disconnecting brings nexbrand back on its own with everything it got; the operator's own sign-in with a password
 works throughout as the emergency account, and an emergency code disconnects when nexsuite is out of reach (nexsuite
-hears of it once it is back). While connected, only the emergency account downloads or deletes a backup, since an
-archive holds its password and second factor; restoring one waits for the disconnect.
+hears of it once it is back). An operator role that came from nexsuite alone ends with the connection: the dialog
+names those accounts before, and they are members again afterwards. While connected, only the emergency account
+downloads or deletes a backup, since an archive holds its password and second factor; restoring one waits for the
+disconnect.
 
 ## For programs and AI tools
 

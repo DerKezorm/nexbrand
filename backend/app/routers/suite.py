@@ -52,7 +52,8 @@ def status(account: Account, db: DbSession) -> dict[str, Any]:
     view = suite.view(db)
     if account.role != "operator":
         return {"state": view["state"], "url": view["url"]}
-    return view
+    # Who stops being an operator when disconnecting, for the dialog (B17).
+    return {**view, "operators_from_suite": [row.name for row in suite.operators_from_suite(db)]}
 
 
 @router.post("/start", summary="Pair with nexsuite using a one-time code; returns what to match (operator)")
@@ -128,11 +129,11 @@ def disconnect(payload: ConfirmIn, request: Request, operator: OperatorAccount, 
     if not suite.connected(db):
         raise error("not_connected", "nexbrand is not connected to nexsuite.", 409)
     try:
-        without, blocked = suite.disconnect(db)
+        without, blocked, back = suite.disconnect(db)
     except suite.SuiteError as exc:
         raise _fail(exc) from exc
     logger.warning("Disconnected from nexsuite by=%s", operator.name)
-    return {"without_password": without, "blocked": blocked}
+    return {"without_password": without, "blocked": blocked, "operators_back": back}
 
 
 @router.post("/emergency", summary="Disconnect with an emergency code, nexsuite out of reach (operator)")
@@ -144,9 +145,9 @@ def emergency(payload: EmergencyIn, request: Request, operator: OperatorAccount,
     if not suite.emergency_ok(db, payload.code):
         raise error("emergency_code_wrong", "This emergency code is not valid.", 403)
     suite.report(db, "emergency_disconnect", operator.name)
-    without, blocked = suite.disconnect(db, tell=False)
+    without, blocked, back = suite.disconnect(db, tell=False)
     logger.warning("Disconnected from nexsuite with an emergency code by=%s", operator.name)
-    return {"without_password": without, "blocked": blocked}
+    return {"without_password": without, "blocked": blocked, "operators_back": back}
 
 
 def _sync_later() -> None:

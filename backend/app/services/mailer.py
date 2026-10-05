@@ -1,8 +1,9 @@
 """Mail through the operator's SMTP server: invitations, and the link of a review to the client.
 
-Off until the operator enters a server: the link to copy is always enough. Nothing else is ever mailed. The
-invitation names who invites and into which client, and carries the link, in the language of whoever receives it. The
-review mail goes to someone without an account, in the language of the person who puts the draft forward.
+Off until the operator enters a server: the link to copy is always enough. Nothing else is ever mailed, apart from
+the operator's test mail. The invitation names who invites and into which client, and carries the link, in the
+language of whoever receives it; the test mail as well. The review mail goes to someone without an account, in the
+language of the person who puts the draft forward.
 """
 
 from __future__ import annotations
@@ -146,9 +147,18 @@ def send_review(db: Session, to: str, link: str, *, client: str, sender: str, me
     _send(db, mail)
 
 
-def send_test(db: Session, to: str) -> None:
+#: The operator's test mail, in the language of whoever receives it (as the invitation, decision 8 of 05.10.2026).
+TEST_MAIL = {
+    "de": {"subject": "nexbrand: Testmail", "body": "Der Mailserver in nexbrand funktioniert.\n"},
+    "en": {"subject": "nexbrand test mail", "body": "The mail server in nexbrand works.\n"},
+}
+
+
+def send_test(db: Session, to: str, language: str = "en") -> None:
+    """``language``: as ``mail_language`` chose it (the account with the address, else the operator's)."""
+    words = TEST_MAIL.get(language, TEST_MAIL["en"])
     message = EmailMessage()
     message["To"] = formataddr(("", to))
-    message["Subject"] = "nexbrand test mail"
-    message.set_content("The mail server in nexbrand works.\n")
+    message["Subject"] = words["subject"]
+    message.set_content(words["body"])
     _send(db, message)

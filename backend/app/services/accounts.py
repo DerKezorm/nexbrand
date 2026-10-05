@@ -196,13 +196,24 @@ def authenticate(db: Session, name: str, password: str, device: int | None = Non
     as it before (``device``, the account its cookie names): a stranger guessing can lock the account against the
     world, not against its owner.
     Failures from that browser do not count towards the lock.
+
+    A blocked account hears that it is blocked and whom to ask, but only after its right password; a wrong one answers
+    as for anybody (Prüfgang 05.10.2026 A16, as decided). The caller counts it for the brakes like a failure.
     """
     account = by_name(db, name)
-    if account is None or account.sign_in != SIGN_IN_PASSWORD or account.blocked_at is not None:
+    if account is None or account.sign_in != SIGN_IN_PASSWORD:
         verify_password(password, _dummy_hash())
         logger.warning("Sign-in failed for an unknown account")
         raise AccountError("wrong_credentials", "Name or password is wrong.", 401)
     known_device = device == account.id
+    if account.blocked_at is not None:
+        # The real hash, so that the answer takes as long as any other; a wrong password does not count towards the
+        # lock of an account that cannot sign in anyway, and a locked one says nothing more.
+        right = verify_password(password, account.password_hash or _dummy_hash()) and bool(account.password_hash)
+        if right and not (is_locked(account) and not known_device):
+            logger.warning("Sign-in refused, account blocked name=%s", account.name)
+            raise AccountError("account_blocked", "This account is blocked. Ask the operator to unblock it.", 403)
+        raise AccountError("wrong_credentials", "Name or password is wrong.", 401)
     with _one_check_at_a_time(account.id):
         db.refresh(account)
         if is_locked(account) and not known_device:

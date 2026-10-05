@@ -13,7 +13,9 @@ import { useAuth } from '../state/auth'
 import { Avatar } from './Avatar'
 import { Dialog } from './Dialog'
 
-type Status = { state: '' | 'connecting' | 'connected'; url: string; last_sync: string | null; problem: string; emergency_codes: number; mail: boolean }
+/** `operators_from_suite` (the operator only): operators through nexsuite alone, members again after a disconnect (B17). */
+type Status = { state: '' | 'connecting' | 'connected'; url: string; last_sync: string | null; problem: string; emergency_codes: number; mail: boolean; operators_from_suite?: string[] }
+type Left = { without_password: string[]; blocked?: string[]; operators_back?: string[] }
 type SuitePerson = { id: string; name: string; display_name: string; email: string }
 /** `blocked`: blocked here (left out before, blocked or deleted in nexsuite); `from_suite`: nexsuite brought it before a
  * disconnect, `gone`: and its person is deleted there since (B8). */
@@ -88,6 +90,7 @@ export function SuiteCard() {
   const [leaving, setLeaving] = useState<'password' | 'code' | null>(null)
   const [without, setWithout] = useState<string[] | null>(null)
   const [stillBlocked, setStillBlocked] = useState<string[]>([])
+  const [operatorsBack, setOperatorsBack] = useState<string[]>([])
   const action = useAction()
   const load = useCallback(async () => {
     setStatus(await api<Status>('/api/suite'))
@@ -149,6 +152,7 @@ export function SuiteCard() {
         )}
         {without && without.length > 0 && <p className="text-sm text-warn-500">{t('suite.withoutPassword', { names: without.join(', ') })}</p>}
         {stillBlocked.length > 0 && <p className="text-sm text-warn-500">{t('suite.stillBlocked', { names: stillBlocked.join(', ') })}</p>}
+        {operatorsBack.length > 0 && <p className="text-sm text-warn-500">{t('suite.operatorsBack', { names: operatorsBack.join(', ') })}</p>}
       </Card>
       {connected && (
         <Card icon={KeyRound} title={t('suite.emergencyTitle')} text={t('suite.emergencyText')}>
@@ -167,11 +171,13 @@ export function SuiteCard() {
       {leaving && (
         <LeaveDialog
           mode={leaving}
+          operators={status.operators_from_suite ?? []}
           onClose={() => setLeaving(null)}
-          onDone={(names, blocked) => {
+          onDone={(left) => {
             setLeaving(null)
-            setWithout(names)
-            setStillBlocked(blocked)
+            setWithout(left.without_password)
+            setStillBlocked(left.blocked ?? [])
+            setOperatorsBack(left.operators_back ?? [])
             void load()
           }}
         />
@@ -180,17 +186,24 @@ export function SuiteCard() {
   )
 }
 
-function LeaveDialog({ mode, onClose, onDone }: { mode: 'password' | 'code'; onClose: () => void; onDone: (without: string[], blocked: string[]) => void }) {
+/** `operators`: who stops being an operator, named before it happens (B17). */
+function LeaveDialog({ mode, operators, onClose, onDone }: { mode: 'password' | 'code'; operators: string[]; onClose: () => void; onDone: (left: Left) => void }) {
   const { t } = useTranslation()
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
   const action = useAction()
-  const go = () =>
+  /** One request at a time: a second click before the button shows busy does nothing. */
+  const running = useRef(false)
+  const go = () => {
+    if (running.current) return
+    running.current = true
     void action.run(async () => {
       const path = mode === 'code' ? '/api/suite/emergency' : '/api/suite/disconnect'
-      const answer = await api<{ without_password: string[]; blocked?: string[] }>(path, { method: 'POST', body: mode === 'code' ? { current_password: password, code } : { current_password: password } })
-      onDone(answer.without_password, answer.blocked ?? [])
+      onDone(await api<Left>(path, { method: 'POST', body: mode === 'code' ? { current_password: password, code } : { current_password: password } }))
+    }).finally(() => {
+      running.current = false
     })
+  }
   return (
     <Dialog title={mode === 'code' ? t('suite.withCode') : t('suite.disconnectTitle')} onClose={onClose}>
       <form
@@ -204,6 +217,7 @@ function LeaveDialog({ mode, onClose, onDone }: { mode: 'password' | 'code'; onC
           <li>{t('suite.leave1')}</li>
           <li>{t('suite.leave2')}</li>
           <li>{mode === 'code' ? t('suite.leaveCode') : t('suite.leave3')}</li>
+          {operators.length > 0 && <li className="text-warn-500" data-testid="leave-operators">{t('suite.leaveOperators', { names: operators.join(', ') })}</li>}
         </ul>
         {mode === 'code' && (
           <label className="block space-y-1.5">

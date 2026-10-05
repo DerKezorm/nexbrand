@@ -56,9 +56,10 @@ def is_member(db: Session, team_id: int, account_id: int) -> bool:
     return db.get(TeamMember, (team_id, account_id)) is not None
 
 
-def may_change(account: Account, team: Team) -> bool:
-    """The operator changes every team; the lead the members of a local team."""
-    return account.role == OPERATOR or (team.lead_id == account.id and team.source == TEAM_LOCAL)
+def may_change(account: Account, team: Team, leads_edit: bool) -> bool:
+    """The operator changes every team; the lead the members of a local team, when the operator allows leads to
+    (``team_leads_edit``, off from the start as in nexsuite, Prüfgang 05.10.2026 D3)."""
+    return account.role == OPERATOR or (leads_edit and team.lead_id == account.id and team.source == TEAM_LOCAL)
 
 
 def view(db: Session, team: Team) -> dict:

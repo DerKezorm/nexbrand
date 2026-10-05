@@ -43,7 +43,7 @@ from ..security import (
     session_account,
     start_session,
 )
-from ..services import accounts, avatars, brands, locales, mailer, settings_service, suite, totp
+from ..services import accounts, avatars, brands, links, locales, mailer, settings_service, suite, totp
 from ..services.accounts import AccountError
 
 logger = logging.getLogger("nexbrand.auth")
@@ -227,6 +227,9 @@ def methods(db: DbSession) -> dict[str, Any]:
         "oidc_name": values["oidc_provider_name"] if oidc else "",
         # Connected to nexsuite: people sign in there; the password form is the operator's emergency way.
         "suite": suite.connected(db),
+        # Where nexsuite opens, for "Sign in as someone else": signing out there first (B11). The button to sign in
+        # leads there anyway, so the address tells nobody more than that.
+        "suite_url": str(settings_service.get(db, "suite_url") or "") if suite.connected(db) else "",
     }
 
 
@@ -343,6 +346,10 @@ def me(account: Account, db: DbSession) -> dict[str, Any]:
         "suite_url": str(settings_service.get(db, "suite_url") or "") if suite.connected(db) else "",
         # Whether "New client" makes one here: not while nexsuite keeps the clients, else by the operator's switch.
         "may_create_clients": not suite.connected(db) and brands.may_create(db, account),
+        # Whether the lead of a team changes its members here: never while nexsuite keeps the teams, else the operator
+        # always and a lead when the operator allows it (D3).
+        "may_edit_led_teams": not suite.connected(db)
+        and (account.role == OPERATOR or bool(settings_service.get(db, "team_leads_edit"))),
         # Connected: this account is the emergency account (its password and second factor are for that only).
         "suite_emergency": suite.connected(db)
         and account.id == int(settings_service.get(db, "suite_emergency_account") or 0),
@@ -489,9 +496,12 @@ def list_accounts(_operator: OperatorAccount, db: DbSession) -> list[dict[str, A
     spaces: dict[int, int] = {}
     for account_id in db.scalars(select(Membership.account_id)):
         spaces[account_id] = spaces.get(account_id, 0) + 1
+    # Its public pages and reviews still open: the block and delete dialogs name them (A15).
+    open_links = links.open_counts(db)
     return [
         {**account_view(row), "spaces": spaces.get(row.id, 0), "locked": accounts.is_locked(row),
-         "blocked": row.blocked_at is not None, "has_password": bool(row.password_hash)}
+         "blocked": row.blocked_at is not None, "has_password": bool(row.password_hash),
+         "open_links": open_links.get(row.id, 0)}
         for row in db.scalars(select(AccountRow).order_by(AccountRow.created_at))
     ]
 
@@ -535,6 +545,21 @@ def block_account(
     db.commit()
     end_all_sessions(db, row.id)
     logger.warning("Account blocked name=%s by=%s", row.name, operator.name)
+
+
+@router.post("/accounts/{account_id}/links/withdraw",
+             summary="Take down the public pages and close the reviews an account made (operator)")
+def withdraw_links(
+    account_id: int, payload: OperatorConfirmIn, request: Request, operator: OperatorAccount, db: DbSession,
+) -> dict[str, int]:
+    """Its links stay when an account is blocked or deleted, for the client's sake; the operator ends them all here,
+    with the own password as for blocking (A15, decided 05.10.2026). Connected too: the links are nexbrand's, not
+    nexsuite's, and a person blocked there keeps them as well."""
+    confirm_operator(request, db, operator, payload.current_password)
+    row = _row(db, account_id)
+    count = links.withdraw_all(db, row.id)
+    logger.warning("Links withdrawn name=%s count=%s by=%s", row.name, count, operator.name)
+    return {"withdrawn": count}
 
 
 @router.post("/accounts/{account_id}/unblock", status_code=204, summary="Let a blocked account in again")

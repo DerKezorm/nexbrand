@@ -108,6 +108,19 @@ def _token(db: Session) -> str:
     return decrypt_secret(stored, TOKEN_CONTEXT) if stored else ""
 
 
+def operators_from_suite(db: Session) -> list[Account]:
+    """The operators here whose role came from nexsuite only: they were none before connecting, or were made while
+    connected (B17, decided 05.10.2026). Never the emergency account. A connection from before the roles were kept
+    names nobody: what they were is not known."""
+    saved = settings_service.get(db, "suite_saved") or {}
+    roles = saved.get("roles") if isinstance(saved, dict) else None
+    if not isinstance(roles, dict) or not connected(db):
+        return []
+    keeper = int(settings_service.get(db, "suite_emergency_account") or 0)
+    return [row for row in db.scalars(select(Account).where(Account.role == OPERATOR).order_by(Account.name))
+            if row.id != keeper and roles.get(str(row.id)) != OPERATOR]
+
+
 def view(db: Session) -> dict[str, Any]:
     return {
         "state": state(db),
@@ -522,8 +535,10 @@ def _finish(db: Session, operator: Account, accounts_map: dict[int, str], client
     pending = settings_service.get(db, "suite_pending") or {}
     values = settings_service.get_all(db)
     settings_service.save(db, {
-        # What it was before, for the way back.
-        "suite_saved": {key: values[key] for key in (*OIDC_KEYS, *SMTP_KEYS, "password_login")},
+        # What it was before, for the way back; the roles too, so that an operator role only nexsuite gave goes with
+        # the connection (B17). An account made while connected was none before: a member.
+        "suite_saved": {**{key: values[key] for key in (*OIDC_KEYS, *SMTP_KEYS, "password_login")},
+                        "roles": {str(row.id): row.role for row in accounts_here.values()}},
         "oidc_issuer": str(pending.get("issuer", "")).rstrip("/"),
         "oidc_client_id": str(pending.get("client_id", "")),
         "oidc_client_secret_enc": encrypt_secret(decrypt_secret(str(pending.get("secret_enc", "")), SECRET_CONTEXT)),
@@ -1009,15 +1024,16 @@ def _forget(db: Session) -> None:
                                "suite_last_sync": None})
 
 
-def disconnect(db: Session, *, tell: bool = True) -> tuple[list[str], list[str]]:
+def disconnect(db: Session, *, tell: bool = True) -> tuple[list[str], list[str], list[str]]:
     """Runs on its own again with everything it got. Returns the names of accounts without a password (they need
-    one from the operator to sign in) and of those blocked (in nexsuite, or left out): they stay blocked until the
-    operator unblocks them here (B4). Never while a sync runs (B5)."""
+    one from the operator to sign in), of those blocked (in nexsuite, or left out): they stay blocked until the
+    operator unblocks them here (B4), and of those whose operator role came from nexsuite only and is gone now (B17).
+    Never while a sync runs (B5)."""
     with _sync_lock:
         return _disconnect(db, tell=tell)
 
 
-def _disconnect(db: Session, *, tell: bool) -> tuple[list[str], list[str]]:
+def _disconnect(db: Session, *, tell: bool) -> tuple[list[str], list[str], list[str]]:
     if tell and connected(db):
         try:
             request("POST", _api(db, "/leave"), token=_token(db))
@@ -1029,6 +1045,12 @@ def _disconnect(db: Session, *, tell: bool) -> tuple[list[str], list[str]]:
                                  "nexsuite does not answer. Disconnect with an emergency code, or try again when it is "
                                  "back.", 409) from exc
     saved = settings_service.get(db, "suite_saved") or {}
+    # Before the sign-in goes back: an operator role only nexsuite gave ends with the connection (B17).
+    back = []
+    for row in operators_from_suite(db):
+        row.role = MEMBER
+        back.append(row.name)
+        logger.warning("Operator role from nexsuite ended name=%s", row.name)
     restore = {key: saved[key] for key in (*OIDC_KEYS, "password_login") if key in saved}
     if not restore:
         restore = {"oidc_issuer": "", "oidc_client_id": "", "oidc_client_secret_enc": "", "oidc_provider_name": "",
@@ -1070,7 +1092,7 @@ def _disconnect(db: Session, *, tell: bool) -> tuple[list[str], list[str]]:
     db.commit()
     _forget(db)
     logger.warning("Disconnected from nexsuite; running on its own")
-    return without, blocked
+    return without, blocked, back
 
 
 def emergency_ok(db: Session, code: str) -> bool:

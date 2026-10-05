@@ -212,6 +212,20 @@ export function LoginPage({ emergency = false }: { emergency?: boolean }) {
         <a href={`/api/oidc/start?next=${encodeURIComponent(next)}`} className="nc-btn nc-btn-accent flex h-10 w-full items-center justify-center">
           {t('suite.loginButton')}
         </a>
+        {/* Signing out here leaves nexsuite signed in, and the button would bring the same person back (B11). Who is
+            signed in there this page cannot tell without asking nexsuite for it, so it says it in general. */}
+        <div className="mt-4 space-y-1.5 text-xs text-mist-500" data-testid="still-signed-in">
+          <p>{t('suite.stillSignedIn')}</p>
+          {methods.suite_url && (
+            <p>
+              <a href={methods.suite_url} target="_blank" rel="noopener noreferrer" className="font-medium text-accent-400 hover:underline">
+                {t('suite.someoneElse')}
+              </a>
+              {' · '}
+              {t('suite.someoneElseHint')}
+            </p>
+          )}
+        </div>
         <p className="mt-4 text-center text-xs text-mist-600">
           <Link to="/notzugang" className="hover:text-mist-300">
             {t('suite.emergencyLink')}

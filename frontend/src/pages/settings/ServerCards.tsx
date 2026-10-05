@@ -63,7 +63,8 @@ export function useServerSettings() {
   return { settings, save, ...action }
 }
 
-type AccountRow = Me & { spaces: number; locked: boolean; blocked?: boolean; has_password?: boolean; created_at: string; last_seen_at: string | null }
+/** `open_links`: public pages and reviews it made that are still open; they stay when it is blocked or deleted (A15). */
+type AccountRow = Me & { spaces: number; locked: boolean; blocked?: boolean; has_password?: boolean; open_links?: number; created_at: string; last_seen_at: string | null }
 type OpenInvite = { id: number; email: string; expires_at: string }
 const DAYS = ['1', '7', '30'] as const
 
@@ -80,7 +81,7 @@ export function AccountsCard({ readOnly = false }: { readOnly?: boolean }) {
   const [send, setSend] = useState(true)
   const [made, setMade] = useState<{ link: string; sent: boolean; email: string } | null>(null)
   const [invites, setInvites] = useState<OpenInvite[]>([])
-  const [asking, setAsking] = useState<{ kind: 'role' | 'delete' | 'password' | 'reset' | 'signout' | 'block' | 'unblock'; account: AccountRow } | null>(null)
+  const [asking, setAsking] = useState<{ kind: 'role' | 'delete' | 'password' | 'reset' | 'signout' | 'block' | 'unblock' | 'links'; account: AccountRow } | null>(null)
   const [newPassword, setNewPassword] = useState('')
   const { busy, problem, done, run } = useAction()
   const load = useCallback(() => {
@@ -113,8 +114,16 @@ export function AccountsCard({ readOnly = false }: { readOnly?: boolean }) {
                 {row.two_factor ? ' · ' + t('server.withTwoFactor') : ''}
                 {row.locked ? ' · ' + t('server.locked') : ''}
                 {row.has_password === false && !row.blocked ? ' · ' + t('server.noPassword') : ''}
+                {row.open_links ? ' · ' + t('server.openLinks', { count: row.open_links }) : ''}
               </div>
             </div>
+            {/* The links of a blocked account stay for the client's sake; here they end (A15), connected too: a person
+                blocked in nexsuite keeps them as well. */}
+            {row.blocked && !!row.open_links && (
+              <Button small onClick={() => setAsking({ kind: 'links', account: row })}>
+                {t('server.withdrawLinksRow')}
+              </Button>
+            )}
             {row.id !== me?.id && !readOnly && (
               <div className="flex flex-wrap gap-1.5">
                 <Button small onClick={() => setAsking({ kind: 'role', account: row })}>
@@ -217,6 +226,11 @@ export function AccountsCard({ readOnly = false }: { readOnly?: boolean }) {
           confirm={t(`server.confirm.${asking.kind}.button`)}
           danger={asking.kind === 'delete' || asking.kind === 'block'}
           password={me?.sign_in === 'password' && asking.kind !== 'signout'}
+          extra={
+            (asking.kind === 'block' || asking.kind === 'delete') && asking.account.open_links
+              ? (password) => <OpenLinks account={asking.account} password={password} onWithdrawn={load} />
+              : undefined
+          }
           onCancel={() => setAsking(null)}
           onConfirm={async (password) => {
             const id = asking.account.id
@@ -226,6 +240,7 @@ export function AccountsCard({ readOnly = false }: { readOnly?: boolean }) {
             if (asking.kind === 'signout') await api(`/api/accounts/${id}/sign-out`, { method: 'POST' })
             if (asking.kind === 'unblock') await api(`/api/accounts/${id}/unblock`, { method: 'POST', body: { current_password: password } })
             if (asking.kind === 'block') await api(`/api/accounts/${id}/block`, { method: 'POST', body: { current_password: password } })
+            if (asking.kind === 'links') await api(`/api/accounts/${id}/links/withdraw`, { method: 'POST', body: { current_password: password } })
             if (asking.kind === 'password') {
               const fresh = Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join('')
               await api(`/api/accounts/${id}/password`, { method: 'PUT', body: { password: fresh, current_password: password } })
@@ -244,6 +259,43 @@ export function AccountsCard({ readOnly = false }: { readOnly?: boolean }) {
         </p>
       )}
     </Card>
+  )
+}
+
+/** In the block and delete dialogs: how many links for clients the account has open. They stay; "Withdraw" ends them all
+ * with the password typed above, as for blocking (A15, decided 05.10.2026). */
+function OpenLinks({ account, password, onWithdrawn }: { account: AccountRow; password: string; onWithdrawn: () => void }) {
+  const { t } = useTranslation()
+  const { me } = useAuth()
+  const [count, setCount] = useState(account.open_links ?? 0)
+  const { busy, problem, done, run } = useAction()
+  const running = useRef(false)
+  if (!count && !done) return null
+  return (
+    <div className="space-y-2 rounded-xl border border-warn-500/30 bg-warn-500/10 px-3 py-2 text-sm text-mist-200" data-testid="open-links">
+      {count > 0 && <p>{t('server.linksStay', { count, name: account.display_name || account.name })}</p>}
+      {count > 0 && (
+        <Button
+          small
+          busy={busy}
+          disabled={me?.sign_in === 'password' && !password}
+          onClick={() => {
+            if (running.current) return
+            running.current = true
+            void run(async () => {
+              await api(`/api/accounts/${account.id}/links/withdraw`, { method: 'POST', body: { current_password: password } })
+              setCount(0)
+              onWithdrawn()
+            }, t('server.linksWithdrawn')).finally(() => {
+              running.current = false
+            })
+          }}
+        >
+          {t('server.withdrawLinks')}
+        </Button>
+      )}
+      <Feedback problem={problem} done={done} />
+    </div>
   )
 }
 
@@ -616,7 +668,7 @@ export function FilesCard({ server }: { server: Server }) {
 }
 
 export function MailCard({ server, managed = false }: { server: Server; managed?: boolean }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const s = server.settings
   const [draft, setDraft] = useState<Change>({})
   const [to, setTo] = useState('')
@@ -684,7 +736,8 @@ export function MailCard({ server, managed = false }: { server: Server; managed?
         className="flex flex-wrap items-end gap-2"
         onSubmit={(event) => {
           event.preventDefault()
-          void test.run(() => api('/api/settings/mail-test', { method: 'POST', body: { to } }), t('server.mailSent'))
+          // In the language of whoever receives it; the page's only when neither they nor the operator have one.
+          void test.run(() => api('/api/settings/mail-test', { method: 'POST', body: { to, language: i18n.language } }), t('server.mailSent'))
         }}
       >
         <Input label={t('server.mailTest')} value={to} onChange={setTo} placeholder="you@example.com" className="min-w-60 flex-1" />

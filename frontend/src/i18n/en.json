@@ -278,6 +278,11 @@
         "title": "Block {{name}}?",
         "text": "{{name}} gets in nowhere afterwards: no sign-in, no API token. Share and review links {{name}} made stay open. You can unblock at any time.",
         "button": "Block"
+      },
+      "links": {
+        "title": "Withdraw the links of {{name}}?",
+        "text": "Public pages go offline and open reviews close. Whoever has a link sees nothing there any more.",
+        "button": "Withdraw"
       }
     },
     "backupMade": "Backup made.",
@@ -383,7 +388,14 @@
     },
     "backupsDryRun": "Restoring shows a dry run first.",
     "block": "Block",
-    "proxyUnknown": "Requests come through a proxy, but NEXBRAND_TRUSTED_PROXIES is not set. nexbrand then sees everybody as one sender: whoever guesses wrong often slows down everyone signing in from a browser not used here before. Put the proxy's address into NEXBRAND_TRUSTED_PROXIES. If no proxy stands in front of nexbrand, you can ignore this."
+    "proxyUnknown": "Requests come through a proxy, but NEXBRAND_TRUSTED_PROXIES is not set. nexbrand then sees everybody as one sender: whoever guesses wrong often slows down everyone signing in from a browser not used here before. Put the proxy's address into NEXBRAND_TRUSTED_PROXIES. If no proxy stands in front of nexbrand, you can ignore this.",
+    "openLinks_one": "{{count}} open link for clients",
+    "openLinks_other": "{{count}} open links for clients",
+    "linksStay_one": "{{name}} has an open link for clients (a public page or a review). It stays valid until you withdraw it.",
+    "linksStay_other": "{{name}} has {{count}} open links for clients (public pages and reviews). They stay valid until you withdraw them.",
+    "withdrawLinks": "Withdraw",
+    "withdrawLinksRow": "Withdraw links",
+    "linksWithdrawn": "Links withdrawn."
   },
   "errors": {
     "avatar_not_a_picture": "That is not a picture nexbrand takes (JPEG, PNG, WebP, GIF, HEIC or AVIF).",
@@ -523,7 +535,7 @@
     "backups_emergency_only": "While connected, only the emergency account downloads and deletes backups.",
     "not_connected": "nexbrand is not connected to nexsuite.",
     "emergency_code_wrong": "This emergency code is not valid.",
-    "account_blocked": "This account is blocked.",
+    "account_blocked": "This account is blocked. Ask the operator to unblock it.",
     "disconnect_in_suite": "Disconnect in nexsuite under Apps, or with the emergency account of this app.",
     "person_twice": "Each person in nexsuite can be matched once only.",
     "space_twice": "Each client in nexsuite can be chosen once only.",
@@ -596,7 +608,8 @@
     "client_name_taken": "There is a client of this name already. Choose another name.",
     "client_name_in_bin": "A client of this name is in the bin. Restore it, or choose another name.",
     "project_name_taken": "This client has a project of this name already. Choose another name.",
-    "team_name_taken": "There is a team of this name already. Choose another name."
+    "team_name_taken": "There is a team of this name already. Choose another name.",
+    "team_leads_off": "The operator has not let team leads change their teams."
   },
   "auth": {
     "name": "Name",
@@ -889,7 +902,9 @@
     "rightsTitle": "Teams with access to {{space}}",
     "rightsText": "A team with a right gives it to all its members. Whoever has a higher right of their own keeps it.",
     "rightFor": "Right of {{team}}",
-    "noRight": "No right"
+    "noRight": "No right",
+    "leadsSwitch": "Team leads change their teams",
+    "leadsSwitchHint": "The lead of a team takes people in and out, and so gives them the team's rights at every client. Off: only the operator changes the teams."
   },
   "suite": {
     "managed": "This is kept in nexsuite now.",
@@ -982,7 +997,12 @@
     "managedPassword": "You change your password and second factor in nexsuite; they count for every connected app.",
     "openSuite": "Open nexsuite",
     "mailNone": "No mail server is set up in nexsuite, so nexbrand sends no mail. Your own setting is kept in case you disconnect.",
-    "notSet": "not set"
+    "notSet": "not set",
+    "stillSignedIn": "If you are still signed in to nexsuite, the button takes you in as the same person without asking.",
+    "someoneElse": "Sign in as someone else",
+    "someoneElseHint": "nexsuite opens in a new tab. Sign out there, then use “Sign in with nexsuite” here.",
+    "leaveOperators": "Operators through nexsuite only, members again afterwards: {{names}}.",
+    "operatorsBack": "Members again, they were operators through nexsuite only: {{names}}."
   },
   "origin": {
     "hand": "by hand",
