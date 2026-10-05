@@ -122,13 +122,16 @@ def refuse_if_managed(db: Session) -> None:
         raise error("managed_by_suite", "This is kept in nexsuite now.", 409)
 
 
-def refuse_unless_keeper(db: Session, account: Account) -> None:
+def refuse_unless_keeper(db: Session, account: Account, code: str = "disconnect_in_suite",
+                         text: str = "Disconnect in nexsuite, or sign in with the emergency account.") -> None:
     """Disconnecting from the app's side is for the emergency account (its password is checked here). Whoever comes
-    through nexsuite disconnects in nexsuite, where the own password is checked; here nobody would ask for it (A5)."""
+    through nexsuite disconnects in nexsuite, where the own password is checked; here nobody would ask for it (A5).
+    The same for carrying a backup away or deleting one: the archive holds the emergency account's password hash and
+    second factor with the key to open it, a way to that account for whoever was never asked for a password."""
     if connected(db) and account.id != int(settings_service.get(db, "suite_emergency_account") or 0):
         from ..errors import error
 
-        raise error("disconnect_in_suite", "Disconnect in nexsuite, or sign in with the emergency account.", 403)
+        raise error(code, text, 403)
 
 
 def refuse_if_space_managed(db: Session, space_id: int, account: Account | None = None) -> None:
@@ -350,6 +353,8 @@ def finish(db: Session, operator: Account, accounts_map: dict[int, str], clients
         pending["made"] = dict(made_before)
         settings_service.save(db, {"suite_pending": pending})
         db.commit()
+    seen = request("GET", _api(db, "/directory"), token=token)
+    addresses = {str(p["id"]): p.get("email") or "" for p in seen["people"]}
     accounts_here = {row.id: row for row in db.scalars(select(Account))}
     person_of: dict[int, str] = {}
     for account_id, choice in accounts_map.items():
@@ -365,6 +370,12 @@ def finish(db: Session, operator: Account, accounts_map: dict[int, str], clients
                 remember(f"person:{row.id}", made)
             new_people.append({"name": row.display_name or row.name, "password": made["password"]})
             choice = made["id"]
+        elif row.email and not addresses.get(str(choice)):
+            # Matched to a person without an address: the one from here goes along instead of getting lost (B7).
+            try:
+                request("POST", _api(db, f"/people/{int(choice)}/email"), token=token, body={"email": row.email})
+            except SuiteError:
+                logger.info("nexsuite did not take the address of %s", row.name)
         person_of[row.id] = str(choice)
     if operator.id not in person_of:
         raise SuiteError("operator_unmatched", "Your own account needs a person in nexsuite.", 422)
@@ -444,7 +455,10 @@ def finish(db: Session, operator: Account, accounts_map: dict[int, str], clients
 
 
 def abort(db: Session) -> None:
-    """Gives up a connection that did not finish; nexsuite is asked to forget the app."""
+    """Gives up a connection that did not finish; nexsuite is asked to forget the app. A finished connection is not
+    given up this way: nexsuite would keep the app while it ran on its own, without anybody's password (B2)."""
+    if state(db) == "connected":
+        raise SuiteError("already_connected", "nexbrand is already connected.", 409)
     if state(db) == "connecting":
         try:
             request("POST", _api(db, "/leave"), token=_token(db))
@@ -540,9 +554,10 @@ def _apply(db: Session, seen: dict[str, Any], token: str) -> None:
         elif not blocked and row.blocked_at is not None:
             row.blocked_at = None
         account_of[pid] = row.id
-    # People nexsuite no longer has can no longer sign in here.
+    # People nexsuite no longer has can no longer sign in here; the emergency account neither, as when blocked there
+    # (Prüfgang D8, decided 04.10.2026). Disconnecting lets it in again.
     for subject, row in by_subject.items():
-        if subject not in account_of and row.blocked_at is None and row.id != keeper:
+        if subject not in account_of and row.blocked_at is None:
             row.blocked_at = utcnow()
             signed_out.append(row.id)
     db.flush()
@@ -669,18 +684,38 @@ def _set_grants(db: Session, space_id: int, people: dict[int, str], teams: dict[
         db.delete(row)
 
 
+#: Signatures of the notices taken in the last ``NOTICE_SECONDS``, with the moment they run out: the same notice
+#: twice is refused (A10).
+_notices_seen: dict[str, float] = {}
+_notices_lock = threading.Lock()
+
+
 def check_notice(db: Session, stamp: str, signature: str, body: bytes) -> dict[str, Any] | None:
-    """A notice from nexsuite, when it carries the right signature and is fresh; None otherwise."""
-    if not connected(db) or not stamp.isdigit() or abs(time.time() - int(stamp)) > NOTICE_SECONDS:
+    """A notice from nexsuite, when it carries the right signature, is fresh (neither older nor further ahead than
+    ``NOTICE_SECONDS``) and was not taken before; None otherwise."""
+    if not connected(db) or not stamp.isascii() or not stamp.isdigit():
+        return None
+    now = time.time()
+    if abs(now - int(stamp)) > NOTICE_SECONDS:
         return None
     expected = hmac.new(_token(db).encode(), stamp.encode() + b"." + body, hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(expected, signature):
+    # Compared as bytes: a signature with characters beyond ASCII is simply wrong, not a failure of the server (A10).
+    if not hmac.compare_digest(expected.encode(), signature.encode("utf-8", "replace")):
         return None
     try:
         data = json.loads(body)
     except ValueError:
         return None
-    return data if isinstance(data, dict) else None
+    if not isinstance(data, dict):
+        return None
+    with _notices_lock:
+        for seen, until in list(_notices_seen.items()):
+            if until < now:
+                del _notices_seen[seen]
+        if expected in _notices_seen:
+            return None
+        _notices_seen[expected] = int(stamp) + NOTICE_SECONDS
+    return data
 
 
 # --- The way back -----------------------------------------------------------------------------------------------------
@@ -704,8 +739,13 @@ def _disconnect(db: Session, *, tell: bool) -> tuple[list[str], list[str]]:
     if tell and connected(db):
         try:
             request("POST", _api(db, "/leave"), token=_token(db))
-        except SuiteError:
-            logger.info("nexsuite not told about the disconnect (unreachable)")
+        except SuiteError as exc:
+            # nexsuite has forgotten the app already: nothing to tell. Out of reach: the plain way would leave it
+            # holding an app that runs on its own, and make the emergency codes pointless (A11).
+            if exc.code != "suite_refused":
+                raise SuiteError("suite_unreachable_disconnect",
+                                 "nexsuite does not answer. Disconnect with an emergency code, or try again when it is "
+                                 "back.", 409) from exc
     saved = settings_service.get(db, "suite_saved") or {}
     restore = {key: saved[key] for key in (*OIDC_KEYS, "password_login") if key in saved}
     if not restore:
@@ -718,6 +758,12 @@ def _disconnect(db: Session, *, tell: bool) -> tuple[list[str], list[str]]:
         team.source, team.external_id = TEAM_LOCAL, ""
     for space in db.scalars(select(Space).where(Space.external_id != "")):
         space.external_id = ""
+    keeper = db.get(Account, int(settings_service.get(db, "suite_emergency_account") or 0))
+    if keeper is not None and keeper.blocked_at is not None:
+        # Blocked because nexsuite blocked or deleted the person: with nexsuite gone, it is the way in again (D8).
+        keeper.blocked_at = None
+        logger.warning("Emergency account %s let in again on disconnecting", keeper.name)
+        db.flush()
     without = []
     for row in db.scalars(select(Account).where(Account.oidc_subject != "")):
         row.oidc_subject = ""
@@ -739,11 +785,44 @@ def emergency_ok(db: Session, code: str) -> bool:
 
 
 def report(db: Session, kind: str, who: str) -> None:
-    """Tells nexsuite something for its log; quietly nothing when it cannot be reached."""
-    try:
-        request("POST", _api(db, "/report"), token=_token(db), body={"kind": kind, "who": who})
-    except SuiteError:
-        logger.info("nexsuite not told about %s (unreachable)", kind)
+    """Tells nexsuite something for its log. Out of reach, the report waits and goes with a later round, with the
+    address and key of the moment, also after an emergency disconnect (A11)."""
+    owed = dict(settings_service.get(db, "suite_owed") or {})
+    url = str(settings_service.get(db, "suite_url") or "")
+    token = str(settings_service.get(db, "suite_token_enc") or "")
+    if not url or not token:
+        return
+    if owed.get("url") != url or owed.get("token_enc") != token:
+        owed = {"url": url, "token_enc": token, "reports": []}
+    owed["reports"] = [*owed.get("reports", []), {"kind": kind, "who": who[:80]}][-OWED_MAX:]
+    settings_service.save(db, {"suite_owed": owed})
+    db.commit()
+    deliver(db)
+
+
+#: Reports kept for nexsuite while it is out of reach; the oldest go first when there are more.
+OWED_MAX = 50
+
+
+def deliver(db: Session) -> None:
+    """Sends what nexsuite still has to hear (each round of the background loop, connected or not)."""
+    owed = settings_service.get(db, "suite_owed") or {}
+    reports = list(owed.get("reports") or [])
+    if not reports:
+        return
+    token = decrypt_secret(str(owed["token_enc"]), TOKEN_CONTEXT)
+    left: list[Any] = []
+    for index, item in enumerate(reports):
+        try:
+            request("POST", str(owed["url"]).rstrip("/") + "/api/connect/v1/report", token=token, body=item)
+        except SuiteError as exc:
+            if exc.code == "suite_refused":
+                break  # nexsuite has forgotten the app: nobody left to tell
+            left = reports[index:]
+            logger.info("nexsuite not told yet about %s (out of reach), tried again later", item.get("kind"))
+            break
+    settings_service.save(db, {"suite_owed": {**owed, "reports": left} if left else None})
+    db.commit()
 
 
 def run_forever_sync() -> None:
@@ -751,5 +830,6 @@ def run_forever_sync() -> None:
     from ..db import SessionLocal
 
     with SessionLocal() as db:
+        deliver(db)
         if connected(db):
             sync(db)

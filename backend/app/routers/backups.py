@@ -83,6 +83,10 @@ def download(name: BackupName, body: DownloadIn, request: Request, operator: Ope
     enough to carry it away, so the password is asked again and counted like a sign-in."""
     with SessionLocal() as db:
         confirm_operator(request, db, operator, body.password)
+        from ..services import suite
+
+        suite.refuse_unless_keeper(db, operator, "backups_emergency_only",
+                                   "Connected, backups are carried away or deleted by the emergency account.")
     try:
         path = backups.path_of(name)
     except backups.BackupError as exc:
@@ -97,6 +101,10 @@ def delete(name: BackupName, body: PasswordIn, request: Request, operator: Opera
     """Asks for the password again: a stolen session must not throw every copy away (review before 1.0.0)."""
     with SessionLocal() as db:
         confirm_operator(request, db, operator, body.password)
+        from ..services import suite
+
+        suite.refuse_unless_keeper(db, operator, "backups_emergency_only",
+                                   "Connected, backups are carried away or deleted by the emergency account.")
     try:
         backups.remove(name)
     except backups.BackupError as exc:

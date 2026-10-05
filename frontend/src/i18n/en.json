@@ -500,6 +500,8 @@
     "operator_unmatched": "Your own account needs a person in nexsuite.",
     "not_connecting": "Start with the address and the code.",
     "already_connected": "nexbrand is already connected.",
+    "suite_unreachable_disconnect": "nexsuite does not answer. Disconnect with an emergency code, or try again when nexsuite is back.",
+    "backups_emergency_only": "While connected, only the emergency account downloads and deletes backups.",
     "not_connected": "nexbrand is not connected to nexsuite.",
     "emergency_code_wrong": "This emergency code is not valid.",
     "account_blocked": "This account is blocked.",
@@ -840,6 +842,8 @@
   },
   "suite": {
     "managed": "This is kept in nexsuite now.",
+    "backupsKeeper": "While connected, only the emergency account downloads or deletes backups: an archive holds its password and second factor.",
+    "backupsRestore": "Restoring works once nexbrand is disconnected from nexsuite.",
     "managedAccounts": "Accounts come from nexsuite. New people, blocking and roles there.",
     "managedSignIn": "People sign in through nexsuite. Whether nexsuite checks itself or asks authentik is set there. Your own password stays as the emergency way in.",
     "managedMail": "The mail server comes from nexsuite. With none set up there, nexbrand sends no mail. Your own setting is kept in case you disconnect.",

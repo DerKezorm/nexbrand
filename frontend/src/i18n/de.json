@@ -500,6 +500,8 @@
     "operator_unmatched": "Dein eigenes Konto braucht eine Person in nexsuite.",
     "not_connecting": "Fang mit Adresse und Code an.",
     "already_connected": "nexbrand ist schon verbunden.",
+    "suite_unreachable_disconnect": "nexsuite antwortet nicht. Trenne mit einem Notfallcode oder versuche es noch einmal, wenn nexsuite wieder da ist.",
+    "backups_emergency_only": "Im Verbund lädt und löscht nur das Notkonto Sicherungen.",
     "not_connected": "nexbrand ist nicht mit nexsuite verbunden.",
     "emergency_code_wrong": "Dieser Notfallcode gilt nicht.",
     "account_blocked": "Dieses Konto ist gesperrt.",
@@ -840,6 +842,8 @@
   },
   "suite": {
     "managed": "Das wird jetzt in nexsuite verwaltet.",
+    "backupsKeeper": "Sicherungen herunterladen oder löschen darf im Verbund nur das Notkonto: Ein Archiv enthält dessen Passwort und zweiten Faktor.",
+    "backupsRestore": "Zurückspielen geht erst nach dem Trennen von nexsuite.",
     "managedAccounts": "Konten kommen aus nexsuite. Neue Personen, Sperren und Rollen dort.",
     "managedSignIn": "Angemeldet wird über nexsuite. Ob nexsuite selbst prüft oder authentik fragt, stellst du dort ein. Dein eigenes Passwort bleibt als Notzugang.",
     "managedMail": "Der Mailserver kommt aus nexsuite. Ist dort keiner eingerichtet, verschickt nexbrand keine Mails. Deine eigene Einstellung ist aufbewahrt, falls du trennst.",

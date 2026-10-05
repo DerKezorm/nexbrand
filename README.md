@@ -149,7 +149,9 @@ to those there, and from then on people sign in through nexsuite. Clients are ma
 shows up in nexbrand without a CI and gets it here. A blocked person is signed out at once.
 
 Disconnecting brings nexbrand back on its own with everything it got; the operator's own sign-in with a password
-works throughout, and an emergency code disconnects even when nexsuite is out of reach.
+works throughout as the emergency account, and an emergency code disconnects when nexsuite is out of reach (nexsuite
+hears of it once it is back). While connected, only the emergency account downloads or deletes a backup, since an
+archive holds its password and second factor; restoring one waits for the disconnect.
 
 ## For programs and AI tools
 

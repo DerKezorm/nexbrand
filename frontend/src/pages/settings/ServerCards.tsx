@@ -13,6 +13,8 @@ import { MembersDialog } from '../../components/MembersDialog'
 import { forgetAddedLanguages, templateFile } from '../../i18n'
 import { useAuth } from '../../state/auth'
 import { Button, Card, Confirm, CopyLink, Feedback, Input, saveAsFile, Select, SubHead, Toggle, useAction } from './ui'
+import { Managed } from '../../components/Suite'
+import { backupActions } from '../../lib/backups'
 
 export type ServerSettings = {
   public_url: string
@@ -658,6 +660,8 @@ export function BackupsCard({ server }: { server: Server }) {
   const [list, setList] = useState<Backup[]>([])
   const [brief, setBrief] = useState<(Brief & { name: string }) | null>(null)
   const [asking, setAsking] = useState<{ kind: 'restore' | 'download' | 'delete'; name: string } | null>(null)
+  // Connected, a backup goes away or is deleted by the emergency account only; a restore waits for a disconnect.
+  const offer = backupActions(me)
   const [keep, setKeep] = useState<string | null>(null)
   const [restarting, setRestarting] = useState(false)
   const action = useAction()
@@ -711,6 +715,7 @@ export function BackupsCard({ server }: { server: Server }) {
         </span>
       </div>
       <Feedback problem={server.problem} done={server.done} />
+      {offer.note && <Managed text={offer.note === 'keeper' ? `${t('suite.backupsKeeper')} ${t('suite.backupsRestore')}` : t('suite.backupsRestore')} />}
       <ul className="divide-y divide-ink-700 rounded-xl border border-ink-700 text-sm">
         {list.length === 0 && <li className="px-4 py-3 text-mist-500">{t('server.noBackups')}</li>}
         {list.map((entry) => (
@@ -724,15 +729,21 @@ export function BackupsCard({ server }: { server: Server }) {
             <button type="button" className={icon} title={t('server.check')} aria-label={t('server.check')} onClick={() => void action.run(async () => setBrief({ ...(await api<Brief>(`/api/backups/${entry.name}/check`, { method: 'POST' })), name: entry.name }))}>
               <ShieldCheck className="h-4 w-4" strokeWidth={1.8} />
             </button>
-            <button type="button" className={icon} title={t('server.download')} aria-label={t('server.download')} onClick={() => setAsking({ kind: 'download', name: entry.name })}>
-              <Download className="h-4 w-4" strokeWidth={1.8} />
-            </button>
-            <button type="button" className={icon} title={t('server.restore')} aria-label={t('server.restore')} onClick={() => setAsking({ kind: 'restore', name: entry.name })}>
-              <RotateCcw className="h-4 w-4" strokeWidth={1.8} />
-            </button>
-            <button type="button" className="rounded-lg p-1.5 text-mist-500 hover:bg-ink-800 hover:text-bad-500" title={t('server.deleteBackup')} aria-label={t('server.deleteBackup')} onClick={() => setAsking({ kind: 'delete', name: entry.name })}>
-              <Trash2 className="h-4 w-4" strokeWidth={1.8} />
-            </button>
+            {offer.download && (
+              <button type="button" className={icon} title={t('server.download')} aria-label={t('server.download')} onClick={() => setAsking({ kind: 'download', name: entry.name })}>
+                <Download className="h-4 w-4" strokeWidth={1.8} />
+              </button>
+            )}
+            {offer.restore && (
+              <button type="button" className={icon} title={t('server.restore')} aria-label={t('server.restore')} onClick={() => setAsking({ kind: 'restore', name: entry.name })}>
+                <RotateCcw className="h-4 w-4" strokeWidth={1.8} />
+              </button>
+            )}
+            {offer.remove && (
+              <button type="button" className="rounded-lg p-1.5 text-mist-500 hover:bg-ink-800 hover:text-bad-500" title={t('server.deleteBackup')} aria-label={t('server.deleteBackup')} onClick={() => setAsking({ kind: 'delete', name: entry.name })}>
+                <Trash2 className="h-4 w-4" strokeWidth={1.8} />
+              </button>
+            )}
           </li>
         ))}
       </ul>

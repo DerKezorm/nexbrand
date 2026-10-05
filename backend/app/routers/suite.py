@@ -88,7 +88,10 @@ def finish(payload: FinishIn, operator: OperatorAccount, db: DbSession) -> dict[
 
 @router.post("/abort", status_code=204, summary="Give up a connection that did not finish (operator)")
 def abort(_operator: OperatorAccount, db: DbSession) -> None:
-    suite.abort(db)
+    try:
+        suite.abort(db)
+    except suite.SuiteError as exc:
+        raise _fail(exc) from exc
 
 
 @router.post("/sync", summary="Fetch the directory now (operator)")
@@ -105,7 +108,10 @@ def disconnect(payload: ConfirmIn, request: Request, operator: OperatorAccount, 
     confirm_operator(request, db, operator, payload.current_password)
     if not suite.connected(db):
         raise error("not_connected", "nexbrand is not connected to nexsuite.", 409)
-    without, blocked = suite.disconnect(db)
+    try:
+        without, blocked = suite.disconnect(db)
+    except suite.SuiteError as exc:
+        raise _fail(exc) from exc
     logger.warning("Disconnected from nexsuite by=%s", operator.name)
     return {"without_password": without, "blocked": blocked}
 

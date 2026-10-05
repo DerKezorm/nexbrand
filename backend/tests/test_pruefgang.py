@@ -1,8 +1,11 @@
 """What the night check of 04.10.2026 found in nexbrand, each as it should be now (the numbers are those of the
-list in nexsuite/tools/pruefgang-2026-10-04/LISTE.md)."""
+list in nexsuite/tools/pruefgang-2026-10-04/LISTE.md). The second part holds what the check of 05.10.2026 found
+missing of them in nexbrand (its numbers in brackets, from nexsuite/tools/pruefgang-2026-10-05/LISTE.md)."""
 
 from __future__ import annotations
 
+import hashlib
+import time
 from datetime import timedelta
 from typing import Any, Self
 
@@ -12,13 +15,14 @@ from app.db import SessionLocal
 from app.models import Account, Space, utcnow
 from app.services import cleanup, settings_service, suite
 
-from . import test_suite
+from . import test_suite, test_totp
 from .conftest import PASSWORD, client_of, join, make_account, new_client, new_group, sign_in
-from .test_suite import SUITE, FakeSuite, connect
+from .test_suite import SUITE, FakeSuite, _signed, connect
 
 # The fixtures of the suite tests, under the names pytest looks for.
 fake = test_suite.fake
 world = test_suite.world
+clock = test_totp.clock
 
 
 def _client(client: TestClient, space: int, name: str = "Plan") -> str:
@@ -184,3 +188,180 @@ def test_f5_the_operator_blocks_an_account_alone_too(client: TestClient, operato
     assert client.post(f"/api/accounts/{rita.id}/unblock", json={"current_password": PASSWORD}).status_code == 204
     with SessionLocal() as db:
         assert db.get(Account, rita.id).blocked_at is None  # type: ignore[union-attr]
+
+
+# --- What the check of 05.10.2026 found missing -----------------------------------------------------------------------
+
+
+def test_connected_only_the_emergency_account_carries_a_backup_away(
+    client: TestClient, operator: Account, world: dict, fake: FakeSuite
+) -> None:
+    """(A1) The archive holds the emergency account's password hash and second factor with the key: an operator
+    coming through nexsuite, never asked for a password here, must not get it (the way A5 closed for passwords)."""
+    from app.services import backups
+
+    name = backups.create().name
+    connect(client, world, operator)
+    fake.people["2"]["operator"] = True
+    client.post("/api/suite/sync")
+    with new_client() as anna:
+        sign_in(anna, world["anna"])
+        for answer in (anna.post(f"/api/backups/{name}/download", json={"password": ""}),
+                       anna.request("DELETE", f"/api/backups/{name}", json={"password": ""})):
+            assert answer.status_code == 403 and answer.json()["detail"]["code"] == "backups_emergency_only", answer.text
+    assert client.post(f"/api/backups/{name}/download", json={"password": "wrong"}).status_code == 401
+    assert client.post(f"/api/backups/{name}/download", json={"password": PASSWORD}).status_code == 200
+
+
+def test_d8_the_emergency_account_goes_with_the_person_and_comes_back_on_disconnecting(
+    client: TestClient, operator: Account, world: dict, fake: FakeSuite
+) -> None:
+    """(B1) Deleted in nexsuite, the emergency account is shut as when blocked there; disconnecting lets it in."""
+    connect(client, world, operator)
+    del fake.people["1"]  # the operator's person deleted in nexsuite
+    with SessionLocal() as db:
+        suite.sync(db)
+    with new_client() as browser:
+        assert browser.post("/api/auth/login", json={"name": "tester", "password": PASSWORD}).status_code == 401
+    with SessionLocal() as db:
+        _without, blocked = suite.disconnect(db, tell=False)
+    assert "tester" not in blocked
+    with new_client() as browser:
+        assert browser.post("/api/auth/login", json={"name": "tester", "password": PASSWORD}).status_code == 200
+
+
+def test_d8_blocked_in_nexsuite_the_emergency_account_is_free_again_once_disconnected(
+    client: TestClient, operator: Account, world: dict, fake: FakeSuite
+) -> None:
+    """(B1) Blocked there, then nexsuite disconnects the app: the emergency account is the way in again."""
+    connect(client, world, operator)
+    fake.people["1"]["blocked"] = True
+    with SessionLocal() as db:
+        suite.sync(db)
+        assert db.get(Account, operator.id).blocked_at is not None  # type: ignore[union-attr]
+    body, head = _signed(fake.token, {"revision": 9, "kind": "disconnected"})
+    with TestClient(client.app, base_url="http://testserver") as program:
+        assert program.post("/api/suite/event", content=body, headers=head).status_code == 204
+    with new_client() as browser:
+        assert browser.post("/api/auth/login", json={"name": "tester", "password": PASSWORD}).status_code == 200
+
+
+def test_b2_abort_gives_up_only_a_connection_that_did_not_finish(
+    client: TestClient, operator: Account, world: dict, fake: FakeSuite
+) -> None:
+    connect(client, world, operator)
+    other = make_account("second", "operator")
+    for who in (client, new_client(other)):
+        refused = who.post("/api/suite/abort")
+        assert refused.status_code == 409 and refused.json()["detail"]["code"] == "already_connected", refused.text
+    with SessionLocal() as db:
+        assert suite.connected(db)
+    assert ("POST", "/leave") not in fake.calls
+    assert client.post("/api/teams", json={"name": "Still kept there"}).status_code == 409
+
+
+def test_b2_abort_still_gives_up_a_connection_half_way(
+    client: TestClient, operator: Account, world: dict, fake: FakeSuite
+) -> None:
+    assert client.post("/api/suite/start", json={"url": SUITE + "/", "code": "GOOD-CODE-1234"}).status_code == 200
+    assert client.post("/api/suite/abort").status_code == 204
+    with SessionLocal() as db:
+        assert suite.state(db) == ""
+    assert ("POST", "/leave") in fake.calls
+
+
+def test_a11_the_plain_way_needs_nexsuite_and_the_emergency_report_waits_for_it(
+    client: TestClient, operator: Account, world: dict, fake: FakeSuite
+) -> None:
+    """(B3, B4) Out of reach, the plain way is refused; the emergency code's report waits and goes later."""
+    fake.emergency = [hashlib.sha256(b"WXYZ23456789").hexdigest()]
+    connect(client, world, operator)
+    fake.down = True
+    refused = client.post("/api/suite/disconnect", json={"current_password": PASSWORD})
+    assert refused.status_code == 409 and refused.json()["detail"]["code"] == "suite_unreachable_disconnect"
+    with SessionLocal() as db:
+        assert settings_service.get(db, "suite_state") == "connected"
+    right = client.post("/api/suite/emergency", json={"current_password": PASSWORD, "code": "WXYZ-2345-6789"})
+    assert right.status_code == 200, right.text
+    assert fake.reports == []
+    fake.down = False
+    suite.run_forever_sync()  # the round of the background loop, connected or not
+    with SessionLocal() as db:
+        assert settings_service.get(db, "suite_owed") is None
+    assert fake.reports == [{"kind": "emergency_disconnect", "who": "tester"}], "told once nexsuite is back"
+
+
+def test_a11_when_nexsuite_forgot_the_app_the_plain_way_works(
+    client: TestClient, operator: Account, world: dict, fake: FakeSuite
+) -> None:
+    connect(client, world, operator)
+    fake.known = False
+    assert client.post("/api/suite/disconnect", json={"current_password": PASSWORD}).status_code == 200
+    with SessionLocal() as db:
+        assert settings_service.get(db, "suite_state") == ""
+
+
+class AtOnce:
+    """A thread that runs at once, so a test sees what it did."""
+
+    def __init__(self, target: Any = None, **_: Any) -> None:
+        self.target = target
+
+    def start(self) -> None:
+        self.target()
+
+
+def test_a11_an_emergency_sign_in_is_reported(
+    client: TestClient, operator: Account, world: dict, fake: FakeSuite, monkeypatch: Any
+) -> None:
+    import threading
+
+    connect(client, world, operator)
+    monkeypatch.setattr(threading, "Thread", AtOnce)
+    with new_client() as browser:
+        assert browser.post("/api/auth/login", json={"name": "tester", "password": PASSWORD}).status_code == 200
+    assert fake.reports == [{"kind": "emergency_sign_in", "who": "tester"}]
+
+
+def test_a11_the_emergency_sign_in_counts_after_the_second_factor(
+    client: TestClient, operator: Account, world: dict, fake: FakeSuite, clock: Any, monkeypatch: Any
+) -> None:
+    """(B5) The password alone is no sign-in yet: nexsuite hears of it after the second factor."""
+    import threading
+
+    secret, _codes = test_totp.enrol(client)
+    connect(client, world, operator)
+    monkeypatch.setattr(threading, "Thread", AtOnce)
+    with new_client() as browser:
+        test_totp.password_step(browser)
+        assert fake.reports == [], "the password alone is no sign-in yet"
+        assert test_totp.code_step(browser, test_totp.fresh_code(secret, clock)).status_code == 200
+    assert fake.reports == [{"kind": "emergency_sign_in", "who": "tester"}]
+
+
+def test_b7_a_matched_address_goes_along(client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
+    """(B13) erik here has an address, erik in nexsuite none: it goes there instead of getting lost here."""
+    with SessionLocal() as db:
+        erik = db.query(Account).filter_by(name="erik").one()
+        erik.email = "erik@example.com"
+        db.commit()
+    connect(client, world, operator)
+    assert fake.people["3"]["email"] == "erik@example.com", "matched by name, the address from here goes along"
+    assert fake.people["2"]["email"] == "anna@example.com"
+    with SessionLocal() as db:
+        assert db.query(Account).filter_by(name="erik").one().email == "erik@example.com"
+
+
+def test_a10_a_notice_is_taken_once_and_a_strange_signature_is_refused(
+    client: TestClient, operator: Account, world: dict, fake: FakeSuite
+) -> None:
+    connect(client, world, operator)
+    with TestClient(client.app, base_url="http://testserver") as program:
+        body, head = _signed(fake.token, {"revision": 8, "kind": "changed"})
+        assert program.post("/api/suite/event", content=body, headers=head).status_code == 204
+        assert program.post("/api/suite/event", content=body, headers=head).status_code == 401, "the same notice twice"
+        body, head = _signed(fake.token, {"revision": 9, "kind": "changed"})
+        head["X-Nexsuite-Signature"] = "\u00e4".encode() * 64  # type: ignore[assignment]
+        assert program.post("/api/suite/event", content=body, headers=head).status_code == 401
+        body, head = _signed(fake.token, {"revision": 10, "kind": "changed"}, stamp=int(time.time()) + 3600)
+        assert program.post("/api/suite/event", content=body, headers=head).status_code == 401, "from the future"
