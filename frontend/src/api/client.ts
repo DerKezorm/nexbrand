@@ -425,9 +425,20 @@ export const authApi = {
 export const spacesApi = {
   list: () => api<SpaceInfo[]>('/api/spaces'),
   members: (id: number) =>
-    api<{ space: string; members: { name: string; role: Role; you: boolean }[]; invites: Invite[]; role: Role | null; suite?: boolean; managed?: boolean }>(
-      `/api/spaces/${id}/members`,
-    ),
+    api<{
+      space: string
+      members: { name: string; role: Role; you: boolean }[]
+      /** Teams with a right on the client, with how many people they bring. */
+      teams?: { id: number; name: string; color: string; role: Role; people: number }[]
+      /** Everybody who gets in, through a right of their own or a team, each once. */
+      count?: number
+      invites: Invite[]
+      /** Invitations by name not answered yet (managers only). */
+      asked?: { id: number; name: string; role: Role; at: string }[]
+      role: Role | null
+      suite?: boolean
+      managed?: boolean
+    }>(`/api/spaces/${id}/members`),
   setMember: (id: number, name: string, role: Role) =>
     api<{ name: string; role: Role; invited?: boolean }>(`/api/spaces/${id}/members/${encodeURIComponent(name)}`, { method: 'PUT', body: { role } }),
   removeMember: (id: number, name: string) => api<void>(`/api/spaces/${id}/members/${encodeURIComponent(name)}`, { method: 'DELETE' }),

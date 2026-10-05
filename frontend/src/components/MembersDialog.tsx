@@ -10,6 +10,7 @@ import { Button, CopyLink, Input, Select } from '../pages/settings/ui'
 import { useAuth } from '../state/auth'
 import { Avatar } from './Avatar'
 import { Dialog } from './Dialog'
+import { TeamBadge } from './Teams'
 
 type Listing = Awaited<ReturnType<typeof spacesApi.members>>
 type NewInvite = Invite & { link: string; sent: boolean }
@@ -33,7 +34,8 @@ export function MembersDialog({ space, onClose }: { space: Space; onClose: () =>
   const [inviteRole, setInviteRole] = useState<Role>('write')
   const [days, setDays] = useState<(typeof DAYS)[number]>('7')
   const [email, setEmail] = useState('')
-  const [send, setSend] = useState(false)
+  // An address typed in is meant to get the link (F23: the box was off, and nothing went out).
+  const [send, setSend] = useState(true)
   const [made, setMade] = useState<NewInvite | null>(null)
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
@@ -58,8 +60,11 @@ export function MembersDialog({ space, onClose }: { space: Space; onClose: () =>
   }, [load])
 
   const manages = data?.role === 'manage'
+  const operator = me?.role === 'operator'
   /** A space nexsuite gives this app: its rights are kept there, here they are only shown. */
   const locked = Boolean(data?.managed)
+  /** Readers and writers see who has access, managers (and the operator) change it (Prüfgang 05.10.2026 D4). */
+  const mayChange = !locked && (manages || operator)
   const managers = data?.members.filter((member) => member.role === 'manage').length ?? 0
   const known = (name: string) => space.members.find((m) => m.name === name)
 
@@ -89,7 +94,9 @@ export function MembersDialog({ space, onClose }: { space: Space; onClose: () =>
           <Lock className="h-3.5 w-3.5 shrink-0 text-accent-400" aria-hidden /> {t('suite.managedSpace')}
         </p>
       )}
-      {!locked && !manages && data && <p className="-mt-2 mb-3 text-xs text-mist-500">{t('members.resetOnly')}</p>}
+      {!locked && !manages && operator && data && <p className="-mt-2 mb-3 text-xs text-mist-500">{t('members.resetOnly')}</p>}
+      {!locked && !manages && !operator && data && <p className="-mt-2 mb-3 text-xs text-mist-500">{t('members.readOnly')}</p>}
+      {data?.count !== undefined && <p className="mb-2 text-xs text-mist-500">{t('members.count', { count: data.count })}</p>}
 
       <ul className="divide-y divide-ink-700 rounded-xl border border-ink-700">
         {data?.members.map((member) => {
@@ -102,8 +109,15 @@ export function MembersDialog({ space, onClose }: { space: Space; onClose: () =>
                 {shown?.display_name && <span className="ml-1.5 text-xs font-normal text-mist-500">@{member.name}</span>}
                 {member.you && <span className="ml-2 text-xs font-normal text-mist-500">{t('members.you')}</span>}
               </span>
-              {locked ? (
-                <span className="text-xs text-mist-400">{t(`roles.${member.role}`)}</span>
+              {!mayChange ? (
+                <span className="flex items-center gap-2 text-xs text-mist-400">
+                  {t(`roles.${member.role}`)}
+                  {member.you && !locked && (
+                    <Button small danger busy={busy} onClick={() => changeOwn(null)}>
+                      {t('members.leave')}
+                    </Button>
+                  )}
+                </span>
               ) : (
                 <>
               <label className="sr-only" htmlFor={`role-${member.name}`}>
@@ -152,6 +166,22 @@ export function MembersDialog({ space, onClose }: { space: Space; onClose: () =>
         })}
         {data && data.members.length === 0 && <li className="px-4 py-3 text-sm text-mist-500">{t('members.none')}</li>}
       </ul>
+      {(data?.teams?.length ?? 0) > 0 && (
+        <>
+          <h3 className="mt-4 mb-1.5 text-xs font-medium text-mist-400">{t('members.teams')}</h3>
+          <ul className="divide-y divide-ink-700 rounded-xl border border-ink-700" data-testid="space-teams">
+            {data?.teams?.map((team) => (
+              <li key={team.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                <TeamBadge team={team} className="h-7 w-7 text-xs" />
+                <span className="min-w-0 flex-1 truncate font-medium text-mist-100">{team.name}</span>
+                <span className="text-xs text-mist-500">{t('members.teamPeople', { count: team.people })}</span>
+                <span className="text-xs text-mist-400">{t(`roles.${team.role}`)}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1.5 text-xs text-mist-600">{t('members.teamsRule')}</p>
+        </>
+      )}
       {lastManager && (
         <div role="alert" className="mt-3 rounded-xl border border-warn-500/30 bg-warn-500/10 px-4 py-3 text-sm text-mist-100">
           <p>{lastManager.role === null ? t('members.lastManagerLeave') : t('members.lastManagerRole')}</p>
@@ -166,7 +196,7 @@ export function MembersDialog({ space, onClose }: { space: Space; onClose: () =>
         </div>
       )}
 
-      {!locked && (
+      {mayChange && (
       <form
         className="mt-4 flex flex-wrap items-end gap-2"
         onSubmit={(event) => {
@@ -194,6 +224,34 @@ export function MembersDialog({ space, onClose }: { space: Space; onClose: () =>
           {t('members.invitedName', { name: invitedName })}
         </p>
       )}
+      {(data?.asked?.length ?? 0) > 0 && (
+        <>
+          <h3 className="mt-4 mb-1.5 text-xs font-medium text-mist-400">{t('members.asked')}</h3>
+          <ul className="divide-y divide-ink-700 rounded-xl border border-ink-700 text-xs" data-testid="space-asked">
+            {data?.asked?.map((entry) => (
+              <li key={entry.id} className="flex flex-wrap items-center gap-3 px-4 py-2 text-mist-300">
+                <span className="flex-1">
+                  {entry.name} · {t(`roles.${entry.role}`)}
+                </span>
+                <Button
+                  small
+                  danger
+                  busy={busy}
+                  label={t('members.withdrawAsked', { name: entry.name })}
+                  onClick={() =>
+                    void run(async () => {
+                      await api(`/api/spaces/${space.id}/asked/${entry.id}`, { method: 'DELETE' })
+                      await load()
+                    })
+                  }
+                >
+                  {t('invite.withdraw')}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
 
       {manages && !data?.suite && (
         <div className="mt-6 border-t border-ink-700 pt-4">
@@ -204,7 +262,7 @@ export function MembersDialog({ space, onClose }: { space: Space; onClose: () =>
             onSubmit={(event) => {
               event.preventDefault()
               void run(async () => {
-                setMade(await api<NewInvite>(`/api/spaces/${space.id}/invites`, { method: 'POST', body: { role: inviteRole, days: Number(days), email: email.trim(), send } }))
+                setMade(await api<NewInvite>(`/api/spaces/${space.id}/invites`, { method: 'POST', body: { role: inviteRole, days: Number(days), email: email.trim(), send: send && !!email.trim(), language: i18n.language } }))
                 await load()
               })
             }}
@@ -212,7 +270,7 @@ export function MembersDialog({ space, onClose }: { space: Space; onClose: () =>
             <Select label={t('members.role')} value={inviteRole} options={roleOptions} onChange={setInviteRole} />
             <Select label={t('invite.valid')} value={days} options={DAYS.map((value) => ({ value, label: t('invite.days', { count: Number(value) }) }))} onChange={setDays} />
             <Input label={t('invite.email')} value={email} onChange={setEmail} type="email" hint={me?.mail ? undefined : t('invite.noMail')} />
-            {me?.mail && (
+            {me?.mail && email.trim() && (
               <label className="flex items-center gap-2 text-xs text-mist-400 sm:col-span-2">
                 <input type="checkbox" checked={send} onChange={(event) => setSend(event.target.checked)} className="accent-accent-500" />
                 {t('invite.send')}

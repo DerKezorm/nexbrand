@@ -143,6 +143,20 @@ def test_sixty_wrong_passwords_at_once_count_no_more_than_the_lock_allows(
     assert len(counted) == 10
 
 
+def test_a_made_up_forwarded_header_does_not_switch_off_the_brake_across_names(client: TestClient) -> None:
+    """Prüfgang 05.10.2026 A5: without trusted proxies any X-Forwarded-For took the brake per sender away, and one
+    password could be tried against any number of names. The header is ignored then, the connection counts."""
+    sprayer = fresh("203.0.113.66")
+    answers = [
+        sprayer.post("/api/auth/login", json={"name": f"name{n}", "password": "summer2026"},
+                     headers={"X-Forwarded-For": f"198.51.100.{n}"}).status_code
+        for n in range(40)
+    ]
+    assert 429 in answers
+    assert answers.index(429) <= 32
+    brake.forget()
+
+
 def test_behind_a_proxy_nexbrand_was_not_told_about_a_stranger_does_not_freeze_everybody(client: TestClient) -> None:
     make_account("anna")
     make_account("bob")

@@ -18,11 +18,22 @@ from typing import Annotated, Any
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi import Path as PathParam
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 
 from ..deps import Account, DbSession, OperatorAccount, client_ip
 from ..errors import detail, error
-from ..models import MANAGE, OPERATOR, SPACE_ROLES, Invite, Membership, Space, SpaceNotice, TeamGrant, TeamMember
+from ..models import (
+    MANAGE,
+    OPERATOR,
+    SPACE_ROLES,
+    Invite,
+    Membership,
+    Space,
+    SpaceNotice,
+    Team,
+    TeamGrant,
+    TeamMember,
+)
 from ..models import Account as AccountRow
 from ..security import MIN_PASSWORD, SESSION_COOKIE, brake, session_account
 from ..services import accounts, mailer, notices, rights, settings_service, suite
@@ -115,11 +126,27 @@ class MemberIn(BaseModel):
     role: str = Field(max_length=16)
 
 
-@router.get("/spaces/{space_id}/members", summary="Who is in the space, and the open invitations")
+@router.get("/spaces/{space_id}/members", summary="Who has access to the client, and the open invitations")
 def members(space_id: SpaceId, account: Account, db: DbSession) -> dict[str, Any]:
-    space = _space(db, account, space_id, operator_may=True)
+    # Everybody with access sees who else has it, with the teams that have a right (also a client nexsuite keeps);
+    # changing it and the open invitations are the managers' (Prüfgang 05.10.2026 D4: readers and writers saw an empty
+    # list with a form that only failed, and the teams were missing everywhere).
+    space = db.get(Space, space_id)
+    if space is None or space.deleted_at is not None:
+        raise error("not_found", "No such client.", 404)
+    role = rights.role_in(db, account, space.id)
+    if not rights.at_least(role, rights.READ) and not rights.operator_powers(account):
+        raise error("not_found", "No such client.", 404)
+    managing = rights.at_least(role, MANAGE) or rights.operator_powers(account)
     rows = _members(db, space.id)
     invites = list(db.scalars(select(Invite).where(Invite.space_id == space.id).order_by(Invite.created_at)))
+    grants = list(db.execute(select(TeamGrant, Team).join(Team, Team.id == TeamGrant.team_id)
+                             .where(TeamGrant.space_id == space.id).order_by(Team.name)))
+    in_teams = {
+        grant.team_id: set(db.scalars(select(TeamMember.account_id).where(TeamMember.team_id == grant.team_id)))
+        for grant, _team in grants
+    }
+    everybody = {person.id for _membership, person in rows}.union(*in_teams.values())
     return {
         "space": space.name,
         "space_id": space.id,
@@ -127,13 +154,32 @@ def members(space_id: SpaceId, account: Account, db: DbSession) -> dict[str, Any
             {"name": person.name, "role": membership.role, "you": person.id == account.id}
             for membership, person in rows
         ],
-        "invites": [_invite_view(invite, db) for invite in invites if not accounts.expired(invite)],
+        "teams": [{"id": team.id, "name": team.name, "color": team.color, "role": grant.role,
+                   "people": len(in_teams[team.id])} for grant, team in grants],
+        "count": len(everybody),
+        "invites": [_invite_view(invite, db) for invite in invites if not accounts.expired(invite)] if managing else [],
+        # Invitations by name not answered yet: seen and withdrawn by the managers (D5, F2 of the check before).
+        "asked": [{"id": notice.id, "name": person.name, "role": notice.role, "at": notice.created_at.isoformat()}
+                  for notice, person in db.execute(
+                      select(SpaceNotice, AccountRow).join(AccountRow, AccountRow.id == SpaceNotice.account_id)
+                      .where(SpaceNotice.space_id == space.id, SpaceNotice.kind == notices.INVITE,
+                             SpaceNotice.done_at.is_(None)).order_by(AccountRow.name))] if managing else [],
         "role": rights.role_in(db, account, space.id),
         # Connected to nexsuite: the accounts come from there (no invitation links), and so do the rights of a space
         # nexsuite gives this app.
         "suite": suite.connected(db),
         "managed": bool(space.external_id) and suite.connected(db),
     }
+
+
+@router.delete("/spaces/{space_id}/asked/{notice_id}", status_code=204, summary="Withdraw an invitation by name")
+def withdraw_asked(space_id: SpaceId, notice_id: Annotated[int, PathParam(ge=1)], account: Account,
+                   db: DbSession) -> None:
+    suite.refuse_if_space_managed(db, space_id, account)
+    space = _space(db, account, space_id, operator_may=True)
+    if not notices.withdraw(db, space.id, notice_id):
+        raise error("not_found", "No such invitation.", 404)
+    logger.info("Invitation by name withdrawn space_id=%s by=%s", space.id, account.name)
 
 
 @router.put("/spaces/{space_id}/members/{person}", summary="Change a member's right, or invite an account by name")
@@ -283,6 +329,8 @@ class InviteIn(BaseModel):
     days: int = 7
     email: str = Field(default="", max_length=255)
     send: bool = False
+    #: The language the inviter sees the app in, for the mail when neither account says one.
+    language: str = Field(default="", max_length=16)
 
 
 class AcceptIn(BaseModel):
@@ -310,6 +358,11 @@ def _create(db: DbSession, request: Request, by: AccountRow, space: Space | None
         if brake.wait_seconds(key, MAILS_PER_HOUR):
             raise error("too_many_attempts", "Too many invitation mails. Try again later.", 429)
         brake.failed(key)
+    if email:
+        # One open invitation per address and place: a second one replaces the first (D5), so no old link stays valid
+        # beside the new one. In the same transaction as the new one.
+        place = Invite.space_id == space.id if space else Invite.space_id.is_(None)
+        db.execute(delete(Invite).where(func.lower(Invite.email) == email.lower(), place))
     try:
         invite, token = accounts.create_invite(
             db, by, space_id=space.id if space else None, space_role=payload.role if space else "",
@@ -321,7 +374,12 @@ def _create(db: DbSession, request: Request, by: AccountRow, space: Space | None
     sent = False
     if payload.send:
         try:
-            mailer.send_invite(db, email, link, by=by.name, space=space.name if space else None)
+            # In the language of whoever receives it: an account that has the address already, else the language
+            # the invitation was made in (the inviter's), else English (decision 8 of 05.10.2026).
+            known = db.scalar(select(AccountRow).where(func.lower(AccountRow.email) == email.lower()).limit(1))
+            language = mailer.mail_language(known.language if known else "", by.language, payload.language)
+            mailer.send_invite(db, email, link, by=by.display_name or by.name, space=space.name if space else None,
+                               until=invite.expires_at, language=language)
             sent = True
         except mailer.MailError as exc:
             # The link was to go by mail only: kept, the invitation would stand without anybody holding its link.
@@ -371,6 +429,10 @@ def withdraw(invite_id: int, account: Account, db: DbSession) -> None:
 def _valid(db: DbSession, token: str) -> Invite:
     row = accounts.find_invite(db, token)
     if row is None:
+        # A link that ran out says so; everything else (used, withdrawn, replaced by a newer one, or its sender no
+        # longer manages the client) gets the one answer naming them (G4).
+        if accounts.invite_ran_out(db, token):
+            raise error("invite_expired", "This invitation has run out.", 404)
         raise error("invite_invalid", "This invitation is not valid any more.", 404)
     return row
 

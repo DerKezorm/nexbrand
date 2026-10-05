@@ -114,7 +114,7 @@ def test_an_invitation_goes_out_by_mail(client: TestClient, operator: Account, s
     assert made["sent"] is True
     [message] = smtp.sent
     assert message["To"] == "dora@example.com" and message["From"] == "notes@example.com"
-    assert made["link"] in message.get_content() and '"Team"' in message.get_content()
+    assert made["link"] in message.get_content() and 'the client “Team”' in message.get_content()
     assert smtp.logins == [("notes", "mail password")] and smtp.tls == [True]
 
 

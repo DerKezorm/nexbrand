@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from ..models import MANAGE, OPERATOR, Account, Membership, Space, SpaceNotice
@@ -108,10 +108,32 @@ def _may_invite(db: Session, inviter: Account | None, space: Space) -> bool:
     return rights.at_least(rights.role_in(db, inviter, space.id), MANAGE)
 
 
+def withdraw(db: Session, space_id: int, notice_id: int) -> bool:
+    """A manager takes back an invitation by name not answered yet. One statement that only removes it while it is
+    open: an answer at the same moment either comes first (then nothing is withdrawn) or finds nothing."""
+    gone = db.execute(
+        delete(SpaceNotice).where(SpaceNotice.id == notice_id, SpaceNotice.space_id == space_id,
+                                  SpaceNotice.kind == INVITE, SpaceNotice.done_at.is_(None))
+    ).rowcount
+    db.commit()
+    return bool(gone)
+
+
 def answer(db: Session, account: Account, notice_id: int, *, accept: bool) -> str | None:
-    """Accept or decline an invitation; the space's name when accepted. Anything else: seen."""
+    """Accept or decline an invitation; the space's name when accepted. Anything else: seen.
+
+    Taking it is one statement that only succeeds while the notice is open and the account's: a manager who withdraws
+    it, or a second answer, between reading and writing finds nothing (Prüfgang 05.10.2026 D5)."""
     row = _own(db, account, notice_id)
-    row.done_at = datetime.now(UTC)
+    taken = db.execute(
+        update(SpaceNotice)
+        .where(SpaceNotice.id == notice_id, SpaceNotice.account_id == account.id, SpaceNotice.done_at.is_(None))
+        .values(done_at=datetime.now(UTC))
+        .execution_options(synchronize_session=False)
+    ).rowcount
+    if not taken:
+        db.rollback()
+        raise NoticeError("not_found")
     if row.kind != INVITE or not accept:
         db.commit()
         return None

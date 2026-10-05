@@ -59,7 +59,16 @@
     "changeAnyway": "Give it up anyway",
     "leaveAnyway": "Leave anyway",
     "inviteName": "Invite",
-    "invitedName": "If there is an account “{{name}}”, it finds the invitation under “New” and accepts or declines it."
+    "invitedName": "If there is an account “{{name}}”, it finds the invitation under “New” and accepts or declines it.",
+    "readOnly": "Access is changed by the managers of this client.",
+    "count_one": "One person has access, own rights and teams together.",
+    "count_other": "{{count}} people have access, own rights and teams together.",
+    "teams": "Teams with a right on this client",
+    "teamPeople_one": "1 person",
+    "teamPeople_other": "{{count}} people",
+    "teamsRule": "Someone with a right of their own and one through a team has the higher of the two.",
+    "asked": "Invited, not answered yet",
+    "withdrawAsked": "Withdraw the invitation to {{name}}"
   },
   "sidebar": {
     "label": "Clients",
@@ -264,6 +273,11 @@
         "title": "Unblock {{name}}?",
         "text": "{{name}} can sign in again afterwards, with their own password or through the sign-in provider.",
         "button": "Unblock"
+      },
+      "block": {
+        "title": "Block {{name}}?",
+        "text": "{{name}} gets in nowhere afterwards: no sign-in, no API token. Share and review links {{name}} made stay open. You can unblock at any time.",
+        "button": "Block"
       }
     },
     "backupMade": "Backup made.",
@@ -365,7 +379,8 @@
       "hostsHint": "One name or address per line, with a port if you like, for Ollama at home for example. Everything else in the own network stays blocked.",
       "githubNone": "No token saved"
     },
-    "backupsDryRun": "Restoring shows a dry run first."
+    "backupsDryRun": "Restoring shows a dry run first.",
+    "block": "Block"
   },
   "errors": {
     "avatar_not_a_picture": "That is not a picture nexbrand takes (JPEG, PNG, WebP, GIF, HEIC or AVIF).",
@@ -563,7 +578,10 @@
     "svg_unsafe": "This SVG holds a script, an event, embedded HTML or a DOCTYPE. Save it as a plain drawing and upload it again.",
     "svg_too_large": "This SVG is larger than a logo can be.",
     "too_many_pixels": "This picture has more pixels than nexbrand takes (50 million at most).",
-    "svg_encoding": "This SVG is not saved as UTF-8. Save it as UTF-8 and upload it again."
+    "svg_encoding": "This SVG is not saved as UTF-8. Save it as UTF-8 and upload it again.",
+    "cannot_block_self": "You cannot block yourself.",
+    "invalid_account_name": "A sign-in name has 2 to 64 characters: letters without accents, digits, dot, hyphen or underscore, no spaces.",
+    "invite_expired": "This invitation has run out."
   },
   "auth": {
     "name": "Name",
@@ -582,7 +600,8 @@
       "text": "Welcome back to your clients.",
       "submit": "Sign in",
       "passwordOff": "Sign-in with a password is turned off for members.",
-      "oidc": "Sign in with {{name}}"
+      "oidc": "Sign in with {{name}}",
+      "ended": "Your session was ended, for example because your account was blocked or signed out everywhere. Sign in again."
     },
     "code": {
       "title": "Second factor",
@@ -598,10 +617,15 @@
       "submit": "Create account and join",
       "join": "Join as {{name}}",
       "invalidTitle": "Invitation not valid",
-      "invalidText": "This invitation was used or has run out. Ask for a new one.",
+      "invalidText": "This invitation is not valid any more: it was used, ran out or was withdrawn. Ask for a new one.",
       "withProvider": "Accept with {{name}}",
-      "noWay": "Sign-in with a password is off and no sign-in provider is set up. Ask the operator."
-    }
+      "noWay": "Sign-in with a password is off and no sign-in provider is set up. Ask the operator.",
+      "expiredTitle": "Invitation ran out",
+      "expiredText": "This invitation has run out. Ask for a new one.",
+      "haveAccount": "This link is for a new account. You are signed in as {{name}} already and do not need it.",
+      "toApp": "To nexbrand"
+    },
+    "backToLogin": "To the sign-in"
   },
   "public": {
     "open": "Open",
@@ -906,7 +930,7 @@
     "done1": "From now on people sign in through nexsuite.",
     "done2": "Accounts, teams and rights come from there and stay in step.",
     "done3": "Your own password stays as the emergency way in at /notzugang.",
-    "loginText": "This nexbrand hangs on nexsuite. Sign in there.",
+    "loginText": "nexbrand is connected to nexsuite. You sign in through nexsuite.",
     "loginButton": "Sign in with nexsuite",
     "emergencyLink": "Emergency access for the operator",
     "emergencyLoginText": "Only for the operator, when nexsuite cannot be reached. The sign-in shows in nexsuite's log.",

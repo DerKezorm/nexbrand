@@ -59,7 +59,16 @@
     "changeAnyway": "Trotzdem abgeben",
     "leaveAnyway": "Trotzdem gehen",
     "inviteName": "Einladen",
-    "invitedName": "Gibt es ein Konto „{{name}}“, findet es die Einladung unter „Neu“ und nimmt sie an oder lehnt sie ab."
+    "invitedName": "Gibt es ein Konto „{{name}}“, findet es die Einladung unter „Neu“ und nimmt sie an oder lehnt sie ab.",
+    "readOnly": "Zugriff ändern dürfen die Verwalter dieses Kunden.",
+    "count_one": "Eine Person hat Zugriff, eigene Rechte und Teams zusammen.",
+    "count_other": "{{count}} Personen haben Zugriff, eigene Rechte und Teams zusammen.",
+    "teams": "Teams mit Recht bei diesem Kunden",
+    "teamPeople_one": "1 Person",
+    "teamPeople_other": "{{count}} Personen",
+    "teamsRule": "Hat jemand ein eigenes Recht und eines über ein Team, gilt das höhere.",
+    "asked": "Eingeladen, noch nicht angenommen",
+    "withdrawAsked": "Einladung an {{name}} zurückziehen"
   },
   "sidebar": {
     "label": "Kunden",
@@ -264,6 +273,11 @@
         "title": "{{name}} entsperren?",
         "text": "{{name}} kann sich danach wieder anmelden, mit dem eigenen Passwort oder über den Anmeldeanbieter.",
         "button": "Entsperren"
+      },
+      "block": {
+        "title": "{{name}} sperren?",
+        "text": "{{name}} kommt danach nirgends mehr hinein: keine Anmeldung, kein API-Token. Freigabe- und Abstimmungslinks, die {{name}} angelegt hat, bleiben offen. Entsperren geht jederzeit.",
+        "button": "Sperren"
       }
     },
     "backupMade": "Sicherung erstellt.",
@@ -365,7 +379,8 @@
       "hostsHint": "Ein Name oder eine Adresse je Zeile, gern mit Port, etwa für Ollama zu Hause. Alles andere im eigenen Netz bleibt gesperrt.",
       "githubNone": "Kein Token gespeichert"
     },
-    "backupsDryRun": "Wiederherstellen zeigt zuerst einen Probelauf."
+    "backupsDryRun": "Wiederherstellen zeigt zuerst einen Probelauf.",
+    "block": "Sperren"
   },
   "errors": {
     "avatar_not_a_picture": "Das ist kein Bild, das nexbrand annimmt (JPEG, PNG, WebP, GIF, HEIC oder AVIF).",
@@ -563,7 +578,10 @@
     "svg_unsafe": "Diese SVG enthält ein Skript, ein Ereignis, eingebettetes HTML oder einen DOCTYPE. Speichere sie als einfache Zeichnung und lade sie noch einmal hoch.",
     "svg_too_large": "Diese SVG ist größer, als ein Logo sein kann.",
     "too_many_pixels": "Das Bild hat mehr Pixel, als nexbrand annimmt (höchstens 50 Millionen).",
-    "svg_encoding": "Diese SVG ist nicht als UTF-8 gespeichert. Speichere sie als UTF-8 und lade sie noch einmal hoch."
+    "svg_encoding": "Diese SVG ist nicht als UTF-8 gespeichert. Speichere sie als UTF-8 und lade sie noch einmal hoch.",
+    "cannot_block_self": "Dich selbst kannst du nicht sperren.",
+    "invalid_account_name": "Ein Anmeldename hat 2 bis 64 Zeichen: Buchstaben ohne Umlaute, Ziffern, Punkt, Bindestrich oder Unterstrich, keine Leerzeichen.",
+    "invite_expired": "Diese Einladung ist abgelaufen."
   },
   "auth": {
     "name": "Name",
@@ -582,7 +600,8 @@
       "text": "Willkommen zurück bei deinen Kunden.",
       "submit": "Anmelden",
       "passwordOff": "Anmelden mit Passwort ist für Mitglieder abgeschaltet.",
-      "oidc": "Mit {{name}} anmelden"
+      "oidc": "Mit {{name}} anmelden",
+      "ended": "Deine Sitzung wurde beendet, zum Beispiel weil dein Konto gesperrt oder überall abgemeldet wurde. Melde dich neu an."
     },
     "code": {
       "title": "Zweiter Faktor",
@@ -598,10 +617,15 @@
       "submit": "Konto anlegen und beitreten",
       "join": "Als {{name}} beitreten",
       "invalidTitle": "Einladung nicht gültig",
-      "invalidText": "Diese Einladung ist benutzt oder abgelaufen. Frag nach einer neuen.",
+      "invalidText": "Diese Einladung gilt nicht mehr: Sie ist benutzt, abgelaufen oder zurückgezogen. Frag nach einer neuen.",
       "withProvider": "Mit {{name}} annehmen",
-      "noWay": "Die Anmeldung mit Passwort ist abgeschaltet und kein Anmeldeanbieter eingerichtet. Frag den Betreiber."
-    }
+      "noWay": "Die Anmeldung mit Passwort ist abgeschaltet und kein Anmeldeanbieter eingerichtet. Frag den Betreiber.",
+      "expiredTitle": "Einladung abgelaufen",
+      "expiredText": "Diese Einladung ist abgelaufen. Frag nach einer neuen.",
+      "haveAccount": "Dieser Link ist für ein neues Konto. Du bist schon als {{name}} angemeldet und brauchst ihn nicht.",
+      "toApp": "Zu nexbrand"
+    },
+    "backToLogin": "Zur Anmeldung"
   },
   "public": {
     "open": "Öffnen",
@@ -906,7 +930,7 @@
     "done1": "Angemeldet wird ab jetzt über nexsuite.",
     "done2": "Konten, Teams und Rechte kommen von dort und bleiben im Abgleich.",
     "done3": "Dein eigenes Passwort bleibt als Notzugang unter /notzugang.",
-    "loginText": "Diese nexbrand hängt an nexsuite. Angemeldet wird dort.",
+    "loginText": "nexbrand ist mit nexsuite verbunden. Du meldest dich über nexsuite an.",
     "loginButton": "Anmelden mit nexsuite",
     "emergencyLink": "Notzugang für den Betreiber",
     "emergencyLoginText": "Nur für den Betreiber, wenn nexsuite nicht erreichbar ist. Die Anmeldung erscheint im Protokoll von nexsuite.",

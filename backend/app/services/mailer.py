@@ -1,8 +1,8 @@
 """Mail through the operator's SMTP server: invitations, and the link of a review to the client.
 
 Off until the operator enters a server: the link to copy is always enough. Nothing else is ever mailed. The
-invitation names who invites and into which space, and carries the link. The review mail goes to someone without an
-account, in the language of the person who puts the draft forward.
+invitation names who invites and into which client, and carries the link, in the language of whoever receives it. The
+review mail goes to someone without an account, in the language of the person who puts the draft forward.
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import smtplib
 import ssl
+from datetime import datetime
 from email.message import EmailMessage
 from email.utils import formataddr, make_msgid
 
@@ -64,16 +65,48 @@ def _send(db: Session, message: EmailMessage) -> None:
     logger.info("Mail sent host=%s", host)
 
 
-def send_invite(db: Session, to: str, link: str, *, by: str, space: str | None) -> None:
+#: The invitation, in the language of whoever receives it (Prüfgang 05.10.2026, decision 8): the account that already
+#: has the address, else the language the invitation was made in, else English.
+INVITE_MAIL = {
+    "de": {
+        "subject": "{by} lädt dich zu nexbrand ein",
+        "where": "zum Kunden „{space}“ in nexbrand",
+        "app": "zu nexbrand",
+        "body": "{by} lädt dich {where} ein. In nexbrand liegt die CI von Kunden: Farben, Schriften, Logos und "
+                "Regeln.\n\nÖffne diesen Link, um die Einladung anzunehmen:\n{link}\n\n"
+                "Der Link gilt einmal, bis {until}. Wenn du diese Mail nicht erwartet hast, ignoriere sie.\n",
+        "date": "%d.%m.%Y",
+    },
+    "en": {
+        "subject": "{by} invites you to nexbrand",
+        "where": "to the client “{space}” in nexbrand",
+        "app": "to nexbrand",
+        "body": "{by} invites you {where}. nexbrand keeps the corporate design of clients: colours, fonts, logos and "
+                "rules.\n\nOpen this link to accept:\n{link}\n\n"
+                "The link works once, until {until}. If you did not expect this mail, ignore it.\n",
+        "date": "%Y-%m-%d",
+    },
+}
+
+
+def mail_language(*choices: str) -> str:
+    """The first of ``choices`` nexbrand has mail texts for (``de-AT`` counts as ``de``); English otherwise."""
+    for choice in choices:
+        code = (choice or "").split("-")[0].lower()
+        if code in INVITE_MAIL:
+            return code
+    return "en"
+
+
+def send_invite(db: Session, to: str, link: str, *, by: str, space: str | None, until: datetime,
+                language: str = "en") -> None:
+    words = INVITE_MAIL.get(language, INVITE_MAIL["en"])
+    values = {"by": _one_line(by), "link": link, "until": until.strftime(words["date"])}
+    values["where"] = words["where"].format(space=_one_line(space)) if space else words["app"]
     message = EmailMessage()
     message["To"] = to
-    where = f' to the space "{space}"' if space else ""
-    message["Subject"] = f"{by} invites you to nexbrand"
-    message.set_content(
-        f"{by} invites you{where} on nexbrand, a place for notes.\n\n"
-        f"Open this link to accept:\n{link}\n\n"
-        "The link works once and runs out after a while. If you did not expect this mail, ignore it.\n"
-    )
+    message["Subject"] = words["subject"].format(**values)
+    message.set_content(words["body"].format(**values))
     _send(db, message)
 
 

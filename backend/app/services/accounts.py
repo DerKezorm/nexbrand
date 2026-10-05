@@ -65,7 +65,7 @@ def by_name(db: Session, name: str) -> Account | None:
 def check_name(db: Session, name: str) -> str:
     cleaned = name.strip().lower()
     if not NAME_PATTERN.match(cleaned):
-        raise AccountError("invalid_name", "Use 2 to 64 letters, digits, dots, dashes or underscores.", 422)
+        raise AccountError("invalid_account_name", "Use 2 to 64 letters, digits, dots, dashes or underscores.", 422)
     if by_name(db, cleaned) is not None:
         raise AccountError("name_taken", "This name is already taken.", 409)
     return cleaned
@@ -282,6 +282,12 @@ def find_invite(db: Session, token: str) -> Invite | None:
         if creator is None or not rights.at_least(rights.role_in(db, creator, invite.space_id), MANAGE):
             return None
     return invite
+
+
+def invite_ran_out(db: Session, token: str) -> bool:
+    """Whether the link's invitation is still there and only ran out (to say so instead of "not valid any more")."""
+    invite = db.scalar(select(Invite).where(Invite.token_hash == hash_token(token)))
+    return invite is not None and invite.expires_at <= utcnow()
 
 
 def consume(db: Session, invite: Invite) -> bool:

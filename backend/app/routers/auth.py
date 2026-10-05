@@ -169,7 +169,9 @@ def sign_in(db: DbSession, request: Request, response: Response, account: Accoun
         response.set_cookie(DEVICE_COOKIE, device_token(account.id), max_age=DEVICE_DAYS * 86400, httponly=True,
                             samesite="lax", secure=secure_cookie(request), path="/api/auth")
     logger.info("Signed in name=%s", account.name)
-    return account_view(account)
+    # The whole answer of /auth/me: the page takes it as the signed-in account, and with the account view alone
+    # "New client" stayed away after accepting an invitation until a reload (Prüfgang 05.10.2026 F4).
+    return me(account, db)
 
 
 @router.get("/setup", summary="Does nexbrand still need its first account, and is this browser signed in?")
@@ -233,12 +235,14 @@ def login(payload: LoginIn, request: Request, response: Response, db: DbSession)
     # neither the answer nor its timing tells which names exist.
     #
     # Two counts: per sender and name, and per sender alone with more room. The second is not reset by a sign-in that
-    # works (whoever has an account would otherwise reset it between guesses at other names), and it is left out
-    # when every sender looks like one proxy: then it would keep everybody out after a stranger's guesses.
+    # works (whoever has an account would otherwise reset it between guesses at other names). It always counts: an
+    # X-Forwarded-For nexbrand was not told to believe changes nothing about the sender (the connection counts), and
+    # before, any such header took this count away (Prüfgang 05.10.2026 A5). Behind a proxy the operator did not
+    # name, all senders share it; the log says so once and names the setting.
     ip = client_ip(request)
-    keys = [("login:" + ip + "|" + payload.name.strip().lower()[:64], Brake.FREE)]
-    if not behind_unknown_proxy(request):
-        keys.append(("login-ip:" + ip, LOGIN_FREE_PER_SENDER))
+    behind_unknown_proxy(request)
+    keys = [("login:" + ip + "|" + payload.name.strip().lower()[:64], Brake.FREE),
+            ("login-ip:" + ip, LOGIN_FREE_PER_SENDER)]
     wait = max(brake.wait_seconds(key, free) for key, free in keys)
     if wait:
         raise HTTPException(

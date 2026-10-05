@@ -65,26 +65,29 @@ type AccountRow = Me & { spaces: number; locked: boolean; blocked?: boolean; has
 type OpenInvite = { id: number; email: string; expires_at: string }
 const DAYS = ['1', '7', '30'] as const
 
-export function AccountsCard() {
+/** The accounts; connected to nexsuite only shown (``readOnly``): people are kept there, but the operator still sees
+ * who is blocked (Prüfgang 05.10.2026 G1). */
+export function AccountsCard({ readOnly = false }: { readOnly?: boolean }) {
   const { t, i18n } = useTranslation()
   const { me } = useAuth()
   const [list, setList] = useState<AccountRow[]>([])
   // Inviting into nexbrand without a space, as nexlore's: how long, to which address, and the open invitations.
   const [days, setDays] = useState<(typeof DAYS)[number]>('7')
   const [email, setEmail] = useState('')
-  const [send, setSend] = useState(false)
+  // An address typed in is meant to get the link (F23: the box was off, and nothing went out).
+  const [send, setSend] = useState(true)
   const [made, setMade] = useState<{ link: string; sent: boolean; email: string } | null>(null)
   const [invites, setInvites] = useState<OpenInvite[]>([])
-  const [asking, setAsking] = useState<{ kind: 'role' | 'delete' | 'password' | 'reset' | 'signout' | 'unblock'; account: AccountRow } | null>(null)
+  const [asking, setAsking] = useState<{ kind: 'role' | 'delete' | 'password' | 'reset' | 'signout' | 'block' | 'unblock'; account: AccountRow } | null>(null)
   const [newPassword, setNewPassword] = useState('')
   const { busy, problem, done, run } = useAction()
   const load = useCallback(() => {
     api<AccountRow[]>('/api/accounts').then(setList, () => undefined)
-    api<OpenInvite[]>('/api/invites').then(setInvites, () => undefined)
-  }, [])
+    if (!readOnly) api<OpenInvite[]>('/api/invites').then(setInvites, () => undefined)
+  }, [readOnly])
   useEffect(load, [load])
   return (
-    <Card id="accounts" icon={Users} title={t('server.accounts')} text={t('server.accountsHint')}>
+    <Card id="accounts" icon={Users} title={t('server.accounts')} text={readOnly ? t('suite.managedAccounts') : t('server.accountsHint')}>
       <ul className="divide-y divide-ink-700 rounded-xl border border-ink-700">
         {list.map((row) => (
           <li key={row.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
@@ -103,7 +106,7 @@ export function AccountsCard() {
                 {row.has_password === false && !row.blocked ? ' · ' + t('server.noPassword') : ''}
               </div>
             </div>
-            {row.id !== me?.id && (
+            {row.id !== me?.id && !readOnly && (
               <div className="flex flex-wrap gap-1.5">
                 <Button small onClick={() => setAsking({ kind: 'role', account: row })}>
                   {row.role === 'operator' ? t('server.makeMember') : t('server.makeOperator')}
@@ -112,9 +115,13 @@ export function AccountsCard() {
                 <Button small onClick={() => setAsking({ kind: 'password', account: row })}>
                   {row.has_password === false ? t('server.givePassword') : t('server.newPassword')}
                 </Button>
-                {row.blocked && (
+                {row.blocked ? (
                   <Button small onClick={() => setAsking({ kind: 'unblock', account: row })}>
                     {t('server.unblock')}
+                  </Button>
+                ) : (
+                  <Button small onClick={() => setAsking({ kind: 'block', account: row })}>
+                    {t('server.block')}
                   </Button>
                 )}
                 {row.two_factor && (
@@ -133,6 +140,7 @@ export function AccountsCard() {
           </li>
         ))}
       </ul>
+      {!readOnly && (
       <div>
         <h3 className="mt-2 text-sm font-semibold text-mist-100">{t('server.inviteTitle')}</h3>
         <p className="text-xs text-mist-500">{t('server.inviteText')}</p>
@@ -141,14 +149,14 @@ export function AccountsCard() {
           onSubmit={(event) => {
             event.preventDefault()
             void run(async () => {
-              setMade(await api<{ link: string; sent: boolean; email: string }>('/api/invites', { method: 'POST', body: { days: Number(days), email: email.trim(), send } }))
+              setMade(await api<{ link: string; sent: boolean; email: string }>('/api/invites', { method: 'POST', body: { days: Number(days), email: email.trim(), send: send && !!email.trim(), language: i18n.language } }))
               load()
             })
           }}
         >
           <Select label={t('invite.valid')} value={days} options={DAYS.map((value) => ({ value, label: t('invite.days', { count: Number(value) }) }))} onChange={setDays} />
           <Input label={t('invite.email')} value={email} onChange={setEmail} type="email" className="sm:col-span-2" hint={me?.mail ? undefined : t('invite.noMail')} />
-          {me?.mail && (
+          {me?.mail && email.trim() && (
             <label className="flex items-center gap-2 text-xs text-mist-400 sm:col-span-3">
               <input type="checkbox" checked={send} onChange={(event) => setSend(event.target.checked)} className="accent-accent-500" />
               {t('invite.send')}
@@ -191,13 +199,14 @@ export function AccountsCard() {
           </ul>
         )}
       </div>
+      )}
       <Feedback problem={problem} done={done} />
       {asking && (
         <Confirm
           title={t(`server.confirm.${asking.kind}.title`, { name: asking.account.name })}
           text={t(`server.confirm.${asking.kind}.text`, { name: asking.account.name })}
           confirm={t(`server.confirm.${asking.kind}.button`)}
-          danger={asking.kind === 'delete'}
+          danger={asking.kind === 'delete' || asking.kind === 'block'}
           password={me?.sign_in === 'password' && asking.kind !== 'signout'}
           onCancel={() => setAsking(null)}
           onConfirm={async (password) => {
@@ -207,6 +216,7 @@ export function AccountsCard() {
             if (asking.kind === 'reset') await api(`/api/accounts/${id}/totp/reset`, { method: 'POST', body: { current_password: password } })
             if (asking.kind === 'signout') await api(`/api/accounts/${id}/sign-out`, { method: 'POST' })
             if (asking.kind === 'unblock') await api(`/api/accounts/${id}/unblock`, { method: 'POST', body: { current_password: password } })
+            if (asking.kind === 'block') await api(`/api/accounts/${id}/block`, { method: 'POST', body: { current_password: password } })
             if (asking.kind === 'password') {
               const fresh = Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join('')
               await api(`/api/accounts/${id}/password`, { method: 'PUT', body: { password: fresh, current_password: password } })

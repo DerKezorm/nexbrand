@@ -18,11 +18,11 @@ import { BrandsProvider, useBrands } from './state/brands'
 /** Everything behind the sign-in: without an account the page goes to the sign-in, and comes back after. An account
  * that still has to set up its second factor (the operator requires one) reaches its own account page only. */
 function SignedIn({ children }: { children: ReactNode }) {
-  const { status, me } = useAuth()
+  const { status, me, ended } = useAuth()
   const location = useLocation()
   if (status === 'loading') return null
   if (status === 'setup') return <Navigate to="/setup" replace />
-  if (status === 'signedOut') return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />
+  if (status === 'signedOut') return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}${ended ? '&ended=1' : ''}`} replace />
   if (me?.second_factor_setup_required && location.pathname !== '/account') return <Navigate to="/account?tab=security" replace />
   return (
     <BrandsProvider>

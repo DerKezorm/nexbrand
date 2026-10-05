@@ -43,7 +43,8 @@ frame here: accounts, second factor, sign-in through a provider, log, languages 
 - **Access per client.** People and teams get access to a client, to read, write or manage it; whoever makes a
   client manages it, and the operator decides whether members may make clients. A client somebody may not see
   answers like one that does not exist. Clients go to a bin for 30 days.
-- **Around it, as in nexlore.** Accounts by invitation, second factor with recovery codes, sign-in through an OIDC
+- **Around it, as in nexlore.** Accounts by invitation (the mail in the language of whoever receives it), blocked and
+  let in again by the operator, second factor with recovery codes, sign-in through an OIDC
   provider with a button for authentik, a log in four levels, German and English plus languages the operator adds as
   JSON files, backups of the database together with every file, with a check before going back.
 
@@ -146,7 +147,8 @@ nexbrand runs on its own, or joins [nexsuite](https://github.com/DerKezorm/nexsu
 teams and clients of all connected apps, decides who may see which client, and signs everybody in. The operator connects under **Settings →
 Server → nexsuite** with the address of nexsuite and a one-time code made there, matches the accounts and clients here
 to those there, and from then on people sign in through nexsuite. Clients are made in nexsuite then; one made there
-shows up in nexbrand without a CI and gets it here. A blocked person is signed out at once.
+shows up in nexbrand without a CI and gets it here. A blocked person is signed out at once, and a page they still
+have open goes to the sign-in within seconds, saying why.
 
 Disconnecting brings nexbrand back on its own with everything it got; the operator's own sign-in with a password
 works throughout as the emergency account, and an emergency code disconnects when nexsuite is out of reach (nexsuite

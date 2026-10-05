@@ -1,8 +1,13 @@
 /**
  * Who is signed in. `loading` until the server answered, `setup` while nexbrand has no account yet, `signedOut`,
- * or `signedIn` with the account. A request that finds the session gone sends `SIGNED_OUT_EVENT`.
+ * or `signedIn` with the account. A request that finds the session gone sends `SIGNED_OUT_EVENT`; then `ended` is set,
+ * so the sign-in can say why (blocked, signed out everywhere).
+ *
+ * While signed in, an open page asks after its session every five seconds (and when the tab comes back): a block here
+ * or in nexsuite, or "sign out everywhere", ends the page within seconds instead of at the next refresh of the client
+ * list half a minute later, and without a word (Prüfgang 05.10.2026 A8).
  */
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import { ApiError, authApi, SIGNED_OUT_EVENT, type Me } from '../api/client'
 import i18n, { changeLanguage } from '../i18n'
@@ -12,6 +17,8 @@ type Status = 'loading' | 'setup' | 'signedOut' | 'signedIn'
 type Auth = {
   status: Status
   me: Me | null
+  /** The session ended while the app was open (not by signing out here). */
+  ended: boolean
   refresh: () => Promise<void>
   setMe: (me: Me) => void
   signOut: () => Promise<void>
@@ -19,12 +26,20 @@ type Auth = {
 
 const Context = createContext<Auth | null>(null)
 
+/** How often an open page asks after its session; the answer is small, and only a 401 changes anything. */
+export const SESSION_MS = 5_000
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>('loading')
   const [me, setMeState] = useState<Me | null>(null)
+  const [ended, setEnded] = useState(false)
+  /** Signing out here is no "ended": a check still under way when the own sign-out goes through must not say so. */
+  const leaving = useRef(false)
 
   const setMe = useCallback((next: Me) => {
+    leaving.current = false
     setMeState(next)
+    setEnded(false)
     setStatus('signedIn')
     // The account's language wins over the browser's.
     if (next.language && next.language !== i18n.language) void changeLanguage(next.language)
@@ -57,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void refresh()
     const gone = () => {
+      if (!leaving.current) setEnded(true)
       setStatus('signedOut')
       setMeState(null)
     }
@@ -64,13 +80,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener(SIGNED_OUT_EVENT, gone)
   }, [refresh])
 
+  useEffect(() => {
+    if (status !== 'signedIn') return
+    const ask = () => {
+      if (document.visibilityState === 'visible') void authApi.me().catch(() => undefined)
+    }
+    const timer = window.setInterval(ask, SESSION_MS)
+    document.addEventListener('visibilitychange', ask)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', ask)
+    }
+  }, [status])
+
   const signOut = useCallback(async () => {
+    leaving.current = true
     await authApi.logout().catch(() => undefined)
     setMeState(null)
     setStatus('signedOut')
   }, [])
 
-  const value = useMemo(() => ({ status, me, refresh, setMe, signOut }), [status, me, refresh, setMe, signOut])
+  const value = useMemo(() => ({ status, me, ended, refresh, setMe, signOut }), [status, me, ended, refresh, setMe, signOut])
   return <Context.Provider value={value}>{children}</Context.Provider>
 }
 

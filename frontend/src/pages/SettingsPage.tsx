@@ -86,7 +86,7 @@ function ServerPart({ part }: { part: Part }) {
     case 'accounts':
       return (
         <>
-          {connected ? <ManagedCard title={t('settings.parts.accounts')} text={t('suite.managedAccounts')} /> : <AccountsCard />}
+          <AccountsCard readOnly={connected} />
           <AllSpacesCard server={server} />
           {me?.suite_mail ? <ManagedCard title={t('suite.mailTitle')} text={t('suite.managedMail')} /> : <MailCard server={server} />}
         </>
