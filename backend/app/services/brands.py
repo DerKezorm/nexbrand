@@ -215,7 +215,10 @@ def restore(db: Session, client: Client) -> None:
 
 
 def purge(db: Session, client: Client) -> None:
-    """The client and its group of rights, with the files in it (their bytes go with the next clean-up)."""
+    """The client and its group of rights, with the files in it (their bytes go with the next clean-up). Not one
+    nexsuite keeps: deleted here for good, nexsuite would bring it back as an empty client under a new id (B6)."""
+    if managed(db, client):
+        raise BrandError("managed_by_suite", "Clients are deleted for good in nexsuite now.", 409)
     space = db.get(Space, client.space_id)
     db.delete(client)
     if space is not None:

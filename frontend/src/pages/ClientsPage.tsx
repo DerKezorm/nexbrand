@@ -10,6 +10,7 @@ import { Sidebar } from '../components/Sidebar'
 import { textOn } from '../lib/color'
 import { useAuth } from '../state/auth'
 import { useBrands } from '../state/brands'
+import { Button, Confirm, Feedback, useAction } from './settings/ui'
 
 /** The overview: every client the account may see, or the bin. */
 export function ClientsPage() {
@@ -38,6 +39,8 @@ export function ClientsPage() {
             <div>
               <h1 className="text-2xl font-bold tracking-tight">{bin ? t('clients.bin') : t('clients.title')}</h1>
               <p className="mt-1 max-w-2xl text-sm text-mist-500">{bin ? t('clients.binText') : t('clients.text')}</p>
+              {/* Connected, everybody reads where clients come from, not only on an empty list (B19). */}
+              {!bin && me?.suite === 'connected' && <p className="mt-1 max-w-2xl text-sm text-mist-500" data-testid="clients-from-suite">{t('clients.fromSuiteAll')}</p>}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <label className="flex items-center gap-2 rounded-full border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm">
@@ -57,7 +60,6 @@ export function ClientsPage() {
           {brands.loaded && list.length === 0 && (
             <div className="rounded-2xl border border-dashed border-ink-700 p-10 text-center">
               <p className="text-mist-300">{bin ? t('clients.binEmpty') : query ? t('search.nothing') : t('clients.empty')}</p>
-              {!bin && !query && !canCreate && me?.suite === 'connected' && <p className="mt-2 text-sm text-mist-500">{t('clients.fromSuite')}</p>}
               {!bin && !query && canCreate && (
                 <button type="button" className="nc-btn nc-btn-accent mt-4" onClick={() => shell.newClient()}>
                   <Plus className="h-4 w-4" /> {t('client.new')}
@@ -121,16 +123,46 @@ function ClientCard({ client, locale }: { client: ClientInfo; locale: string }) 
 function BinCard({ client }: { client: ClientInfo }) {
   const { t } = useTranslation()
   const brands = useBrands()
+  const { me } = useAuth()
+  const restore = useAction()
+  const [asking, setAsking] = useState(false)
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-ink-700 bg-ink-900 p-4">
-      <span className="min-w-0 flex-1 truncate font-semibold">{client.name}</span>
-      <button type="button" className="nc-btn nc-btn-ghost" onClick={() => void clientsApi.restore(client.id).then(() => Promise.all([brands.refresh(), brands.loadBin()]))}>
-        <RotateCcw className="h-4 w-4" /> {t('clients.restore')}
-      </button>
-      {client.role === 'manage' && (
-        <button type="button" className="nc-btn nc-btn-ghost" onClick={() => window.confirm(t('clients.purgeAsk', { name: client.name })) && void clientsApi.purge(client.id).then(() => brands.loadBin())}>
-          <Trash2 className="h-4 w-4" /> {t('clients.purge')}
-        </button>
+    <div className="space-y-2 rounded-2xl border border-ink-700 bg-ink-900 p-4" data-testid="bin-card">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="min-w-0 flex-1 truncate font-semibold">{client.name}</span>
+        {/* Deleted in nexsuite: brought back or deleted for good there, never here (B6, B14). */}
+        {!client.managed && (
+          <>
+            <Button busy={restore.busy} onClick={() => void restore.run(async () => {
+              await clientsApi.restore(client.id)
+              await Promise.all([brands.refresh(), brands.loadBin()])
+            })}>
+              <RotateCcw className="h-4 w-4" /> {t('clients.restore')}
+            </Button>
+            {client.role === 'manage' && (
+              <Button onClick={() => setAsking(true)}>
+                <Trash2 className="h-4 w-4" /> {t('clients.purge')}
+              </Button>
+            )}
+          </>
+        )}
+      </div>
+      {client.managed && <p className="text-xs text-mist-500">{t('clients.binSuite')}</p>}
+      <Feedback problem={restore.problem} />
+      {asking && (
+        <Confirm
+          title={t('clients.purgeTitle', { name: client.name })}
+          text={t('clients.purgeText')}
+          confirm={t('clients.purge')}
+          danger
+          password={me?.sign_in === 'password'}
+          onCancel={() => setAsking(false)}
+          onConfirm={async (password) => {
+            await clientsApi.purge(client.id, password)
+            setAsking(false)
+            await brands.loadBin()
+          }}
+        />
       )}
     </div>
   )

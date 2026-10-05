@@ -139,6 +139,12 @@ class Account(Base):
     #: password, a block or unblock and "sign out everywhere", so no browser from before counts as known any more.
     #: Empty (accounts from before it existed): no device is known until the next sign-in.
     device_key: Mapped[str] = mapped_column(String(64), default="")
+    #: The moment nexsuite last said this person signed out everywhere (as nexsuite sent it), once it was applied
+    #: here: the browsers known before are forgotten once per new moment, not with every sync.
+    suite_signed_out: Mapped[str] = mapped_column(String(64), default="")
+    #: The person in nexsuite this account belonged to before the last disconnect (B8): connecting again to the same
+    #: nexsuite suggests that person first, so an account nexsuite once brought is not made a second time.
+    suite_person: Mapped[str] = mapped_column(String(64), default="")
     #: Not stored. Set on the account an API token acts as when the token may see only some spaces.
     key_spaces: ClassVar[frozenset[int] | None] = None
     #: Not stored. True on the account a token acts as: a program never has the operator's powers over other

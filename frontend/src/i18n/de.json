@@ -319,7 +319,9 @@
       "members_other": "{{count}} Mitglieder, verwaltet von {{managers}}",
       "rights": "Rechte",
       "membersCreate": "Mitglieder legen Kunden an",
-      "membersCreateHint": "Aus: Nur der Betreiber legt Kunden an und gibt anderen Zugriff. Wer einen Kunden anlegt, verwaltet ihn."
+      "membersCreateHint": "Aus: Nur der Betreiber legt Kunden an und gibt anderen Zugriff. Wer einen Kunden anlegt, verwaltet ihn.",
+      "textSuite": "Jeder Kunde mit seinen Verwaltern. Wer welchen Kunden sieht, regelt nexsuite; hier siehst du es nur an.",
+      "view": "Ansehen"
     },
     "oidcOn": "Eingerichtet mit {{issuer}}.",
     "oidcOff": "Nicht eingerichtet.",
@@ -582,7 +584,13 @@
     "svg_encoding": "Diese SVG ist nicht als UTF-8 gespeichert. Speichere sie als UTF-8 und lade sie noch einmal hoch.",
     "cannot_block_self": "Dich selbst kannst du nicht sperren.",
     "invalid_account_name": "Ein Anmeldename hat 2 bis 64 Zeichen: Buchstaben ohne Umlaute, Ziffern, Punkt, Bindestrich oder Unterstrich, keine Leerzeichen.",
-    "invite_expired": "Diese Einladung ist abgelaufen."
+    "invite_expired": "Diese Einladung ist abgelaufen.",
+    "not_suite": "Unter dieser Adresse antwortet kein nexsuite. Nimm die Adresse, unter der nexsuite im Browser öffnet, ohne Pfad dahinter.",
+    "person_unknown": "Eine gewählte Person gibt es in nexsuite nicht (mehr). Die Liste ist neu geladen, sieh die Auswahl noch einmal an.",
+    "client_unknown": "Einen gewählten Kunden gibt es in nexsuite nicht (mehr). Die Liste ist neu geladen, sieh die Auswahl noch einmal an.",
+    "team_unknown": "Ein gewähltes Team gibt es in nexsuite nicht (mehr). Die Liste ist neu geladen, sieh die Auswahl noch einmal an.",
+    "suite_no_account": "nexbrand kennt dich noch nicht. Versuch es in ein paar Sekunden noch einmal; klappt es dann nicht, frag den Betreiber von nexsuite.",
+    "invite_suite": "Diese Einladung gilt nicht mehr: nexbrand ist jetzt mit nexsuite verbunden, und du meldest dich über nexsuite an."
   },
   "auth": {
     "name": "Name",
@@ -602,7 +610,8 @@
       "submit": "Anmelden",
       "passwordOff": "Anmelden mit Passwort ist für Mitglieder abgeschaltet.",
       "oidc": "Mit {{name}} anmelden",
-      "ended": "Deine Sitzung wurde beendet, zum Beispiel weil dein Konto gesperrt oder überall abgemeldet wurde. Melde dich neu an."
+      "ended": "Deine Sitzung wurde beendet, zum Beispiel weil dein Konto gesperrt oder überall abgemeldet wurde. Melde dich neu an.",
+      "endedSuite": "Deine Sitzung wurde beendet, zum Beispiel weil dein Konto gesperrt oder überall abgemeldet oder dein Passwort in nexsuite geändert wurde. Melde dich neu an."
     },
     "code": {
       "title": "Zweiter Faktor",
@@ -624,7 +633,11 @@
       "expiredTitle": "Einladung abgelaufen",
       "expiredText": "Diese Einladung ist abgelaufen. Frag nach einer neuen.",
       "haveAccount": "Dieser Link ist für ein neues Konto. Du bist schon als {{name}} angemeldet und brauchst ihn nicht.",
-      "toApp": "Zu nexbrand"
+      "toApp": "Zu nexbrand",
+      "intoAppBy": "{{by}} lädt dich zu nexbrand ein.",
+      "intoSpaceBy": "{{by}} gibt dir Zugriff auf den Kunden „{{space}}“ ({{role}}).",
+      "name": "Anmeldename",
+      "nameHint": "2 bis 64 Zeichen: Buchstaben ohne Umlaute, Ziffern, Punkt, Bindestrich oder Unterstrich, keine Leerzeichen. Den Namen, den andere sehen, änderst du danach unter Mein Konto."
     },
     "backToLogin": "Zur Anmeldung"
   },
@@ -896,7 +909,7 @@
     "emergencyCodes": "Notfallcodes",
     "codesKnown_one": "{{count}} bekannt",
     "codesKnown_other": "{{count}} bekannt",
-    "codesNone": "noch keine, in nexsuite unter Apps erzeugen",
+    "codesNone": "noch keine. Erzeuge sie jetzt in nexsuite unter Apps und bewahre sie auf: Ist nexsuite nicht erreichbar, lassen sie sich nicht mehr erzeugen.",
     "syncNow": "Jetzt abgleichen",
     "open": "In nexsuite öffnen",
     "disconnect": "Trennen",
@@ -917,7 +930,7 @@
     "step3": "Kunden und Teams zuordnen",
     "step4": "Fertig",
     "step1Text": "Den Code bekommst du in nexsuite unter Apps, Verbinden. Er gilt 15 Minuten.",
-    "step2Text": "Jedes Konto hier gehört künftig zu einer Person in nexsuite. Vorgeschlagen nach Mailadresse und Name. Kunden, Rechte und Verlauf bleiben dran.",
+    "step2Text": "Jedes Konto hier gehört künftig zu einer Person in nexsuite. Vorgeschlagen nach früherer Zuordnung, Mailadresse und Name. Kunden, Rechte und Verlauf bleiben dran; Anzeigename, Adresse und Profilbild kommen danach aus nexsuite.",
     "step3Text": "Kunden von hier kommen nach nexsuite. Gibt es dort schon den passenden, verbindest du beide: Der Zugriff von hier kommt dazu, und hat jemand dort schon ein Recht, gilt das höhere. Die CI bleibt in nexbrand.",
     "newPerson": "Neu in nexsuite anlegen",
     "newSpace": "Neu in nexsuite anlegen",
@@ -950,7 +963,19 @@
     "noClientsHere_one": "Hier gibt es noch keine Kunden. Der Kunde aus nexsuite ({{names}}) kommt nach dem Verbinden hierher, noch ohne CI.",
     "noClientsHere_other": "Hier gibt es noch keine Kunden. Die {{count}} Kunden aus nexsuite ({{names}}) kommen nach dem Verbinden hierher, noch ohne CI.",
     "noClientsAnywhere": "Hier gibt es noch keine Kunden, und nexsuite hat auch noch keine. Kunden legst du nach dem Verbinden in nexsuite an; hier bekommen sie ihre CI.",
-    "teamsTextAlone": "Teams: Gibt es in nexsuite schon das passende Team, verbindest du beide, und die Mitglieder von hier kommen dazu. Sonst entsteht es dort neu."
+    "teamsTextAlone": "Teams: Gibt es in nexsuite schon das passende Team, verbindest du beide, und die Mitglieder von hier kommen dazu. Sonst entsteht es dort neu.",
+    "rowBlocked": "gesperrt",
+    "rowBlockedTaken": "Gesperrt. Übernommen kann sich das Konto wieder anmelden.",
+    "rowGone": "Die Person dazu wurde in nexsuite gelöscht.",
+    "rowFromSuite": "kam aus nexsuite",
+    "changesName": "Anzeigename wird „{{name}}“",
+    "changesMail": "Adresse wird {{email}}",
+    "pairing": "Einen Moment, nexsuite wird gefragt.",
+    "finishing": "nexbrand verbindet sich mit nexsuite und gleicht alles ab. Das dauert einen Moment.",
+    "managedPassword": "Passwort und zweiter Faktor änderst du in nexsuite; sie gelten für alle verbundenen Apps.",
+    "openSuite": "nexsuite öffnen",
+    "mailNone": "In nexsuite ist kein Mailserver eingerichtet. Dann verschickt nexbrand keine Mails.",
+    "notSet": "nicht gesetzt"
   },
   "origin": {
     "hand": "von Hand",
@@ -974,7 +999,10 @@
     "purgeAsk": "{{name}} endgültig löschen? Das lässt sich nicht rückgängig machen.",
     "count_one": "{{count}} Kunde",
     "count_other": "{{count}} Kunden",
-    "fromSuite": "Kunden kommen aus nexsuite: Dort angelegt, erscheinen sie hier und bekommen ihre CI."
+    "fromSuiteAll": "Kunden kommen aus nexsuite: Dort werden sie angelegt, umbenannt und gelöscht, hier bekommen sie ihre CI.",
+    "binSuite": "In nexsuite gelöscht. Zurückholen und endgültig löschen geht dort.",
+    "purgeTitle": "{{name}} endgültig löschen?",
+    "purgeText": "Der Kunde geht mit allen Fassungen, Projekten, Dateien und Links. Das lässt sich nicht rückgängig machen."
   },
   "client": {
     "new": "Neuer Kunde",
@@ -1671,7 +1699,11 @@
     "aiFailed": "Die KI hat nicht geantwortet ({{reason}}). Die Richtungen kommen aus den Stichworten.",
     "notAllowed": "Kunden legt hier nur der Betreiber an. Er kann es Mitgliedern unter Einstellungen erlauben.",
     "fromSuite": "Kunden kommen aus nexsuite. Leg den Kunden dort an; hier bekommt er dann seine CI.",
-    "hasCi": "Dieser Kunde hat schon eine CI. Was du hier baust, wird eine neue Fassung als Entwurf."
+    "hasCi": "Dieser Kunde hat schon eine CI. Was du hier baust, wird eine neue Fassung als Entwurf.",
+    "pickTitle": "CI für einen Kunden aus nexsuite",
+    "pickText": "Diese Kunden haben noch keine CI. Wähle einen, die Werkbank fängt mit ihm an.",
+    "pickNone": "Gerade hat kein Kunde, an dem du schreiben darfst, noch keine CI. Neue Kunden legt nexsuite an.",
+    "toClients": "Zu den Kunden"
   },
   "contrast": {
     "title": "Kontrastrechner",

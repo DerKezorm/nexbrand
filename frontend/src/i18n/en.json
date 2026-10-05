@@ -319,7 +319,9 @@
       "members_other": "{{count}} members, managed by {{managers}}",
       "rights": "Rights",
       "membersCreate": "Members make clients",
-      "membersCreateHint": "Off: only the operator makes clients and gives others access. Whoever makes a client manages it."
+      "membersCreateHint": "Off: only the operator makes clients and gives others access. Whoever makes a client manages it.",
+      "textSuite": "Every client with its managers. nexsuite decides who sees which client; here you only look.",
+      "view": "View"
     },
     "oidcOn": "Set up with {{issuer}}.",
     "oidcOff": "Not set up.",
@@ -582,7 +584,13 @@
     "svg_encoding": "This SVG is not saved as UTF-8. Save it as UTF-8 and upload it again.",
     "cannot_block_self": "You cannot block yourself.",
     "invalid_account_name": "A sign-in name has 2 to 64 characters: letters without accents, digits, dot, hyphen or underscore, no spaces.",
-    "invite_expired": "This invitation has run out."
+    "invite_expired": "This invitation has run out.",
+    "not_suite": "No nexsuite answers at this address. Use the address nexsuite opens at in the browser, without a path after it.",
+    "person_unknown": "A person you chose is not in nexsuite (any more). The list is loaded anew; look at the choices again.",
+    "client_unknown": "A client you chose is not in nexsuite (any more). The list is loaded anew; look at the choices again.",
+    "team_unknown": "A team you chose is not in nexsuite (any more). The list is loaded anew; look at the choices again.",
+    "suite_no_account": "nexbrand does not know you yet. Try again in a few seconds; if it still does not work, ask the operator of nexsuite.",
+    "invite_suite": "This invitation is not valid any more: nexbrand is connected to nexsuite now, and you sign in through nexsuite."
   },
   "auth": {
     "name": "Name",
@@ -602,7 +610,8 @@
       "submit": "Sign in",
       "passwordOff": "Sign-in with a password is turned off for members.",
       "oidc": "Sign in with {{name}}",
-      "ended": "Your session was ended, for example because your account was blocked or signed out everywhere. Sign in again."
+      "ended": "Your session was ended, for example because your account was blocked or signed out everywhere. Sign in again.",
+      "endedSuite": "Your session was ended, for example because your account was blocked or signed out everywhere, or your password was changed in nexsuite. Sign in again."
     },
     "code": {
       "title": "Second factor",
@@ -624,7 +633,11 @@
       "expiredTitle": "Invitation ran out",
       "expiredText": "This invitation has run out. Ask for a new one.",
       "haveAccount": "This link is for a new account. You are signed in as {{name}} already and do not need it.",
-      "toApp": "To nexbrand"
+      "toApp": "To nexbrand",
+      "intoAppBy": "{{by}} invites you to nexbrand.",
+      "intoSpaceBy": "{{by}} gives you access to the client “{{space}}” ({{role}}).",
+      "name": "Sign-in name",
+      "nameHint": "2 to 64 characters: letters without accents, digits, dot, hyphen or underscore, no spaces. You change the name others see afterwards under My account."
     },
     "backToLogin": "To the sign-in"
   },
@@ -896,7 +909,7 @@
     "emergencyCodes": "Emergency codes",
     "codesKnown_one": "{{count}} known",
     "codesKnown_other": "{{count}} known",
-    "codesNone": "none yet, make them in nexsuite under Apps",
+    "codesNone": "none yet. Make them now in nexsuite under Apps and keep them: with nexsuite out of reach, they can no longer be made.",
     "syncNow": "Fetch now",
     "open": "Open nexsuite",
     "disconnect": "Disconnect",
@@ -917,7 +930,7 @@
     "step3": "Match clients and teams",
     "step4": "Done",
     "step1Text": "You get the code in nexsuite under Apps, Connect. It is valid for 15 minutes.",
-    "step2Text": "Every account here belongs to a person in nexsuite from now on. Suggested by mail address and name. Clients, rights and history stay with it.",
+    "step2Text": "Every account here belongs to a person in nexsuite from now on. Suggested by an earlier match, mail address and name. Clients, rights and history stay with it; display name, address and profile picture come from nexsuite afterwards.",
     "step3Text": "Clients from here go to nexsuite. If it already has the same one, you join them: the access from here comes along, and where someone already has a right there, the higher one counts. The CI stays in nexbrand.",
     "newPerson": "Create in nexsuite",
     "newSpace": "Create in nexsuite",
@@ -950,7 +963,19 @@
     "noClientsHere_one": "There are no clients here yet. The client from nexsuite ({{names}}) comes here after connecting, without a CI yet.",
     "noClientsHere_other": "There are no clients here yet. The {{count}} clients from nexsuite ({{names}}) come here after connecting, without a CI yet.",
     "noClientsAnywhere": "There are no clients here yet, and nexsuite has none either. After connecting you make clients in nexsuite; here they get their CI.",
-    "teamsTextAlone": "Teams: if nexsuite already has the same team, you join them and the members from here come along. Otherwise it is made there."
+    "teamsTextAlone": "Teams: if nexsuite already has the same team, you join them and the members from here come along. Otherwise it is made there.",
+    "rowBlocked": "blocked",
+    "rowBlockedTaken": "Blocked. Taken over, the account can sign in again.",
+    "rowGone": "Its person was deleted in nexsuite.",
+    "rowFromSuite": "came from nexsuite",
+    "changesName": "Display name becomes “{{name}}”",
+    "changesMail": "Address becomes {{email}}",
+    "pairing": "One moment, nexsuite is being asked.",
+    "finishing": "nexbrand connects to nexsuite and brings everything in step. This takes a moment.",
+    "managedPassword": "You change your password and second factor in nexsuite; they count for every connected app.",
+    "openSuite": "Open nexsuite",
+    "mailNone": "No mail server is set up in nexsuite. Then nexbrand sends no mail.",
+    "notSet": "not set"
   },
   "origin": {
     "hand": "by hand",
@@ -974,7 +999,10 @@
     "purgeAsk": "Delete {{name}} for good? This cannot be undone.",
     "count_one": "{{count}} client",
     "count_other": "{{count}} clients",
-    "fromSuite": "Clients come from nexsuite: made there, they show up here and get their CI."
+    "fromSuiteAll": "Clients come from nexsuite: they are made, renamed and deleted there, and get their CI here.",
+    "binSuite": "Deleted in nexsuite. Bringing it back and deleting it for good happen there.",
+    "purgeTitle": "Delete {{name}} for good?",
+    "purgeText": "The client goes with every version, project, file and link. This cannot be undone."
   },
   "client": {
     "new": "New client",
@@ -1671,7 +1699,11 @@
     "aiFailed": "The AI did not answer ({{reason}}). The directions come from the key words.",
     "notAllowed": "Only the operator makes clients here. They can allow members under Settings.",
     "fromSuite": "Clients come from nexsuite. Make the client there; here it then gets its CI.",
-    "hasCi": "This client has a CI already. What you build here becomes a new version as a draft."
+    "hasCi": "This client has a CI already. What you build here becomes a new version as a draft.",
+    "pickTitle": "A CI for a client from nexsuite",
+    "pickText": "These clients have no CI yet. Choose one and the workbench starts with it.",
+    "pickNone": "Right now no client you may write for is without a CI. New clients are made in nexsuite.",
+    "toClients": "To the clients"
   },
   "contrast": {
     "title": "Contrast checker",

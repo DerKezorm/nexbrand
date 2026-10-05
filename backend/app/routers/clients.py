@@ -11,12 +11,12 @@ from __future__ import annotations
 import logging
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Query, Response
+from fastapi import APIRouter, Query, Request, Response
 from fastapi import Path as PathParam
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 
-from ..deps import Account, DbSession
+from ..deps import Account, DbSession, confirm_operator
 from ..errors import error
 from ..models import (
     DRAFT,
@@ -334,9 +334,24 @@ def restore(client_id: ClientId, account: Account, db: DbSession) -> dict[str, A
     return client_view(db, account, client)
 
 
+class PurgeIn(BaseModel):
+    #: The own password once more: deleting for good takes every version with it (B6). Asked of accounts with a
+    #: password; one that signs in through the provider has none here.
+    current_password: str = Field(default="", max_length=200)
+
+
 @router.delete("/clients/{client_id}/purge", status_code=204, summary="Delete a client in the bin for good (managers)")
-def purge(client_id: ClientId, account: Account, db: DbSession) -> None:
-    brands.purge(db, client_of(db, account, client_id, MANAGE, deleted=True))
+def purge(client_id: ClientId, request: Request, account: Account, db: DbSession,
+          payload: PurgeIn | None = None) -> None:
+    client = client_of(db, account, client_id, MANAGE, deleted=True)
+    if brands.managed(db, client):
+        # Before the password: there is nothing to confirm for what is not done here.
+        raise error("managed_by_suite", "Clients are deleted for good in nexsuite now.", 409)
+    confirm_operator(request, db, account, payload.current_password if payload else "")
+    try:
+        brands.purge(db, client)
+    except brands.BrandError as exc:
+        raise _fail(exc) from exc
 
 
 # --- Versions ---------------------------------------------------------------------------------------------------

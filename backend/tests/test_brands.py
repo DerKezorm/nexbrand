@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from app.models import Account
 from app.services import brandset, tokens
 
-from .conftest import join, make_account, new_client, new_group
+from .conftest import PASSWORD, join, make_account, new_client, new_group
 
 SET: dict[str, Any] = {
     "colors": [
@@ -248,7 +248,7 @@ def test_readers_look_writers_change_managers_delete_for_good(client: TestClient
         assert writer.delete(f"/api/clients/{cid}").status_code == 204
         assert writer.get("/api/clients?deleted=true").json()[0]["id"] == cid
         assert writer.delete(f"/api/clients/{cid}/purge").status_code == 403
-    assert client.delete(f"/api/clients/{cid}/purge").status_code == 204
+    assert client.request("DELETE", f"/api/clients/{cid}/purge", json={"current_password": PASSWORD}).status_code == 204
     assert client.get(f"/api/clients/{cid}").status_code == 404
 
 

@@ -603,14 +603,31 @@ def _cookie_key() -> bytes:
     return hashlib.sha256(b"nexbrand-oidc-attempt:" + secret).digest()
 
 
-def pack_attempt(attempt: Attempt, link_account_id: int | None = None, invite: str | None = None) -> str:
+#: A page of nexbrand's own to land on after the provider (B10): a path on this server with its query. Never another
+#: host (``//host``, ``/\host``, a scheme), never the API, nothing but printable characters without spaces.
+_NEXT = re.compile(r"/(?![/\\])[A-Za-z0-9\-._~!$&'()*+,;=:@%/?]{0,499}")
+
+
+def safe_next(value: object) -> str | None:
+    """The page to land on after signing in, or None if ``value`` is not one of nexbrand's own (no open redirect)."""
+    if not isinstance(value, str) or not _NEXT.fullmatch(value) or value == "/":
+        return None
+    if value.split("?", 1)[0].rstrip("/") == "/api" or value.startswith("/api/"):
+        return None
+    return value
+
+
+def pack_attempt(attempt: Attempt, link_account_id: int | None = None, invite: str | None = None,
+                 next_path: str | None = None) -> str:
     """The attempt as a signed, short-lived cookie value.
 
     The state lives with the browser instead of in a table: nothing to clean up, and an unredeemed value is
     worthless after ten minutes. Nobody can forge it without the key; the browser's owner could read it, so
     only values that belong to that browser anyway are inside. ``link_account_id`` marks an attempt that
     links the provider identity to an account that is signed in already, instead of signing somebody in;
-    ``invite`` an attempt that accepts an invitation (the token came from this browser's own address bar).
+    ``invite`` an attempt that accepts an invitation (the token came from this browser's own address bar);
+    ``next_path`` the page the sign-in started from (a direct link), checked with ``safe_next`` going in and coming
+    back.
     """
     now = int(time.time())
     payload: dict[str, Any] = {
@@ -624,6 +641,8 @@ def pack_attempt(attempt: Attempt, link_account_id: int | None = None, invite: s
         payload["link"] = link_account_id
     if invite is not None:
         payload["invite"] = invite
+    if safe_next(next_path):
+        payload["next"] = next_path
     return jwt.encode(payload, _cookie_key(), algorithm="HS256")
 
 

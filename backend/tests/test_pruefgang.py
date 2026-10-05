@@ -126,7 +126,7 @@ def test_d9_for_good_takes_the_right_to_manage(client: TestClient, operator: Acc
         sign_in(wim, Account(id=_id("wim"), name="wim"))
         assert wim.delete(f"/api/clients/{made}").status_code == 204, "into the bin, as before"
         assert wim.delete(f"/api/clients/{made}/purge").status_code in (403, 404)
-    assert client.delete(f"/api/clients/{made}/purge").status_code == 204
+    assert client.request("DELETE", f"/api/clients/{made}/purge", json={"current_password": PASSWORD}).status_code == 204
 
 
 def _id(name: str) -> int:

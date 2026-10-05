@@ -308,6 +308,7 @@ def decline_notice(notice_id: Annotated[int, PathParam(ge=1)], account: Account,
 @router.get("/admin/spaces", summary="Every space with its members, for the operator (no contents)")
 def all_spaces(operator: OperatorAccount, db: DbSession) -> list[dict[str, Any]]:
     result = []
+    connected = suite.connected(db)
     for space in db.scalars(select(Space).where(Space.deleted_at.is_(None)).order_by(Space.name)):
         rows = _members(db, space.id)
         result.append(
@@ -317,6 +318,8 @@ def all_spaces(operator: OperatorAccount, db: DbSession) -> list[dict[str, Any]]
                 "members": len(rows),
                 "managers": [person.name for membership, person in rows if membership.role == MANAGE],
                 "role": rights.role_in(db, operator, space.id),
+                # Its rights come from nexsuite: the card offers a look, not a change (G8).
+                "managed": bool(space.external_id) and connected,
             }
         )
     return result
@@ -443,11 +446,19 @@ def _valid(db: DbSession, token: str) -> Invite:
 @router.get("/invite/{token}", summary="What an invitation offers (no sign-in needed)")
 def invite_state(token: Token, request: Request, db: DbSession) -> dict[str, Any]:
     row = _valid(db, token)
+    if suite.connected(db):
+        # Connected, people and rights come from nexsuite: a link from before is no way in, and the page says so at
+        # once instead of naming a client and a right as if it held (B26).
+        raise error("invite_suite", "nexbrand is connected to nexsuite now; this invitation is not valid any more.",
+                    404)
     space = db.get(Space, row.space_id) if row.space_id else None
     signed_in = session_account(db, request.cookies.get(SESSION_COOKIE))
+    sender = db.get(AccountRow, row.created_by) if row.created_by else None
     return {
         "space": space.name if space else None,
         "role": row.space_role or None,
+        #: Who invites (E18 in nextasks): the name others see, nothing when the account is gone.
+        "by": (sender.display_name or sender.name) if sender is not None else None,
         "min_password": MIN_PASSWORD,
         "signed_in_as": signed_in.name if signed_in else None,
     }

@@ -149,8 +149,10 @@ nexbrand runs on its own, or joins [nexsuite](https://github.com/DerKezorm/nexsu
 teams and clients of all connected apps, decides who may see which client, and signs everybody in. The operator connects under **Settings →
 Server → nexsuite** with the address of nexsuite and a one-time code made there, matches the accounts and clients here
 to those there, and from then on people sign in through nexsuite. Clients are made in nexsuite then; one made there
-shows up in nexbrand without a CI and gets it here. A blocked person is signed out at once, and a page they still
-have open goes to the sign-in within seconds, saying why.
+shows up in nexbrand without a CI and gets it here; it is also put in the bin and deleted for good there. A blocked
+person is signed out at once, and a page they still have open goes to the sign-in within seconds, saying why. A link
+to a page survives the sign-in, through nexsuite as through any other provider. Connecting again later suggests each
+account the person it had before and leaves blocked accounts blocked unless the operator chooses otherwise.
 
 Disconnecting brings nexbrand back on its own with everything it got; the operator's own sign-in with a password
 works throughout as the emergency account, and an emergency code disconnects when nexsuite is out of reach (nexsuite
@@ -181,6 +183,8 @@ draft. Off until the operator switches it on; every account then makes its own t
 - Files are served with their own sandboxing policy; whatever a browser would not show by itself is a download.
   SVG logos are shown as pictures, never as pages, and an SVG with a script, an event attribute, a `javascript:`
   address, embedded HTML or a DOCTYPE is refused on upload. A picture's pixels are counted before it is decoded.
+- Deleting a client for good takes the own password, as do the operator's acts on other accounts.
+- After signing in, nexbrand only ever sends the browser to one of its own pages, never to another address.
 - The log never contains a client's design, passwords, keys or tokens.
 
 ## Development

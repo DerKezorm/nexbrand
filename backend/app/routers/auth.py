@@ -339,6 +339,8 @@ def me(account: Account, db: DbSession) -> dict[str, Any]:
         "preferences": preferences_of(account.preferences),
         "suite": suite.state(db),
         "suite_mail": bool(settings_service.get(db, "suite_mail")),
+        # Where nexsuite opens, for the links to where password, second factor and profile are changed (G3).
+        "suite_url": str(settings_service.get(db, "suite_url") or "") if suite.connected(db) else "",
         # Whether "New client" makes one here: not while nexsuite keeps the clients, else by the operator's switch.
         "may_create_clients": not suite.connected(db) and brands.may_create(db, account),
         # Connected: this account is the emergency account (its password and second factor are for that only).

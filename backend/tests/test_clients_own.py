@@ -10,7 +10,7 @@ from app.db import SessionLocal
 from app.models import ApiToken, BrandVersion, Client, Media, Membership, Space, TeamGrant
 from app.services import media_store, regroup
 
-from .conftest import client_of, join, make_account, new_client, new_group
+from .conftest import PASSWORD, client_of, join, make_account, new_client, new_group
 from .test_brands import SET, SVG, make_client, upload
 
 
@@ -55,7 +55,7 @@ def test_the_operator_decides_whether_members_make_clients(client: TestClient, o
 def test_deleting_for_good_takes_the_group_along(client: TestClient, operator, space: int) -> None:
     cid = make_client(client, space)["id"]
     assert client.delete(f"/api/clients/{cid}").status_code == 204
-    assert client.delete(f"/api/clients/{cid}/purge").status_code == 204
+    assert client.request("DELETE", f"/api/clients/{cid}/purge", json={"current_password": PASSWORD}).status_code == 204
     with SessionLocal() as db:
         assert db.get(Space, space) is None and db.query(Membership).filter_by(space_id=space).count() == 0
 

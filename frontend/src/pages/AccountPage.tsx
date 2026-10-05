@@ -135,6 +135,7 @@ export function AccountPage() {
             </div>
             {/* How others see this account; the name below stays what one signs in with. */}
             {me?.suite === 'connected' && <Managed text={t('suite.managedProfile')} />}
+            {me?.suite === 'connected' && <SuiteLink url={me.suite_url} />}
             <form
               hidden={me?.suite === 'connected'}
               className="flex flex-wrap items-end gap-3"
@@ -203,6 +204,14 @@ export function AccountPage() {
                     {t('me.password.submit')}
                   </button>
                 </form>
+              </Section>
+            )}
+
+            {/* Connected, password and second factor of whoever signs in through nexsuite live there, with the way to it (G3). */}
+            {me.suite === 'connected' && me.sign_in !== 'password' && (
+              <Section icon={KeyRound} title={t('me.password.title')}>
+                <Managed text={t('suite.managedPassword')} />
+                <SuiteLink url={me.suite_url} />
               </Section>
             )}
 
@@ -431,5 +440,16 @@ function SecondFactor({ me }: { me: Me }) {
         </p>
       )}
     </div>
+  )
+}
+
+/** The way to nexsuite, where what is kept there is changed (G3). */
+function SuiteLink({ url }: { url?: string }) {
+  const { t } = useTranslation()
+  if (!url) return null
+  return (
+    <a href={url} target="_blank" rel="noreferrer" className={PLAIN + ' inline-flex items-center gap-1.5'} data-testid="suite-link">
+      <Plug className="h-3.5 w-3.5" aria-hidden /> {t('suite.openSuite')}
+    </a>
   )
 }

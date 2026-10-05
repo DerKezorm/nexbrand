@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import logging
 from typing import Annotated, Any
+from urllib.parse import quote
 
 from fastapi import APIRouter, Query, Request, Response
 from fastapi.responses import RedirectResponse
@@ -125,11 +126,12 @@ def forget_subjects(db: DbSession, previous: str, issuer: str) -> None:
 
 
 def _set_attempt_cookie(
-    response: Response, request: Request, attempt: oidc.Attempt, link_account_id: int | None, invite: str | None
+    response: Response, request: Request, attempt: oidc.Attempt, link_account_id: int | None, invite: str | None,
+    next_path: str | None = None,
 ) -> None:
     response.set_cookie(
         oidc.COOKIE_NAME,
-        oidc.pack_attempt(attempt, link_account_id, invite),
+        oidc.pack_attempt(attempt, link_account_id, invite, next_path),
         max_age=oidc.ATTEMPT_MINUTES * 60,
         path=oidc.COOKIE_PATH,
         httponly=True,
@@ -145,10 +147,13 @@ async def start(
     request: Request,
     db: DbSession,
     invite: Annotated[str | None, Query(max_length=64, pattern=r"^[A-Za-z0-9_-]+$")] = None,
+    next_path: Annotated[str | None, Query(alias="next", max_length=500)] = None,
 ) -> RedirectResponse:
-    # Public: this is the sign-in button. Failures land on the sign-in page with a code.
+    # Public: this is the sign-in button. Failures land on the sign-in page with a code. ``next`` is the page the
+    # button was pressed for (a direct link); only a page of nexbrand's own goes along (B10).
+    landing = oidc.safe_next(next_path)
     if not _configured(db):
-        return _to_login("oidc_not_configured")
+        return _to_login("oidc_not_configured", landing)
     if invite is not None and (suite.connected(db) or accounts.find_invite(db, invite) is None):
         # Connected, accounts come from nexsuite: an old invitation is no way in (C9).
         return _to_login("invite_invalid")
@@ -156,12 +161,12 @@ async def start(
         description = await oidc.discovery(str(settings_service.get(db, "oidc_issuer")))
     except oidc.OidcError as exc:
         logger.warning("OIDC sign-in could not be started: %s", exc.code)
-        return _to_login(exc.code)
+        return _to_login(exc.code, landing)
     attempt = oidc.new_attempt()
     client_id = str(settings_service.get(db, "oidc_client_id"))
     url = oidc.authorization_url(description, client_id, _redirect_uri(db, request), attempt)
     response = RedirectResponse(url, status_code=302)
-    _set_attempt_cookie(response, request, attempt, None, invite)
+    _set_attempt_cookie(response, request, attempt, None, invite, landing)
     return response
 
 
@@ -213,6 +218,8 @@ async def callback(
     # those exits leave only a DEBUG line; foreign text goes into the log at that level only, truncated and repr'd.
     attempt = oidc.read_attempt(request.cookies.get(oidc.COOKIE_NAME))
     linking = attempt is not None and attempt.get("link") is not None
+    # Checked again coming back: the cookie is signed, but the rule may have grown since it was made.
+    landing = oidc.safe_next(attempt.get("next")) if attempt is not None else None
 
     def refuse(code_out: str, reason: str, *, real: bool = True) -> RedirectResponse:
         line = "OIDC callback refused (%s): code=%s"
@@ -220,7 +227,7 @@ async def callback(
             logger.warning(line, reason, code_out)
         else:
             logger.debug(line, reason, code_out)
-        return _to_account(code_out) if linking else _to_login(code_out)
+        return _to_account(code_out) if linking else _to_login(code_out, landing)
 
     if not _configured(db):
         return refuse("oidc_not_configured", "OIDC is not set up", real=False)
@@ -279,7 +286,7 @@ async def callback(
     if invite is not None:
         accounts.redeem(db, invite, account, consumed=True)
 
-    response = RedirectResponse(HOME, status_code=303)
+    response = RedirectResponse(landing or HOME, status_code=303)
     _delete_attempt_cookie(response)
     token = start_session(db, account, client_ip(request), request.headers.get("user-agent", ""))
     _set_cookie(response, request, token)
@@ -351,9 +358,12 @@ def _to_account(code: str) -> RedirectResponse:
     return response
 
 
-def _to_login(code: str) -> RedirectResponse:
-    # 303: the browser loads the target with GET whatever way it came.
-    response = RedirectResponse(f"{LOGIN_PAGE}?error={code}", status_code=303)
+def _to_login(code: str, next_path: str | None = None) -> RedirectResponse:
+    # 303: the browser loads the target with GET whatever way it came. The page asked for stays with the sign-in
+    # page, so a second try still lands there (B10).
+    landing = oidc.safe_next(next_path)
+    after = f"&next={quote(landing, safe='')}" if landing else ""
+    response = RedirectResponse(f"{LOGIN_PAGE}?error={code}{after}", status_code=303)
     _delete_attempt_cookie(response)
     return response
 
@@ -419,6 +429,12 @@ def _resolve(db: DbSession, identity: oidc.Identity, auto_create: bool, *, invit
     existing = db.scalar(select(AccountRow).where(AccountRow.oidc_subject == identity.subject))
     if existing is not None:
         return existing
+    if suite.connected(db):
+        # Connected, accounts come from nexsuite, found by the person's id only. A person made there a moment ago
+        # may not be here yet: the directory is fetched once now instead of turning the person away (B20).
+        suite.sync(db)
+        existing = db.scalar(select(AccountRow).where(AccountRow.oidc_subject == identity.subject))
+        return existing if existing is not None else "suite_no_account"
     verified = bool(identity.email and identity.email_verified)
     if verified:
         by_email = db.scalar(select(AccountRow).where(func.lower(AccountRow.email) == identity.email))

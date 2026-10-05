@@ -34,7 +34,7 @@ from typing import Any
 
 import httpx
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from .. import __version__
@@ -54,6 +54,7 @@ from ..models import (
     Team,
     TeamGrant,
     TeamMember,
+    new_device_key,
     utcnow,
 )
 from ..security import decrypt_secret, encrypt_secret, end_all_sessions
@@ -76,6 +77,10 @@ SMTP_KEYS = ("smtp_host", "smtp_port", "smtp_security", "smtp_user", "smtp_passw
 OIDC_KEYS = ("oidc_issuer", "oidc_client_id", "oidc_client_secret_enc", "oidc_provider_name", "oidc_auto_create")
 
 _sync_lock = threading.RLock()
+#: Saving the choices of a connection under way and finishing it do not cross (B23).
+_connect_lock = threading.RLock()
+#: What nexsuite answers to a pairing; anything else came from something that is not nexsuite (B24).
+PAIR_CODES = frozenset({"pair_code_invalid", "too_many_attempts", "invalid_url", "unknown_app", "suite_unreachable"})
 #: Set by the tests: a notice fetches the directory before it answers.
 INLINE = False
 
@@ -240,6 +245,8 @@ class Proposal:
     #: The teams here and the teams in nexsuite to match them to (by name), so none is brought twice.
     teams: list[dict[str, Any]] = field(default_factory=list)
     team_candidates: list[dict[str, Any]] = field(default_factory=list)
+    #: The choices kept from before (``keep_choices``), or None.
+    chosen: dict[str, Any] | None = None
 
 
 def _fold(text: str) -> str:
@@ -254,10 +261,20 @@ def start(db: Session, url: str, code: str, redirect_uri: str, own_url: str) -> 
         # A second pairing would leave the first, half app in nexsuite for good (B6): resume it or give it up.
         raise SuiteError("connecting_already", "A connection is under way: resume it or give it up.", 409)
     base = clean_url(url)
-    made = request("POST", base + "/api/connect/v1/pair", body={
-        "code": code.strip(), "url": own_url, "kind": KIND, "name": "nexbrand", "version": __version__,
-        "capabilities": CAPABILITIES, "redirect_uri": redirect_uri,
-    })
+    try:
+        made = request("POST", base + "/api/connect/v1/pair", body={
+            "code": code.strip(), "url": own_url, "kind": KIND, "name": "nexbrand", "version": __version__,
+            "capabilities": CAPABILITIES, "redirect_uri": redirect_uri,
+        })
+    except SuiteError as exc:
+        # Another app at that address (its own refusal would read like one of nexbrand's) or nexsuite under a path
+        # it does not have: say that the address is wrong (B24).
+        if exc.code in PAIR_CODES:
+            raise
+        raise _not_suite() from exc
+    if not isinstance(made, dict) or not all(made.get(key) for key in ("token", "client_id", "client_secret",
+                                                                         "issuer")):
+        raise _not_suite()
     settings_service.save(db, {
         "suite_url": base,
         "suite_state": "connecting",
@@ -269,6 +286,11 @@ def start(db: Session, url: str, code: str, redirect_uri: str, own_url: str) -> 
     return proposal(db)
 
 
+def _not_suite() -> SuiteError:
+    return SuiteError("not_suite", "No nexsuite answers at this address. Use the address nexsuite opens at, without "
+                                   "a path after it.", 409)
+
+
 def proposal(db: Session) -> Proposal:
     if state(db) != "connecting":
         raise SuiteError("not_connecting", "Start with the address and the code.", 409)
@@ -276,20 +298,36 @@ def proposal(db: Session) -> Proposal:
     people = [p for p in seen["people"] if not p["blocked"]]
     by_mail = {_fold(p["email"]): p["id"] for p in people if p["email"]}
     by_name = {_fold(p["name"]): p["id"] for p in people}
+    by_id = {str(p["id"]): p["id"] for p in people}
+    everybody = {str(p["id"]) for p in seen["people"]}
+    # The person an account had in this very nexsuite before a disconnect (B8 c): not one from another nexsuite,
+    # whose ids mean other people.
+    same_suite = str(settings_service.get(db, "suite_former_url") or "") == str(settings_service.get(db, "suite_url"))
+    operator = operator_id(db)
     # Every suggestion at most once: a second account with the same address or name is suggested as new, never as
-    # the same person (Prüfgang 04.10.2026, A7). The operator's own account goes first.
-    rows = sorted(db.scalars(select(Account)), key=lambda row: (row.id != operator_id(db), row.id))
+    # the same person (Prüfgang 04.10.2026, A7). The operator's own account goes first, then those nexsuite once
+    # brought, so their own person is theirs and not taken by a name alike.
+    rows = sorted(db.scalars(select(Account)),
+                  key=lambda row: (row.id != operator, not (same_suite and row.suite_person), row.id))
     taken: set[str] = set()
     accounts_out = []
     for row in rows:
-        guess = by_mail.get(_fold(row.email)) if row.email else None
-        guess = guess or by_name.get(_fold(row.name))
+        former = row.suite_person if same_suite else ""
+        blocked = row.blocked_at is not None and row.id != operator
+        guess = by_id.get(former) if former else None
+        if guess is None and not blocked:
+            guess = by_mail.get(_fold(row.email)) if row.email else None
+            guess = guess or by_name.get(_fold(row.name))
         if guess in taken:
             guess = None
         if guess:
             taken.add(guess)
+        # Blocked here (left out last time, blocked or deleted in nexsuite): it stays blocked unless the operator
+        # chooses otherwise, never let in again on a default (B8 a, b).
+        suggest = guess or ("skip" if blocked else "new")
         accounts_out.append({"id": row.id, "name": row.name, "display_name": row.display_name, "email": row.email,
-                             "role": row.role, "suggest": guess or "new"})
+                             "role": row.role, "suggest": suggest, "blocked": blocked,
+                             "from_suite": bool(former), "gone": bool(former) and former not in everybody})
     accounts_out.sort(key=lambda entry: entry["id"])
     candidates = list(seen.get("clients_candidates") or [])
     clients_out = _suggest([{"id": c.id, "name": c.name, "color": s.color}
@@ -301,8 +339,22 @@ def proposal(db: Session) -> Proposal:
     teams_out = _suggest([{"id": t.id, "name": t.name, "color": t.color}
                           for t in db.scalars(select(Team).where(Team.source == TEAM_LOCAL).order_by(Team.id))],
                          team_candidates)
+    chosen = (settings_service.get(db, "suite_pending") or {}).get("chosen")
     return Proposal(people=people, accounts=accounts_out, clients=clients_out, candidates=candidates,
-                    teams=teams_out, team_candidates=team_candidates)
+                    teams=teams_out, team_candidates=team_candidates, chosen=chosen or None)
+
+
+def keep_choices(db: Session, chosen: dict[str, Any]) -> None:
+    """The operator's choices so far and the step, kept with the connection under way: closing the assistant or
+    reloading the page resumes there instead of at the suggestions (B23)."""
+    with _connect_lock:
+        db.expire_all()
+        if state(db) != "connecting":
+            raise SuiteError("not_connecting", "Start with the address and the code.", 409)
+        pending = dict(settings_service.get(db, "suite_pending") or {})
+        pending["chosen"] = chosen
+        settings_service.save(db, {"suite_pending": pending})
+        db.commit()
 
 
 def _suggest(rows: list[dict[str, Any]], candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -336,6 +388,22 @@ def finish(db: Session, operator: Account, accounts_map: dict[int, str], clients
            teams_map: dict[int, str] | None = None) -> list[dict[str, str]]:
     """Applies the operator's choices: ``person id`` | ``new`` | ``skip`` per account, ``client id`` | ``new`` per
     client, ``team id`` | ``new`` per team. Then nexbrand signs in through nexsuite and fetches the directory."""
+    with _connect_lock:
+        db.expire_all()
+        return _finish(db, operator, accounts_map, clients_map, teams_map)
+
+
+def _known(choices: dict[Any, str], known: set[str], what: str, also: tuple[str, ...] = ("new",)) -> None:
+    """Every choice names something nexsuite has (B9): an id it does not know would leave the account blocked and
+    bring the person twice with the next connection."""
+    for choice in choices.values():
+        if choice not in also and str(choice) not in known:
+            raise SuiteError(f"{what}_unknown", f"A {what} you chose is not in nexsuite (any more). Look at the "
+                                                f"choices again.", 409)
+
+
+def _finish(db: Session, operator: Account, accounts_map: dict[int, str], clients_map: dict[str, str],
+            teams_map: dict[int, str] | None) -> list[dict[str, str]]:
     if state(db) != "connecting":
         raise SuiteError("not_connecting", "Start with the address and the code.", 409)
     teams_map = teams_map or {}
@@ -354,6 +422,10 @@ def finish(db: Session, operator: Account, accounts_map: dict[int, str], clients
         settings_service.save(db, {"suite_pending": pending})
         db.commit()
     seen = request("GET", _api(db, "/directory"), token=token)
+    # Checked before anything is made in nexsuite or changed here.
+    _known(accounts_map, {str(p["id"]) for p in seen["people"] if not p.get("blocked")}, "person", ("new", "skip"))
+    _known(clients_map, {str(c["id"]) for c in seen.get("clients_candidates") or []}, "client")
+    _known(teams_map, {str(t["id"]) for t in seen.get("teams") or []}, "team")
     addresses = {str(p["id"]): p.get("email") or "" for p in seen["people"]}
     accounts_here = {row.id: row for row in db.scalars(select(Account))}
     person_of: dict[int, str] = {}
@@ -476,6 +548,24 @@ def _open_mail(token: str, sealed: str) -> dict[str, Any]:
     return json.loads(AESGCM(key).decrypt(raw[:12], raw[12:], b"nexsuite-mail"))
 
 
+def _claim_name(db: Session, wanted: str, present: set[str], keeper: int) -> str:
+    """The name for an account nexsuite brings: the person's own. An account that holds it but whose person is gone
+    from nexsuite (deleted there; it stays here, blocked, with what it did) moves to the next free name, so the new
+    person of that name is called as in nexsuite and not ``name2`` (B21). Never the emergency account: its name is
+    its way in."""
+    base = re.sub(r"[^a-z0-9._-]", "", wanted.lower())[:60] or "person"
+    holder = db.scalar(select(Account).where(Account.name == base))
+    if holder is not None and holder.id != keeper and holder.oidc_subject and holder.oidc_subject not in present:
+        old = holder.name
+        holder.name = _free_name(db, base + "2")
+        # What still names it by its name follows, so nothing it did is put on the new person.
+        db.execute(update(Client).where(Client.updated_by == old).values(updated_by=holder.name))
+        db.flush()
+        logger.info("Name %s given to a new person from nexsuite; the account of the deleted one is now %s", old,
+                    holder.name)
+    return _free_name(db, base)
+
+
 def _free_name(db: Session, wanted: str, own_id: int | None = None) -> str:
     base = re.sub(r"[^a-z0-9._-]", "", wanted.lower())[:60] or "person"
     name, n = base, 2
@@ -522,14 +612,15 @@ def _moment(text: Any) -> datetime:
 def _apply(db: Session, seen: dict[str, Any], token: str) -> None:
     keeper = int(settings_service.get(db, "suite_emergency_account") or 0)
     by_subject = {row.oidc_subject: row for row in db.scalars(select(Account).where(Account.oidc_subject != ""))}
+    present = {str(person["id"]) for person in seen.get("people", [])}
     account_of: dict[str, int] = {}
     signed_out: list[int] = []
     for person in seen.get("people", []):
         pid = str(person["id"])
         row = by_subject.get(pid)
         if row is None:
-            row = Account(name=_free_name(db, str(person["name"])), sign_in=SIGN_IN_OIDC, password_hash="",
-                          oidc_subject=pid, whats_new_seen=__version__)
+            row = Account(name=_claim_name(db, str(person["name"]), present, keeper), sign_in=SIGN_IN_OIDC,
+                          password_hash="", oidc_subject=pid, whats_new_seen=__version__)
             db.add(row)
             db.flush()
         row.display_name = str(person.get("display_name") or "")[:80]
@@ -545,6 +636,12 @@ def _apply(db: Session, seen: dict[str, Any], token: str) -> None:
                                                          AuthSession.created_at < _moment(person["signed_out"])))
             if ended.rowcount:
                 logger.info("Sessions of %s ended as in nexsuite: %s", row.name, ended.rowcount)
+            moment = str(person["signed_out"])[:64]
+            if moment != row.suite_signed_out:
+                # And the browsers known before: their device cookies no longer count, as after "sign out
+                # everywhere" here. Once per new moment: a sync that brings the same one changes nothing.
+                row.suite_signed_out = moment
+                row.device_key = new_device_key()
         if row.id != keeper:
             row.role = OPERATOR if person.get("operator") else MEMBER
         blocked = bool(person.get("blocked"))
@@ -766,6 +863,8 @@ def _disconnect(db: Session, *, tell: bool) -> tuple[list[str], list[str]]:
         db.flush()
     without = []
     for row in db.scalars(select(Account).where(Account.oidc_subject != "")):
+        # Kept for connecting again to the same nexsuite (B8): the account is suggested its own person.
+        row.suite_person = row.oidc_subject
         row.oidc_subject = ""
         if row.password_hash:
             row.sign_in = SIGN_IN_PASSWORD
@@ -773,6 +872,7 @@ def _disconnect(db: Session, *, tell: bool) -> tuple[list[str], list[str]]:
             without.append(row.name)
     blocked = [row.name for row in
                db.scalars(select(Account).where(Account.blocked_at.is_not(None)).order_by(Account.name))]
+    settings_service.save(db, {"suite_former_url": str(settings_service.get(db, "suite_url") or "")})
     db.commit()
     _forget(db)
     logger.warning("Disconnected from nexsuite; running on its own")

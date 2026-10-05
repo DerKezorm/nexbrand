@@ -89,7 +89,7 @@ function ServerPart({ part }: { part: Part }) {
         <>
           <AccountsCard readOnly={connected} />
           <AllSpacesCard server={server} />
-          {me?.suite_mail ? <ManagedCard title={t('suite.mailTitle')} text={t('suite.managedMail')} /> : <MailCard server={server} />}
+          <MailCard server={server} managed={!!me?.suite_mail} />
         </>
       )
     case 'signin':

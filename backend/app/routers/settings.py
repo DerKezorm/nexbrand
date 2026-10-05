@@ -122,7 +122,9 @@ def save(payload: SettingsIn, operator: OperatorAccount, db: DbSession) -> Setti
     sent = {key for key, value in payload.model_dump(exclude_unset=True).items() if value is not None}
     mail_managed = bool(settings_service.get(db, "suite_mail")) and any(k.startswith("smtp_") for k in sent)
     # The public address too: nexsuite knows the app by it, and the return address of the sign-in hangs on it (A9).
-    if suite.connected(db) and (sent & {"password_login", "two_factor_required", "public_url"} or mail_managed):
+    # Who makes clients is nexsuite's too while it keeps them (B22): the switch counts again after a disconnect.
+    kept_there = {"password_login", "two_factor_required", "public_url", "members_create_clients"}
+    if suite.connected(db) and (sent & kept_there or mail_managed):
         raise error("managed_by_suite", "This is kept in nexsuite now.", 409)
     for key, value in payload.model_dump(exclude_unset=True).items():
         if value is None:

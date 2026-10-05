@@ -247,7 +247,7 @@ export function AccountsCard({ readOnly = false }: { readOnly?: boolean }) {
   )
 }
 
-type AdminSpace = { id: number; name: string; members: number; managers: string[]; role: SpaceInfo['role'] }
+type AdminSpace = { id: number; name: string; members: number; managers: string[]; role: SpaceInfo['role']; managed?: boolean }
 
 /** Every client with who manages it, without its design: the operator resets rights here, as in nexlore. Above it,
  * whether members make clients (the operator always does); while nexsuite keeps the clients, that is decided there. */
@@ -262,7 +262,7 @@ export function AllSpacesCard({ server }: { server: Server }) {
     void load()
   }, [load])
   return (
-    <Card id="all-spaces" icon={Box} title={t('server.allSpaces.title')} text={t('server.allSpaces.text')}>
+    <Card id="all-spaces" icon={Box} title={t('server.allSpaces.title')} text={me?.suite === 'connected' ? t('server.allSpaces.textSuite') : t('server.allSpaces.text')}>
       {server.settings && me?.suite !== 'connected' && (
         <Toggle
           label={t('server.allSpaces.membersCreate')}
@@ -280,8 +280,9 @@ export function AllSpacesCard({ server }: { server: Server }) {
               {space.members === 0 ? t('server.allSpaces.yours') : t('server.allSpaces.members', { count: space.members, managers: space.managers.join(', ') || '–' })}
             </span>
             <span className="ml-auto">
+              {/* Rights nexsuite keeps are only looked at here (G8). */}
               <Button small onClick={() => setOpen(space)}>
-                {t('server.allSpaces.rights')}
+                {space.managed ? t('server.allSpaces.view') : t('server.allSpaces.rights')}
               </Button>
             </span>
           </li>
@@ -614,13 +615,40 @@ export function FilesCard({ server }: { server: Server }) {
   )
 }
 
-export function MailCard({ server }: { server: Server }) {
+export function MailCard({ server, managed = false }: { server: Server; managed?: boolean }) {
   const { t } = useTranslation()
   const s = server.settings
   const [draft, setDraft] = useState<Change>({})
   const [to, setTo] = useState('')
   const test = useAction()
   if (!s) return null
+  const security = (value: string) => (value === 'none' ? t('server.none') : value.toUpperCase())
+  if (managed) {
+    // Connected: the mail server is nexsuite's; shown as it came, in words, never changed here (G8).
+    const rows: [string, string][] = [
+      // One line, as the label says: "server and port".
+      [t('server.smtpHost'), s.smtp_host ? `${s.smtp_host}:${s.smtp_port}` : ''],
+      [t('server.smtpSecurity'), security(s.smtp_security)],
+      [t('server.smtpUser'), s.smtp_user],
+      [t('server.smtpFrom'), s.smtp_from],
+    ]
+    return (
+      <Card id="mail" icon={Mail} title={t('suite.mailTitle')} text={t('suite.managedMail')}>
+        {s.smtp_host ? (
+          <dl className="grid gap-x-6 gap-y-1.5 rounded-xl border border-ink-700 bg-ink-850 px-4 py-3 text-sm sm:grid-cols-[max-content_1fr]" data-testid="mail-from-suite">
+            {rows.map(([label, value]) => (
+              <div key={label} className="contents">
+                <dt className="text-mist-500">{label}</dt>
+                <dd className={'truncate ' + (value ? 'text-mist-100' : 'text-mist-500')}>{value || t('suite.notSet')}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p className="text-sm text-mist-400" data-testid="mail-from-suite">{t('suite.mailNone')}</p>
+        )}
+      </Card>
+    )
+  }
   const value = { ...s, ...draft }
   return (
     <Card id="mail" icon={Mail} title={t('server.mail')} text={t('server.mailHint')}>

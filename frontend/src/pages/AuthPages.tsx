@@ -206,7 +206,8 @@ export function LoginPage({ emergency = false }: { emergency?: boolean }) {
   if (methods?.suite && !emergency) {
     return (
       <AuthFrame title={t('auth.login.title')} text={t('suite.loginText')}>
-        {ended && <p className="mb-3 rounded-xl border border-warn-500/30 bg-warn-500/10 px-3 py-2 text-xs text-mist-200" role="status">{t('auth.login.ended')}</p>}
+        {/* Connected, a new password in nexsuite ends the sessions here too (B12). */}
+        {ended && <p className="mb-3 rounded-xl border border-warn-500/30 bg-warn-500/10 px-3 py-2 text-xs text-mist-200" role="status">{t('auth.login.endedSuite')}</p>}
         <Problem code={problem} />
         <a href={`/api/oidc/start?next=${encodeURIComponent(next)}`} className="nc-btn nc-btn-accent flex h-10 w-full items-center justify-center">
           {t('suite.loginButton')}
@@ -231,7 +232,7 @@ export function LoginPage({ emergency = false }: { emergency?: boolean }) {
           void submit()
         }}
       >
-        {ended && <p className="rounded-xl border border-warn-500/30 bg-warn-500/10 px-3 py-2 text-xs text-mist-200" role="status">{t('auth.login.ended')}</p>}
+        {ended && <p className="rounded-xl border border-warn-500/30 bg-warn-500/10 px-3 py-2 text-xs text-mist-200" role="status">{t(methods?.suite ? 'auth.login.endedSuite' : 'auth.login.ended')}</p>}
         <Problem code={problem} />
         <Field label={t('auth.name')} value={name} onChange={setName} autoComplete="username" autoFocus />
         <Field label={t('auth.password')} value={password} onChange={setPassword} type="password" autoComplete="current-password" />
@@ -261,7 +262,7 @@ export function LoginPage({ emergency = false }: { emergency?: boolean }) {
   )
 }
 
-type InviteState = { space: string | null; role: string | null; min_password: number; signed_in_as: string | null }
+type InviteState = { space: string | null; role: string | null; min_password: number; signed_in_as: string | null; by?: string | null }
 
 export function InvitePage() {
   const { t } = useTranslation()
@@ -269,8 +270,9 @@ export function InvitePage() {
   const { setMe, refresh } = useAuth()
   const navigate = useNavigate()
   const [state, setState] = useState<InviteState | null>(null)
-  /** Why the link does not hold: run out, or anything else (used, withdrawn, replaced) (G4). */
-  const [invalid, setInvalid] = useState<'expired' | 'invalid' | null>(null)
+  /** Why the link does not hold: run out, nexbrand connected to nexsuite since (B26), or anything else (used,
+   * withdrawn, replaced) (G4). */
+  const [invalid, setInvalid] = useState<'expired' | 'invalid' | 'suite' | null>(null)
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
@@ -278,20 +280,27 @@ export function InvitePage() {
   const [methods, setMethods] = useState<Methods | null>(null)
 
   useEffect(() => {
-    api<InviteState>(`/api/invite/${encodeURIComponent(token)}`).then(setState, (error) => setInvalid(codeOf(error) === 'invite_expired' ? 'expired' : 'invalid'))
+    api<InviteState>(`/api/invite/${encodeURIComponent(token)}`).then(setState, (error) => {
+      const code = codeOf(error)
+      setInvalid(code === 'invite_expired' ? 'expired' : code === 'invite_suite' ? 'suite' : 'invalid')
+    })
     authApi.methods().then(setMethods, () => undefined)
   }, [token])
 
   if (invalid) {
     return (
       <AuthFrame title={invalid === 'expired' ? t('auth.invite.expiredTitle') : t('auth.invite.invalidTitle')}>
-        <p className="text-sm text-mist-400">{invalid === 'expired' ? t('auth.invite.expiredText') : t('auth.invite.invalidText')}</p>
+        <p className="text-sm text-mist-400">{invalid === 'expired' ? t('auth.invite.expiredText') : invalid === 'suite' ? t('errors.invite_suite') : t('auth.invite.invalidText')}</p>
         <BackLink />
       </AuthFrame>
     )
   }
   if (!state) return null
-  const text = state.space ? t('auth.invite.intoSpace', { space: state.space, role: t(`roles.${state.role}`) }) : t('auth.invite.intoApp')
+  // Who invites, where the server names them (E18 in nextasks); without, as before.
+  const role = t(`roles.${state.role}`)
+  const text = state.space
+    ? state.by ? t('auth.invite.intoSpaceBy', { by: state.by, space: state.space, role }) : t('auth.invite.intoSpace', { space: state.space, role })
+    : state.by ? t('auth.invite.intoAppBy', { by: state.by }) : t('auth.invite.intoApp')
 
   if (state.signed_in_as && !state.space) {
     // A link for a new account, opened by somebody signed in already: there is nothing to join.
@@ -361,7 +370,7 @@ export function InvitePage() {
           }}
         >
           <Problem code={problem} />
-          <Field label={t('auth.name')} value={name} onChange={setName} autoComplete="username" autoFocus />
+          <Field label={t('auth.invite.name')} value={name} onChange={setName} autoComplete="username" autoFocus hint={t('auth.invite.nameHint')} />
           <Field label={t('auth.password')} value={password} onChange={setPassword} type="password" autoComplete="new-password" hint={t('auth.passwordHint')} />
           <Primary busy={busy}>{t('auth.invite.submit')}</Primary>
         </form>

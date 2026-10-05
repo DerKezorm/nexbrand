@@ -3,7 +3,7 @@
 import { ArrowLeft, ArrowRight, Check, Eraser, ImagePlus, Loader2, Palette, Pipette, Send, Sparkles, Table2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { aiApi, ApiError, clientsApi, mediaApi, mediaUrl, reviewsApi, type ClientWhole, type MediaInfo } from '../api/client'
 import { HintList, Matrix } from '../components/brand/Checks'
@@ -124,6 +124,45 @@ export function NewClientPage() {
   const dirWhy = (d: Direction) => d.why || t(`wizard.dir.${d.id}.why`, { mood: moodWord(d.mood), second: moodWord(d.second) })
   const fileUrl = (id: string) => mediaUrl(id)
 
+  if (!presetId && me && !me.may_create_clients) {
+    // Nothing can be made here, so no form to fill in for nothing (B19). Connected, the clients from nexsuite that
+    // have no CI yet are offered instead; each opens the workbench for its first version.
+    const open = me.suite === 'connected' ? brands.clients.filter((c) => !c.current && c.drafts === 0 && (c.role === 'write' || c.role === 'manage')) : []
+    return (
+      <main className="nc-scroll min-w-0 flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-3xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
+          <h1 className="text-2xl font-bold tracking-tight">{t('wizard.title')}</h1>
+          <p className="rounded-xl border border-ink-700 bg-ink-900 px-4 py-3 text-sm text-mist-300" data-testid="wizard-not-here">
+            {me.suite === 'connected' ? t('wizard.fromSuite') : t('wizard.notAllowed')}
+          </p>
+          {me.suite === 'connected' && (
+            <Panel title={t('wizard.pickTitle')} text={open.length ? t('wizard.pickText') : undefined}>
+              {open.length ? (
+                <ul className="divide-y divide-ink-700 rounded-xl border border-ink-700" data-testid="wizard-pick">
+                  {open.map((c) => (
+                    <li key={c.id}>
+                      <Link to={`/new?client=${c.id}`} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-ink-850">
+                        <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: c.color }} aria-hidden />
+                        <span className="min-w-0 flex-1 truncate font-medium text-mist-100">{c.name}</span>
+                        <span className="truncate text-xs text-mist-500">{c.sector}</span>
+                        <ArrowRight className="h-4 w-4 shrink-0 text-mist-500" aria-hidden />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-mist-400">{t('wizard.pickNone')}</p>
+              )}
+            </Panel>
+          )}
+          <Link to="/" className="nc-btn nc-btn-ghost">
+            <ArrowLeft className="h-4 w-4" /> {t('wizard.toClients')}
+          </Link>
+        </div>
+      </main>
+    )
+  }
+
   return (
     <main className="nc-scroll min-w-0 flex-1 overflow-y-auto">
       <div className="mx-auto max-w-6xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
@@ -148,9 +187,6 @@ export function NewClientPage() {
           ))}
         </ol>
 
-        {!presetId && me && !me.may_create_clients && (
-          <p className="rounded-xl border border-warn-500/40 bg-warn-500/8 px-4 py-3 text-sm">{me.suite === 'connected' ? t('wizard.fromSuite') : t('wizard.notAllowed')}</p>
-        )}
         {existing && existing.versions.length > 0 && <p className="rounded-xl border border-warn-500/40 bg-warn-500/8 px-4 py-3 text-sm">{t('wizard.hasCi')}</p>}
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">

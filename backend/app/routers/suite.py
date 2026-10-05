@@ -75,6 +75,25 @@ def proposal(_operator: OperatorAccount, db: DbSession) -> dict[str, Any]:
         raise _fail(exc) from exc
 
 
+class ChoicesIn(FinishIn):
+    #: The step of the assistant the operator stood at (2: accounts, 3: clients and teams).
+    step: int = Field(default=2, ge=2, le=3)
+
+
+@router.put("/choices", status_code=204, summary="Keep the choices so far, while connecting (operator)")
+def keep_choices(payload: ChoicesIn, _operator: OperatorAccount, db: DbSession) -> None:
+    # Bounded like everything else kept: not more entries than there are accounts, clients and teams here.
+    if len(payload.accounts) + len(payload.clients) + len(payload.teams) > 5000:
+        raise error("too_many", "Too many choices.", 422)
+    try:
+        suite.keep_choices(db, {"accounts": {str(k): v[:40] for k, v in payload.accounts.items()},
+                                "clients": {k[:40]: v[:40] for k, v in payload.clients.items()},
+                                "teams": {str(k): v[:40] for k, v in payload.teams.items()},
+                                "step": payload.step})
+    except suite.SuiteError as exc:
+        raise _fail(exc) from exc
+
+
 @router.post("/finish", summary="Apply the matches and connect (operator)")
 def finish(payload: FinishIn, operator: OperatorAccount, db: DbSession) -> dict[str, Any]:
     try:

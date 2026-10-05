@@ -154,6 +154,8 @@ export type Me = {
   /** Connected to nexsuite: accounts, teams, rights, sign-in (and mail) are kept there. */
   suite?: '' | 'connecting' | 'connected'
   suite_mail?: boolean
+  /** Connected: where nexsuite opens (password, second factor and profile are changed there). */
+  suite_url?: string
   /** Connected: this account is the app's emergency account. */
   suite_emergency?: boolean
   /** Whether "New client" makes one here (not while nexsuite keeps the clients; else the operator's switch). */
@@ -499,7 +501,8 @@ export const clientsApi = {
   files: (id: string) => api<Record<string, FileInfo & { width?: number; height?: number }>>(`/api/clients/${id}/files`),
   trash: (id: string) => api<void>(`/api/clients/${id}`, { method: 'DELETE' }),
   restore: (id: string) => api<ClientInfo>(`/api/clients/${id}/restore`, { method: 'POST' }),
-  purge: (id: string) => api<void>(`/api/clients/${id}/purge`, { method: 'DELETE' }),
+  /** For good; asks the own password once more (B6). */
+  purge: (id: string, password = '') => api<void>(`/api/clients/${id}/purge`, { method: 'DELETE', body: { current_password: password } }),
   newVersion: (id: string, body: { label: string; source?: string; data?: BrandSet | OwnSet; note?: string; origin?: 'hand' | 'collect'; project_id?: string; base_id?: string }) =>
     api<VersionInfo>(`/api/clients/${id}/versions`, { method: 'POST', body }),
   saveDraft: (id: string, version: string, change: { label?: string; note?: string; data?: BrandSet | OwnSet }) =>
