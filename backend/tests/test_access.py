@@ -289,7 +289,10 @@ def test_the_emergency_account_gets_in_from_its_browser_while_a_stranger_guesses
     forged.cookies.set(DEVICE_COOKIE, f"{operator.id}.abc." + "0f" * 16, path="/api/auth")
     assert forged.post("/api/auth/login", json={"name": "tester", "password": PASSWORD}).status_code == 429
     other = _browser()
-    other.cookies.set(DEVICE_COOKIE, device_token(world["anna"].id), path="/api/auth")
+    with SessionLocal() as db:
+        anna = db.get(Account, world["anna"].id)
+        assert anna is not None
+        other.cookies.set(DEVICE_COOKIE, device_token(db, anna), path="/api/auth")
     assert other.post("/api/auth/login", json={"name": "tester", "password": PASSWORD}).status_code == 429
     brake.forget()
 
@@ -352,3 +355,115 @@ def test_the_number_on_access_is_the_people_the_dialog_counts(client: TestClient
     listed = next(s for s in client.get("/api/spaces").json() if s["id"] == space)
     # tester and anna by name, ben and cleo through the team (anna counts once): four, not three entries.
     assert listed["people"] == client.get(f"/api/spaces/{space}/members").json()["count"] == 4
+
+
+# --- The device cookie holds only for the account and the state it was given for --------------------------------------
+
+NEW_PASSWORD = "another long password"
+
+
+def _known(name: str, password: str = PASSWORD) -> TestClient:
+    """A browser that signed in as ``name`` (and so holds its device cookie), signed out again."""
+    from app.security import DEVICE_COOKIE, brake
+
+    brake.forget()
+    browser = _browser()
+    assert browser.post("/api/auth/login", json={"name": name, "password": password}).status_code == 200
+    assert browser.cookies.get(DEVICE_COOKIE)
+    browser.post("/api/auth/logout")
+    return browser
+
+
+def _sign_in(browser: TestClient, name: str) -> None:
+    from app.security import brake
+
+    brake.forget()
+    assert browser.post("/api/auth/login", json={"name": name, "password": PASSWORD}).status_code == 200
+
+
+def _passes(browser: TestClient, name: str, password: str = PASSWORD) -> int:
+    """After a stranger's guesses from the same address: in (200), or waiting like everybody (429)."""
+    from app.security import brake
+
+    brake.forget()
+    assert 429 in _spray()
+    return browser.post("/api/auth/login", json={"name": name, "password": password}).status_code
+
+
+def test_a_device_cookie_from_before_a_new_password_counts_no_more(client: TestClient, operator: Account) -> None:
+    make_account("anna")
+    old = _known("anna")
+    assert _passes(old, "anna") == 200
+    old.post("/api/auth/logout")
+    changer = _browser()
+    _sign_in(changer, "anna")
+    assert changer.put("/api/auth/password", json={"current": PASSWORD, "new": NEW_PASSWORD}).status_code == 204
+    changer.post("/api/auth/logout")
+    assert _passes(old, "anna", NEW_PASSWORD) == 429
+    # The browser that changed it stays known.
+    assert _passes(changer, "anna", NEW_PASSWORD) == 200
+
+
+def test_a_device_cookie_from_before_a_new_password_does_not_open_the_lock(client: TestClient,
+                                                                           operator: Account) -> None:
+    from app.services.accounts import MAX_FAILURES
+
+    make_account("anna")
+    old = _known("anna")
+    changer = _browser()
+    _sign_in(changer, "anna")
+    changer.put("/api/auth/password", json={"current": PASSWORD, "new": NEW_PASSWORD})
+    with SessionLocal() as db:
+        row = db.query(Account).filter_by(name="anna").one()
+        row.failed_logins, row.locked_until = MAX_FAILURES, utcnow() + timedelta(minutes=10)
+        db.commit()
+    assert old.post("/api/auth/login", json={"name": "anna", "password": NEW_PASSWORD}).status_code == 401
+
+
+def test_a_new_account_under_the_id_of_a_deleted_one_knows_none_of_its_browsers(client: TestClient,
+                                                                                operator: Account) -> None:
+    gone = make_account("zoe")
+    browser = _known("zoe")
+    deleted = client.request("DELETE", f"/api/accounts/{gone.id}", json={"current_password": PASSWORD})
+    assert deleted.status_code == 204
+    after = make_account("zora")
+    assert after.id == gone.id, "SQLite gives the id of the deleted last account again"
+    assert _passes(browser, "zora") == 429
+
+
+def test_blocking_unblocking_and_signing_out_everywhere_forget_the_browsers(client: TestClient,
+                                                                           operator: Account) -> None:
+    anna = make_account("anna")
+    browser = _known("anna")
+    for path in ("block", "unblock"):
+        assert client.post(f"/api/accounts/{anna.id}/{path}", json={"current_password": PASSWORD}).status_code == 204
+    assert _passes(browser, "anna") == 429
+    browser = _known("anna")
+    assert client.post(f"/api/accounts/{anna.id}/sign-out").status_code == 204
+    assert _passes(browser, "anna") == 429
+    # Signing out the others from one browser: the others are forgotten, this one stays known.
+    other, keeper = _known("anna"), _browser()
+    _sign_in(keeper, "anna")
+    assert keeper.post("/api/auth/logout-all").status_code == 204
+    keeper.post("/api/auth/logout")
+    assert _passes(other, "anna") == 429
+    assert _passes(keeper, "anna") == 200
+
+
+def test_any_way_a_password_or_block_changes_forgets_the_browsers(client: TestClient, operator: Account) -> None:
+    """Also where no session is ended on the way (a block from nexsuite, a password set by a service)."""
+    from app.security import hash_password
+
+    make_account("anna")
+    for change in ("password", "block"):
+        browser = _known("anna")
+        with SessionLocal() as db:
+            row = db.query(Account).filter_by(name="anna").one()
+            if change == "password":
+                row.password_hash = hash_password(PASSWORD)
+            else:
+                row.blocked_at = utcnow()
+                db.commit()
+                row.blocked_at = None
+            db.commit()
+        assert _passes(browser, "anna") == 429, change

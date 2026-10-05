@@ -161,13 +161,18 @@ def account_view(account: AccountRow) -> dict[str, Any]:
     }
 
 
+def known_device(db: DbSession, request: Request, response: Response, account: AccountRow) -> None:
+    """Marks this browser as one the account signed in with (the device cookie)."""
+    response.set_cookie(DEVICE_COOKIE, device_token(db, account), max_age=DEVICE_DAYS * 86400, httponly=True,
+                        samesite="lax", secure=secure_cookie(request), path="/api/auth")
+
+
 def sign_in(db: DbSession, request: Request, response: Response, account: AccountRow) -> dict[str, Any]:
     token = start_session(db, account, client_ip(request), request.headers.get("user-agent", ""))
     _set_cookie(response, request, token)
     # This browser is known from now on: a lock that strangers cause by guessing does not keep it out.
-    if device_of(request.cookies.get(DEVICE_COOKIE)) != account.id:
-        response.set_cookie(DEVICE_COOKIE, device_token(account.id), max_age=DEVICE_DAYS * 86400, httponly=True,
-                            samesite="lax", secure=secure_cookie(request), path="/api/auth")
+    if device_of(db, request.cookies.get(DEVICE_COOKIE)) != account.id:
+        known_device(db, request, response, account)
     logger.info("Signed in name=%s", account.name)
     # The whole answer of /auth/me: the page takes it as the signed-in account, and with the account view alone
     # "New client" stayed away after accepting an invitation until a reload (Prüfgang 05.10.2026 F4).
@@ -246,7 +251,7 @@ def login(payload: LoginIn, request: Request, response: Response, db: DbSession)
     ip = client_ip(request)
     behind_unknown_proxy(request)
     keys = [("login:" + ip + "|" + payload.name.strip().lower()[:64], Brake.FREE)]
-    device = device_of(request.cookies.get(DEVICE_COOKIE))
+    device = device_of(db, request.cookies.get(DEVICE_COOKIE))
     known = accounts.by_name(db, payload.name) if device is not None else None
     if known is None or known.id != device:
         keys.append(("login-ip:" + ip, LOGIN_FREE_PER_SENDER))
@@ -311,8 +316,13 @@ def logout(request: Request, response: Response, db: DbSession) -> None:
 
 
 @router.post("/auth/logout-all", status_code=204, summary="Sign out every other browser of the own account")
-def logout_everywhere(request: Request, account: Account, db: DbSession) -> None:
+def logout_everywhere(request: Request, response: Response, account: Account, db: DbSession) -> None:
     end_all_sessions(db, account.id, except_token=request.cookies.get(SESSION_COOKIE))
+    # The other browsers are not known any more; this one stays known.
+    row = db.get(AccountRow, account.id)
+    if row is not None:
+        db.refresh(row)
+        known_device(db, request, response, row)
     logger.info("All other sessions ended by their owner name=%s", account.name)
 
 
@@ -338,7 +348,8 @@ def me(account: Account, db: DbSession) -> dict[str, Any]:
 
 
 @router.put("/auth/password", status_code=204, summary="Change the own password")
-def change_password(payload: PasswordChangeIn, request: Request, account: Account, db: DbSession) -> None:
+def change_password(payload: PasswordChangeIn, request: Request, response: Response, account: Account,
+                    db: DbSession) -> None:
     row = db.get(AccountRow, account.id)
     assert row is not None
     if row.sign_in != SIGN_IN_PASSWORD:
@@ -352,8 +363,10 @@ def change_password(payload: PasswordChangeIn, request: Request, account: Accoun
             reauth_failed(request, db, row)
         raise fail(exc) from exc
     reauth_succeeded(request, db, row)
-    # Other browsers must sign in again; this one stays.
+    # Other browsers must sign in again and are not known any more; this one stays, and stays known.
     end_all_sessions(db, row.id, except_token=request.cookies.get(SESSION_COOKIE))
+    db.refresh(row)
+    known_device(db, request, response, row)
 
 
 @router.put("/me/profile", summary="The own display name; empty shows the name")

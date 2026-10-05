@@ -95,7 +95,8 @@ nexbrand is made to be reachable from outside, for yourself on the road or for a
    the proxy.
 3. **Tell nexbrand about the proxy**: `NEXBRAND_PUBLIC_URL` (the address people use), `NEXBRAND_TRUSTED_PROXIES`
    (the proxy's address or network; without it every sign-in seems to come from the proxy and the brake against
-   guessing cannot tell people apart: a browser that signed in as that name before still gets in, any other waits;
+   guessing cannot tell people apart: a browser that signed in as that name before still gets in (until a new
+   password, a block or signing out everywhere), any other waits;
    Settings, Server says so while it is missing), and `NEXBRAND_COOKIE_SECURE: "on"`.
 4. **A second factor**: set up your own under My account, Security. Or sign in through your OpenID Connect provider.
 5. **Leave the switches closed you do not need**: public pages, API tokens, collecting from websites and AI are

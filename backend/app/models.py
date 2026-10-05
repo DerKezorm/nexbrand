@@ -9,6 +9,7 @@ checked by ``services/brandset.py`` on every write, never trusted as it came.
 
 from __future__ import annotations
 
+import secrets
 from datetime import UTC, datetime
 from typing import Any, ClassVar
 
@@ -22,6 +23,7 @@ from sqlalchemy import (
     LargeBinary,
     String,
     Text,
+    event,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.types import TypeDecorator
@@ -132,12 +134,37 @@ class Account(Base):
     ai_model: Mapped[str] = mapped_column(String(200), default="")
     ai_key_enc: Mapped[str] = mapped_column(Text, default="")
     ai_active: Mapped[bool] = mapped_column(Boolean, default=False)
+    #: What the device cookies of this account are signed with (``security.device_token``): random per account, so
+    #: an account made later under the id of a deleted one knows none of its browsers, and drawn anew on a new
+    #: password, a block or unblock and "sign out everywhere", so no browser from before counts as known any more.
+    #: Empty (accounts from before it existed): no device is known until the next sign-in.
+    device_key: Mapped[str] = mapped_column(String(64), default="")
     #: Not stored. Set on the account an API token acts as when the token may see only some spaces.
     key_spaces: ClassVar[frozenset[int] | None] = None
     #: Not stored. True on the account a token acts as: a program never has the operator's powers over other
     #: people's spaces, even when its account is the operator's.
     via_key: ClassVar[bool] = False
 
+
+
+
+def new_device_key() -> str:
+    return secrets.token_urlsafe(24)
+
+
+@event.listens_for(Account, "before_insert")
+def _first_device_key(_mapper: Any, _connection: Any, target: Account) -> None:
+    if not target.device_key:
+        target.device_key = new_device_key()
+
+
+@event.listens_for(Account.password_hash, "set")
+@event.listens_for(Account.blocked_at, "set")
+def _forget_devices(target: Account, value: Any, old: Any, _initiator: Any) -> None:
+    """A new password, a block or an unblock: the browsers known before are not known any more (whatever the way
+    it happens: here, by the operator, or from nexsuite)."""
+    if value != old:
+        target.device_key = new_device_key()
 
 class AuthSession(Base):
     """A browser session. Only the hash of the token is stored; the token itself lives in the cookie."""
