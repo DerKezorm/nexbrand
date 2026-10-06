@@ -132,6 +132,8 @@ describe('the authentik steps', () => {
     await settle()
     const names: Record<string, string> = TEXTS[language].authentik.step
     expect(rows(page)).toEqual(STEP_KEYS.map((key) => `✓ ${names[key]}: found ${key}`))
+    // Everything worked: the token goes from the field, it is not needed again.
+    expect(([...page.querySelectorAll('input[type="password"]')].at(-1) as HTMLInputElement).value).toBe('')
   })
 
   it.each(['en', 'de'] as const)('say in %s why a step failed, by its name, and keep the token for the next try', async (language) => {
