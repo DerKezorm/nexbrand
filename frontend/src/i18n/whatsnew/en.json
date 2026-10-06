@@ -46,7 +46,6 @@
     "smallTitle": "Also",
     "small": [
       "Public links show a design set read-only, a fixed version or always the current one, with an expiry date and a password. Everyone who may write for a client creates and sees its links.",
-      "nexbrand runs on its own or as part of the suite with nexsuite (Settings, Server, nexsuite). Connected, people, teams, clients and the sign-in come from there.",
       "Client, project and team names exist only once; nexbrand says so as you create them.",
       "A blocked account learns at sign-in that it is blocked and whom to ask. The block dialog names the open client links of the person, with a button to withdraw them.",
       "Team leads change their teams only when the operator allows it (Settings, Teams).",
