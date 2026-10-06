@@ -190,12 +190,15 @@ def _face(version: BrandVersion | None) -> dict[str, Any]:
 
 def _face_of(data: dict[str, Any] | None) -> dict[str, Any]:
     if data is None:
-        return {"colors": [], "logo": None, "mark": None, "fonts": [], "sample": None}
+        return {"colors": [], "accents": [], "logo": None, "mark": None, "fonts": [], "sample": None}
     samples = data.get("samples", [])
     logos = data.get("logos", [])
     wide = next((item for item in logos if not item.get("compact")), None)
     small = next((item for item in logos if item.get("compact")), None)
-    return {"colors": [c["hex"] for c in data.get("colors", [])][:10], "logo": wide or small, "mark": small or wide,
+    items = data.get("colors", [])
+    # The colours that tell a client apart in a list: a set that starts with its grounds would show three blacks.
+    accents = [c["hex"] for c in items if c.get("role") != "neutral"][:3]
+    return {"colors": [c["hex"] for c in items][:10], "accents": accents, "logo": wide or small, "mark": small or wide,
             "fonts": [f["family"] for f in data.get("fonts", [])][:4],
             "sample": samples[0]["media"] if samples else None}
 

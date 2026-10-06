@@ -259,3 +259,13 @@ def test_favourite_and_recent_are_the_accounts_own(client: TestClient, operator:
     listed = client.get("/api/clients").json()[0]
     assert listed["favorite"] is True and listed["opened_at"]
     assert listed["face"]["colors"][0] == "#B8322A"
+
+
+def test_a_list_tells_a_client_apart_by_its_loud_colours_not_its_grounds(client: TestClient, space: int) -> None:
+    """A set that starts with its grounds showed three blacks in the sidebar: the list gets the colours that are not
+    neutral, in their order, at most three."""
+    grounds_first = {**SET, "colors": [*SET["colors"][2:], *SET["colors"][:2]]}
+    cid = make_client(client, space, grounds_first)["id"]
+    listed = next(c for c in client.get("/api/clients").json() if c["id"] == cid)
+    assert listed["face"]["colors"][0] == "#F2E3C6", "the card keeps the set's own order"
+    assert listed["face"]["accents"] == ["#B8322A", "#E9A23B"]

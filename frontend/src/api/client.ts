@@ -248,7 +248,7 @@ export type ProjectVersion = VersionInfo & { data: OwnSet & BrandSet; resolved: 
 export type ProjectWhole = ProjectInfo & { versions: ProjectVersion[] }
 
 /** What the overview shows of a client: colours, the small logo and fonts of its current version. */
-export type ClientFace = { colors: string[]; logo: BrandLogo | null; mark?: BrandLogo | null; fonts?: string[]; sample?: string | null }
+export type ClientFace = { colors: string[]; accents?: string[]; logo: BrandLogo | null; mark?: BrandLogo | null; fonts?: string[]; sample?: string | null }
 
 export type ClientLink = { kind: 'website' | 'repo'; url: string; label: string }
 

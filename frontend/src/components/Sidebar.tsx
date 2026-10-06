@@ -3,12 +3,13 @@ import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 
-import type { ClientInfo } from '../api/client'
+import { mediaUrl, type ClientInfo } from '../api/client'
 import { useNotices } from '../lib/notices'
 import { useAuth } from '../state/auth'
 import { useBrands } from '../state/brands'
 import { useShell } from './AppShell'
 import { NoticeList } from './Notices'
+import { LogoView } from './brand/LogoView'
 
 function Section({ title, children, open, onToggle, action }: { title: string; children: ReactNode; open: boolean; onToggle: () => void; action?: ReactNode }) {
   return (
@@ -25,10 +26,20 @@ function Section({ title, children, open, onToggle, action }: { title: string; c
   )
 }
 
-/** A client's colours as a small striped square, the way the sidebar and lists tell clients apart. */
+/** A client in the sidebar and lists: its small logo on its ground, else its loud colours as a striped square (a set
+ * that starts with its grounds would show three blacks), else the client's own colour. */
 export function Swatch({ client, className = 'h-3.5 w-3.5' }: { client: Pick<ClientInfo, 'face' | 'color'>; className?: string }) {
-  // Without a design set yet, the client's own colour stands in.
-  const colors = client.face.colors.length ? client.face.colors.slice(0, 3) : [client.color]
+  const logo = client.face.mark ?? client.face.logo
+  if (logo) {
+    const ground = logo.ground && logo.ground !== 'transparent' ? logo.ground : '#FFFFFF'
+    return (
+      <span className={'grid shrink-0 place-items-center overflow-hidden rounded border border-ink-700 ' + className} style={{ background: ground }} aria-hidden>
+        <LogoView logo={logo} fonts={[]} fileUrl={(id) => mediaUrl(id, true)} className="h-full w-full" />
+      </span>
+    )
+  }
+  const loud = client.face.accents ?? []
+  const colors = loud.length ? loud : client.face.colors.length ? client.face.colors.slice(0, 3) : [client.color]
   return (
     <span className={'flex shrink-0 overflow-hidden rounded border border-ink-700 ' + className} aria-hidden>
       {colors.length ? colors.map((c, i) => <span key={i} className="flex-1" style={{ background: c }} />) : <span className="flex-1 bg-ink-800" />}
