@@ -28,7 +28,7 @@ frame here: accounts, second factor, sign-in through a provider, log, languages 
   while you work. Until a logo exists, a word mark from the name keeps developers going.
 - **Review with the client.** A link without an account shows the directions as sample pages; the client comments
   and picks one, and the choice becomes version 1.0. With a mail server set up, nexbrand mails the link as well.
-- **Collect from what exists.** A website, a GitHub repository or a PDF style guide gives its colours, fonts and logos.
+- **Collect from what exists.** A website, a GitHub repository or a PDF style guide provides its colours, fonts and logos.
   The values are always measured; rules or your own AI service sort them. The result is a draft, or a check of a site
   against the CI that finds the nearly right shades and the foreign fonts.
 - **As code.** Every version as CSS variables, a Tailwind 4 theme, SCSS or design tokens (JSON), with scales, fonts and
@@ -140,7 +140,7 @@ With an image: `docker compose pull && docker compose up -d`. Built from source:
 | `NEXBRAND_SECRET_KEY` | created on first start | Protects server-side secrets; when set, it wins over `secret.key` |
 | `NEXBRAND_PUBLIC_URL` | from the request | The address people use to reach nexbrand, for invitation links, public pages and the OIDC redirect. The setting in the interface wins when set |
 | `NEXBRAND_TRUSTED_PROXIES` | none | Addresses or networks of reverse proxies whose `X-Forwarded-For` is believed, comma separated |
-| `NEXBRAND_SETUP_TOKEN` | made at start | The code the first account needs |
+| `NEXBRAND_SETUP_TOKEN` | created at start | The code the first account needs |
 | `NEXBRAND_OPERATOR_NETWORKS` | none | Networks the operator's settings may be changed from, comma separated |
 | `NEXBRAND_UPLOAD_MAX_MB` | `50` | The largest file; the operator can lower it in the settings |
 | `NEXBRAND_SESSION_DAYS` | `30` | A browser session ends after this many days |
@@ -153,7 +153,7 @@ With an image: `docker compose pull && docker compose up -d`. Built from source:
 
 nexbrand runs on its own, or joins [nexsuite](https://github.com/DerKezorm/nexsuite), which then keeps the people,
 teams and clients of all connected apps, decides who may see which client, and signs everybody in. The operator connects under **Settings →
-Server → nexsuite** with the address of nexsuite and a one-time code made there, matches the accounts and clients here
+Server → nexsuite** with the address of nexsuite and a one-time code created there, matches the accounts and clients here
 to those there, and from then on people sign in through nexsuite. A person there without an address or a display
 name takes the one of the account matched to it, so nothing gets lost. Clients are created in nexsuite then; one created there
 shows up in nexbrand without a CI and gets it here; it is also put in the trash and deleted for good there. A blocked

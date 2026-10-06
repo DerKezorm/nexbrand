@@ -442,7 +442,7 @@
     "use_disable": "Schalte deinen eigenen zweiten Faktor auf deiner Kontoseite aus.",
     "provider_first": "Richte zuerst einen Anmeldeanbieter ein, sonst kommt außer dir niemand mehr herein.",
     "api_off": "Der Betreiber hat API-Token nicht eingeschaltet.",
-    "too_many_tokens": "Ein Konto hat höchstens 20 Token.",
+    "too_many_tokens": "Ein Konto darf höchstens 20 Token haben.",
     "operator_network": "Die Einstellungen des Betreibers sind nur aus dem Heimnetz erreichbar.",
     "display_name_taken": "Ein anderes Konto heißt schon so.",
     "display_name_invalid": "Ein Anzeigename darf keine Steuer- oder unsichtbaren Zeichen enthalten.",

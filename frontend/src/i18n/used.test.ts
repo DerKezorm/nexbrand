@@ -72,8 +72,15 @@ describe('the shipped texts', () => {
     const whatsNew = (await import('./whatsnew/en.json')).default as unknown as Record<string, unknown>
     // By value, not by key: the release "0.1.0" has dots in its key.
     const texts = (tree: unknown): string[] => (tree && typeof tree === 'object' ? Object.values(tree).flatMap(texts) : [String(tree)])
-    const lines = (file: string) => files.readFileSync(file, 'utf-8').split('\n')
-    const found = [...texts(en), ...texts(whatsNew), ...lines('../README.md'), ...lines('../docs/api.md')].filter((line) => stiff.test(line))
+    // A document as one run of text: a phrase broken over two lines ("makes" / "its own tokens") counts too.
+    const flatten = (text: string) => text.replace(/\s*\n\s*/g, ' ')
+    expect(stiff.test(flatten('Then every account makes\n  its own tokens'))).toBe(true)
+    const prose = (file: string) => flatten(files.readFileSync(file, 'utf-8'))
+    const all = [...texts(en), ...texts(whatsNew), prose('../README.md'), prose('../docs/api.md')]
+    // A floor: the guard reads what it should, the page's texts and both documents, not an empty list that passes.
+    expect(texts(en).length).toBeGreaterThan(1000)
+    expect(all.join(' ').length - [...texts(en), ...texts(whatsNew)].join(' ').length).toBeGreaterThan(10000)
+    const found = all.flatMap((text) => [...text.matchAll(new RegExp(stiff.source, 'gi'))].map((m) => text.slice(Math.max(0, m.index - 30), m.index + m[0].length + 10)))
     expect(found).toEqual([])
   })
 

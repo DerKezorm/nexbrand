@@ -128,7 +128,7 @@ class DownloadIn(BaseModel):
 
 @router.post("/{name}/download", summary="The archive itself, to keep a copy elsewhere; needs the password again")
 def download(name: BackupName, body: DownloadIn, request: Request, operator: OperatorAccount) -> FileResponse:
-    """The archive holds everything: the database, every note, ``secret.key``. A stolen session alone must not be
+    """The archive contains everything: the database, every note, ``secret.key``. A stolen session alone must not be
     enough to carry it away, so the password is asked again and counted like a sign-in."""
     with SessionLocal() as db:
         from ..services import suite

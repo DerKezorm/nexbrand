@@ -21,7 +21,7 @@ its own tokens under **My account → Connections**:
   write. The list says which.
 - It runs out after 90 days, unless 30, 365 days or never is chosen. The list marks a token a week before it runs
   out.
-- It is shown once, right after it was made. nexbrand keeps only a checksum.
+- It is shown once, right after it was created. nexbrand keeps only a checksum.
 - The operator sees every token (never the token itself) and can block one for good.
 - A blocked or deleted account has no working token: a blocked one answers like none until the account is let in
   again, a deleted one is gone with it. The same when nexsuite blocks or deletes the person. An account locked for a
@@ -91,7 +91,7 @@ A client's design set. Without a parameter, the version that applies today.
 | Parameter | Meaning |
 |---|---|
 | `version` | A version by label or id, published or draft. |
-| `at` | A day, `YYYY-MM-DD`: the version that held then (`?at=2023-10-04` for "three years ago"). |
+| `at` | A day, `YYYY-MM-DD`: the version that applied then (`?at=2023-10-04` for "three years ago"). |
 | `project` | A project (an app, a product, a campaign of the client) with a design set of its own: its current version, or its newest draft; with `version` or `at`, one of the project's versions. The answer is the project's set as shown: the parts it takes from the client version it stands on, with its own. |
 
 ```json
@@ -169,8 +169,8 @@ code export give is always the whole set as the project shows it.
 
 `dark` in a design set is optional: which of its colours is what in dark mode, each by name: `ground` (the page),
 `surface` (cards, panels), `text`, `muted` (quieter text), `primary` (links, buttons), `on_primary` (text on
-buttons). The checks measure text, quiet text, links and button text against 4.5:1 to what they stand on (codes starting
-with `dark_`), and `dark_missing` names a colour the palette no longer has. The code export carries it as
+buttons). The checks require 4.5:1 between text, quiet text, links or button text and what they stand on (codes
+starting with `dark_`), and `dark_missing` names a colour the palette no longer has. The code export carries it as
 `--dark-ground: var(--color-…)` (CSS), `--color-dark-…` (Tailwind), `$dark-…` (SCSS) and a `dark` group (JSON).
 
 ### Rules

@@ -122,9 +122,13 @@ def test_english_says_trash_where_german_says_papierkorb() -> None:
     for path in (ROOT / "README.md", ROOT / "docs" / "api.md"):
         text = path.read_text(encoding="utf-8").replace(".venv/bin", "")
         found += [f"{path.name}: {line.strip()}" for line in text.splitlines() if bin_word.search(line)]
+    files = strings = 0
     for path in sorted(APP.rglob("*.py")):
-        found += [f"{path.name}:{line}" for line, text in _strings(path.read_text(encoding="utf-8"))
-                  if bin_word.search(text)]
+        pieces = _strings(path.read_text(encoding="utf-8"))
+        files, strings = files + 1, strings + len(pieces)
+        found += [f"{path.name}:{line}" for line, text in pieces if bin_word.search(text)]
+    # A floor: the guard read the server, not an empty folder that passes.
+    assert files >= 40 and strings >= 2000, (files, strings)
     # The guard sees what it should: the German word is there, and so are the keys it leaves alone.
     assert "Papierkorb" in (FRONTEND / "i18n" / "de.json").read_text(encoding="utf-8")
     assert '"binEmpty": "The trash is empty."' in (FRONTEND / "i18n" / "en.json").read_text(encoding="utf-8")
@@ -133,21 +137,35 @@ def test_english_says_trash_where_german_says_papierkorb() -> None:
 
 def test_the_server_speaks_english_not_german_word_for_word() -> None:
     """As ``used.test.ts`` for the page: enter, create and contain, not give, make and hold (nexbrand #job-159). Every
-    string a program or the log can show counts, f-strings included; docstrings are for the code's readers."""
+    string a program or the log can show counts, f-strings included; of the docstrings only those of routes, which
+    FastAPI shows in the API description."""
     stiff = re.compile(r"\bGive (a|the)\b|\bMake a new\b|\bholds\b|\bmak(e|es|ing) (a |an |its own |their own |read-only )?"
                        r"(clients?|accounts?|tokens?|drafts?|pages?|links?)\b|\b(is|are) made (there|here|in nexsuite)\b",
                        re.IGNORECASE)
     found = []
+    files = strings = 0
     for path in sorted(APP.rglob("*.py")):
+        files += 1
         tree = ast.parse(path.read_text(encoding="utf-8"))
         docs = {id(node.body[0].value) for node in ast.walk(tree)
                 if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) and node.body
-                and isinstance(node.body[0], ast.Expr) and isinstance(node.body[0].value, ast.Constant)}
-        found += [f"{path.name}:{node.lineno}" for node in ast.walk(tree)
-                  if isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in docs
-                  and stiff.search(node.value)]
+                and isinstance(node.body[0], ast.Expr) and isinstance(node.body[0].value, ast.Constant)
+                and not _is_route(node)}
+        shown = [node for node in ast.walk(tree)
+                 if isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in docs]
+        strings += len(shown)
+        found += [f"{path.name}:{node.lineno}" for node in shown if stiff.search(node.value)]
     assert stiff.search("The archive holds it.") and not stiff.search("Make an operator")
+    # A floor: the guard read the server, not an empty folder that passes.
+    assert files >= 40 and strings >= 2000, (files, strings)
     assert found == []
+
+
+def _is_route(node: ast.AST) -> bool:
+    """A function under ``@router.get(…)`` and the like: FastAPI shows its docstring in the API description."""
+    return isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and any(
+        isinstance(d, ast.Call) and isinstance(d.func, ast.Attribute)
+        and d.func.attr in {"get", "post", "put", "patch", "delete"} for d in node.decorator_list)
 
 
 def test_no_other_app_speaks_in_the_texts() -> None:
