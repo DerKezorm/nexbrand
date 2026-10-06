@@ -381,6 +381,16 @@
     "backupFiles_one": "eine Datei",
     "backupFiles_other": "{{count}} Dateien"
   },
+  "authentik": {
+    "step": {
+      "reached": "Verbindung zu authentik",
+      "signingKey": "Schlüssel zum Signieren",
+      "mapping": "Zuordnung für die Adresse",
+      "provider": "Anbieter",
+      "application": "Anwendung",
+      "filled": "Einstellungen hier"
+    }
+  },
   "errors": {
     "avatar_not_a_picture": "Das ist kein Bild, das nexbrand annimmt (JPEG, PNG, WebP, GIF, HEIC oder AVIF).",
     "avatar_too_large": "Das Bild ist zu groß.",

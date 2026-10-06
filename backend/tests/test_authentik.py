@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import httpx
 import pytest
@@ -369,3 +371,19 @@ def test_its_own_provider_keeps_the_plain_names(client: TestClient, operator: Ac
     assert ("PATCH", "/api/v3/providers/oauth2/7/") in methods, "moved, still its own: updated"
     assert ("PATCH", "/api/v3/core/applications/nexbrand/") in methods
     assert result["issuer"] == ISSUER
+
+
+def test_every_step_the_server_sends_has_a_name_in_both_languages() -> None:
+    """The list after "Set up" names each step from the language files, under the key the server sends. A file that
+    spelled one differently ("fill" for "filled") showed the bare key; one without the names showed none at all."""
+    src = Path(__file__).resolve().parents[2] / "frontend" / "src"
+    page = (src / "pages" / "settings" / "ServerCards.tsx").read_text(encoding="utf-8")
+    looked_up = re.search(r"t\(`([\w.]+)\.\$\{step\.key\}`", page)
+    assert looked_up, "the step list no longer looks up a name by the step's key"
+    for language in ("de", "en"):
+        names = json.loads((src / "i18n" / f"{language}.json").read_text(encoding="utf-8"))
+        for part in looked_up.group(1).split("."):
+            names = names.get(part, {})
+        missing = [key for key in authentik.STEP_KEYS if not str(names.get(key, "")).strip()]
+        assert not missing, f"{language}.json has no name for {missing}"
+        assert sorted(names) == sorted(authentik.STEP_KEYS), f"{language}.json names steps the server never sends"

@@ -490,7 +490,7 @@ export function SignInCard({ server }: { server: Server }) {
         <ol className="space-y-1 text-xs" data-testid="authentik-steps">
           {steps.steps.map((step) => (
             <li key={step.key} className={step.ok ? 'text-ok-500' : 'text-bad-500'}>
-              {step.ok ? '✓' : '✗'} {step.detail}
+              {step.ok ? '✓' : '✗'} {t(`authentik.step.${step.key}`, { defaultValue: step.key })}: {step.detail}
             </li>
           ))}
         </ol>

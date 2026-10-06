@@ -381,6 +381,16 @@
     "backupFiles_one": "one file",
     "backupFiles_other": "{{count}} files"
   },
+  "authentik": {
+    "step": {
+      "reached": "Connection to authentik",
+      "signingKey": "Signing key",
+      "mapping": "Mapping for the address",
+      "provider": "Provider",
+      "application": "Application",
+      "filled": "Settings here"
+    }
+  },
   "errors": {
     "avatar_not_a_picture": "That is not a picture nexbrand takes (JPEG, PNG, WebP, GIF, HEIC or AVIF).",
     "avatar_too_large": "The picture is too large.",
