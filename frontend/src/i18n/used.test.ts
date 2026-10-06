@@ -72,6 +72,16 @@ describe('the shipped texts', () => {
     expect(stiff).toEqual([])
   })
 
+  it('call the program version "Version" and keep "Fassung" for a CI (decided 06.10.2026)', async () => {
+    const whatsNew = (await import('./whatsnew/de.json')).default as unknown as Record<string, { lead: string }>
+    const about = de.about as unknown as Record<string, string> & { updates: Record<string, string> }
+    for (const text of [about.version, about.newer, about.updates.text, about.updates.current, de.errors.protocol_version, whatsNew['0.1.0'].lead])
+      expect(text, text).toMatch(/\bVersion\b/)
+    const program = flat(de).filter((key) => /Fassung (von|des) (nexbrand|MCP)|nexbrand-Fassung|neueste Fassung/.test(String(key.split('.').reduce<unknown>((tree, part) => (tree as Record<string, unknown>)[part], de))))
+    expect(program).toEqual([])
+    expect(de.client.newVersion).toBe('Neue Fassung')
+  })
+
   it('say "you" when a notice is about the reader', () => {
     for (const tree of [de, en] as unknown as { notices: Record<string, string> }[]) {
       for (const kind of ['operator_added', 'operator_role', 'operator_removed']) {

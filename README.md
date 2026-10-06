@@ -43,7 +43,7 @@ frame here: accounts, second factor, sign-in through a provider, log, languages 
 - **Access per client.** People and teams get access to a client, to read, write or manage it; whoever makes a
   client manages it, and the operator decides whether members may make clients. Teams are the operator's; the lead
   of a team changes its members only when the operator allows it (off from the start). A client somebody may not see
-  answers like one that does not exist. Clients go to a bin for 30 days.
+  answers like one that does not exist. Clients go to the trash for 30 days.
 - **Around it, as in nexlore.** Accounts by invitation (the mail, like the operator's test mail, in the receiver's
   language when an account with that address has one, else in the sender's), blocked and let in again by the operator
   (a blocked account hears so only after its right password; the links it made for clients stay until the operator
@@ -156,7 +156,7 @@ teams and clients of all connected apps, decides who may see which client, and s
 Server → nexsuite** with the address of nexsuite and a one-time code made there, matches the accounts and clients here
 to those there, and from then on people sign in through nexsuite. A person there without an address or a display
 name takes the one of the account matched to it, so nothing gets lost. Clients are made in nexsuite then; one made there
-shows up in nexbrand without a CI and gets it here; it is also put in the bin and deleted for good there. A blocked
+shows up in nexbrand without a CI and gets it here; it is also put in the trash and deleted for good there. A blocked
 person is signed out at once, and a page they still have open goes to the sign-in within seconds, saying why. A link
 to a page survives the sign-in, through nexsuite as through any other provider. Connecting again later suggests each
 account the person it had before and leaves blocked accounts blocked unless the operator chooses otherwise. Signing

@@ -69,7 +69,7 @@ SIGN_IN_PASSWORD = "password"
 SIGN_IN_OIDC = "oidc"
 
 #: Rights in a space, each one including the ones before it: reading; writing (clients, drafts, projects, files,
-#: publishing a version, the bin); managing (inviting, giving rights, public pages and reviews, renaming or deleting
+#: publishing a version, the trash); managing (inviting, giving rights, public pages and reviews, renaming or deleting
 #: the space).
 READ = "read"
 WRITE = "write"
@@ -90,7 +90,7 @@ class Space(Base):
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utcnow)
     #: The space's id in nexsuite while nexbrand is connected to it; its rights come from there then.
     external_id: Mapped[str] = mapped_column(String(40), default="")
-    #: Set when a manager deleted the space; it lies in the bin with its clients for 30 days.
+    #: Set when a manager deleted the space; it lies in the trash with its clients for 30 days.
     deleted_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
 

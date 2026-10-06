@@ -171,7 +171,7 @@ def _media_files(root: Path) -> list[tuple[str, Path]]:
 
 
 def _database_copy(target: Path) -> int:
-    """The database through SQLite's backup API. Returns how many clients it holds (not in the bin)."""
+    """The database through SQLite's backup API. Returns how many clients it holds (not in the trash)."""
     source = sqlite3.connect(get_settings().database_path)
     destination = sqlite3.connect(target)
     try:

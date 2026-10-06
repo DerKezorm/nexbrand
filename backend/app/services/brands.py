@@ -249,7 +249,7 @@ def trash(db: Session, client: Client) -> None:
         raise BrandError("managed_by_suite", "Clients are deleted in nexsuite now.", 409)
     client.deleted_at = utcnow()
     db.commit()
-    logger.info("Client moved to the bin id=%s", client.id)
+    logger.info("Client moved to the trash id=%s", client.id)
 
 
 def restore(db: Session, client: Client) -> None:

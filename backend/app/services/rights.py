@@ -1,7 +1,7 @@
 """Who may do what in which space, as in nexlore, with teams as in nextasks.
 
 Three rights, each including the ones before it: **read** (look at clients, their versions, projects and files,
-export them), **write** (change clients, drafts and projects, upload files, publish a version, the bin), **manage**
+export them), **write** (change clients, drafts and projects, upload files, publish a version, the trash), **manage**
 (inviting, giving rights to people and teams, public pages and reviews, renaming or deleting the space). A person
 has the right given to them (``memberships``) or to a team they are in (``team_grants``), the higher of all.
 
@@ -164,8 +164,8 @@ def check(db: Session, account: Account, space_id: int | None, need: str) -> Spa
 
 
 def client_for(db: Session, account: Account, client_id: str, need: str, *, deleted: bool = False) -> Client:
-    """The client with the right ``need`` in its space, or ``RightsError``. A client in the bin counts only when
-    ``deleted`` is asked for (the bin itself, restoring)."""
+    """The client with the right ``need`` in its space, or ``RightsError``. A client in the trash counts only when
+    ``deleted`` is asked for (the trash itself, restoring)."""
     client = db.get(Client, client_id)
     if client is None or (client.deleted_at is not None) != deleted:
         raise RightsError("not_found", "Not found.", 404)

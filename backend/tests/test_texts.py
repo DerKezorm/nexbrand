@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import re
+import tokenize
 from pathlib import Path
 
 import pytest
@@ -89,6 +90,34 @@ def test_no_api_message_is_the_code_spelt_out() -> None:
             assert text.endswith(".") and text[0].isupper() and text.lower().rstrip(".") != code.replace("_", " ")
     raised = set(re.findall(r'AiError\(\s*"([a-z_]+)"', source)) | set(re.findall(r'AvatarError\(\s*"([a-z_]+)"', source))
     assert sorted(raised - set(ai.MESSAGES) - set(avatars.MESSAGES)) == []
+
+
+def _values(tree: object) -> list[str]:
+    if isinstance(tree, dict):
+        return [text for value in tree.values() for text in _values(value)]
+    if isinstance(tree, list):
+        return [text for value in tree for text in _values(value)]
+    return [tree] if isinstance(tree, str) else []
+
+
+def test_english_says_trash_where_german_says_papierkorb() -> None:
+    """The family says "trash" (decided 06.10.2026): the page, what's new, the server's sentences and the API's own
+    descriptions. Keys, routes and fields named ``bin`` stay: nexsuite reads them."""
+    bin_word = re.compile(r"\bbins?\b", re.IGNORECASE)
+    found = []
+    for path in (FRONTEND / "i18n" / "en.json", FRONTEND / "i18n" / "whatsnew" / "en.json"):
+        found += [text for text in _values(json.loads(path.read_text(encoding="utf-8"))) if bin_word.search(text)]
+    for path in (ROOT / "README.md", ROOT / "docs" / "api.md"):
+        text = path.read_text(encoding="utf-8").replace(".venv/bin", "")
+        found += [f"{path.name}: {line.strip()}" for line in text.splitlines() if bin_word.search(line)]
+    for path in sorted(APP.rglob("*.py")):
+        with path.open("rb") as handle:
+            found += [f"{path.name}:{token.start[0]}" for token in tokenize.tokenize(handle.readline)
+                      if token.type == tokenize.STRING and bin_word.search(token.string)]
+    # The guard sees what it should: the German word is there, and so are the keys it leaves alone.
+    assert "Papierkorb" in (FRONTEND / "i18n" / "de.json").read_text(encoding="utf-8")
+    assert '"binEmpty": "The trash is empty."' in (FRONTEND / "i18n" / "en.json").read_text(encoding="utf-8")
+    assert found == []
 
 
 def test_no_other_app_speaks_in_the_texts() -> None:

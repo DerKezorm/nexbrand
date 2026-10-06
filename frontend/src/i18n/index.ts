@@ -75,12 +75,14 @@ async function loadTexts(code: string): Promise<boolean> {
   return found
 }
 
+/** Every language on offer, in the order of its name (Deutsch, English, an added one in between), the same in every
+ * place that offers them and in every app of the family (decided 06.10.2026). */
 export async function languageOptions(): Promise<LanguageOption[]> {
   const options: LanguageOption[] = Object.entries(SHIPPED).map(([code, entry]) => ({ code, name: entry.name, added: false }))
   for (const entry of await addedLanguages()) {
     if (!(entry.code in SHIPPED)) options.push({ code: entry.code, name: entry.name || entry.code, added: true })
   }
-  return options
+  return options.sort((a, b) => a.name.localeCompare(b.name))
 }
 
 function storedLanguage(): string | null {

@@ -541,6 +541,29 @@ describe('the family', () => {
     expect(document.title).toBe(`${i18n.t('about.menu')} · nexbrand`)
   })
 
+  it('offers the languages in the order of their names (account menu and settings both ask languageOptions)', async () => {
+    const added = [
+      { code: 'fr', name: 'Français', keys: 10 },
+      { code: 'cs', name: 'Čeština', keys: 10 },
+      { code: 'es', name: 'Español', keys: 10 },
+      { code: 'nl', name: 'Nederlands', keys: 10 },
+    ]
+    server.handler = (_m, path) => {
+      if (path === '/api/locales') return { status: 200, body: added }
+      if (path === '/api/settings') return { status: 200, body: {} }
+    }
+    const { forgetAddedLanguages, languageOptions } = await import('../i18n')
+    forgetAddedLanguages()
+    const order = ['Čeština', 'Deutsch', 'English', 'Español', 'Français', 'Nederlands']
+    expect((await languageOptions()).map((o) => o.name)).toEqual(order)
+    const { AccountMenu } = await import('../components/AccountMenu')
+    const page = await mount(<AccountMenu />, '/')
+    const shown = () => [...page.querySelectorAll('select option')].map((o) => o.textContent)
+    await click(page.querySelector('button[aria-haspopup="true"]'))
+    expect(shown()).toEqual(order)
+    forgetAddedLanguages()
+  })
+
   it('German keys are "Strg", and the header names its parts as nexsuite and nextasks do', async () => {
     await i18n.changeLanguage('de')
     expect(i18n.t('keys.ctrl')).toBe('Strg')

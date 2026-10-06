@@ -1,6 +1,6 @@
 {
   "0.1.0": {
-    "lead": "Die erste Fassung von nexbrand: die CI deiner Kunden an einem Ort, mit allen Fassungen, den Prüfungen dazu, den Projekten jedes Kunden und dem Weg in den Code.",
+    "lead": "Die erste Version von nexbrand: die CI deiner Kunden an einem Ort, mit allen Fassungen, den Prüfungen dazu, den Projekten jedes Kunden und dem Weg in den Code.",
     "sections": [
       {
         "title": "Kunden und ihre Designsets",

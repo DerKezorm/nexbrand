@@ -1,8 +1,8 @@
 """Clients, their versions and projects over HTTP: the overview, one client with everything, drafts, publishing,
-projects, favourites, the bin and the export as code.
+projects, favourites, the trash and the export as code.
 
 Rights come from the client's own group of rights (``services/rights.py``): reading shows, writing changes and
-publishes, the bin takes writing to put in and take out, and managing to delete for good. While nexbrand is connected
+publishes, the trash takes writing to put in and take out, and managing to delete for good. While nexbrand is connected
 to nexsuite, clients are made, renamed and deleted there; here they get their design set.
 """
 
@@ -251,7 +251,7 @@ def name_check(
     return {"free": True, "code": None}
 
 
-@router.get("/clients", summary="The clients the account may see, or those in the bin it may restore")
+@router.get("/clients", summary="The clients the account may see, or those in the trash it may restore")
 def listing(account: Account, db: DbSession, deleted: bool = False) -> list[dict[str, Any]]:
     readable = rights.readable_ids(db, account)
     if deleted:
@@ -337,7 +337,7 @@ def visited(client_id: ClientId, account: Account, db: DbSession) -> None:
     brands.visit(db, account, client_of(db, account, client_id, READ))
 
 
-@router.delete("/clients/{client_id}", status_code=204, summary="Move a client into the bin (writers)")
+@router.delete("/clients/{client_id}", status_code=204, summary="Move a client to the trash (writers)")
 def trash(client_id: ClientId, account: Account, db: DbSession) -> None:
     try:
         brands.trash(db, client_of(db, account, client_id, WRITE))
@@ -345,7 +345,7 @@ def trash(client_id: ClientId, account: Account, db: DbSession) -> None:
         raise _fail(exc) from exc
 
 
-@router.post("/clients/{client_id}/restore", summary="Bring a client back from the bin (writers)")
+@router.post("/clients/{client_id}/restore", summary="Bring a client back from the trash (writers)")
 def restore(client_id: ClientId, account: Account, db: DbSession) -> dict[str, Any]:
     client = client_of(db, account, client_id, WRITE, deleted=True)
     try:
@@ -361,7 +361,8 @@ class PurgeIn(BaseModel):
     current_password: str = Field(default="", max_length=200)
 
 
-@router.delete("/clients/{client_id}/purge", status_code=204, summary="Delete a client in the bin for good (managers)")
+@router.delete("/clients/{client_id}/purge", status_code=204,
+               summary="Delete a client in the trash for good (managers)")
 def purge(client_id: ClientId, request: Request, account: Account, db: DbSession,
           payload: PurgeIn | None = None) -> None:
     client = client_of(db, account, client_id, MANAGE, deleted=True)

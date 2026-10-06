@@ -214,7 +214,7 @@ def _open(db: Any, token: str) -> tuple[Share, Client, BrandVersion]:
             version = brands.project_current(db, project) if project else brands.current(db, client)
     if (
         share is None or client is None or client.deleted_at is not None
-        # The space in the bin (here, or deleted in nexsuite): its clients are gone for everybody (A8).
+        # The space in the trash (here, or deleted in nexsuite): its clients are gone for everybody (A8).
         or space is None or space.deleted_at is not None
         or version is None or version.status != PUBLISHED
         or not settings_service.get(db, "shares_allowed")

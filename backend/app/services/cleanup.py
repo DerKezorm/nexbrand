@@ -1,4 +1,4 @@
-"""What nobody needs any more, once every six hours: clients and spaces 30 days in the bin, reviews and shares that
+"""What nobody needs any more, once every six hours: clients and spaces 30 days in the trash, reviews and shares that
 ran out, and files nothing points at (no version, no project, no review) for a day or longer."""
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ INTERVAL_SECONDS = 6 * 3600
 
 
 def used_media(space_id: int) -> set[str]:
-    """Every file a client of the space points at: in any version (drafts and the bin too) or any review."""
+    """Every file a client of the space points at: in any version (drafts and the trash too) or any review."""
     used: set[str] = set()
     with SessionLocal() as db:
         clients = select(Client.id).where(Client.space_id == space_id)
@@ -45,7 +45,7 @@ def run_once() -> None:
         for client, space in expired:
             db.delete(client)
             db.delete(space)
-            logger.info("Client deleted after 30 days in the bin id=%s", client.id)
+            logger.info("Client deleted after 30 days in the trash id=%s", client.id)
         db.execute(delete(Share).where(Share.expires_at < now))
         db.execute(delete(Review).where(Review.expires_at < now - timedelta(days=BIN_DAYS)))
         db.commit()

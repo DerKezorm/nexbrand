@@ -3,7 +3,7 @@ a client, no two teams of one name. Names are compared without capitals, without
 inside, without invisible signs and in one Unicode form (``key``: "Acme", " acme ", "ACME" and "Acme" with a
 zero-width space inside are one name).
 
-A client in the bin counts too: brought back, it would stand beside its double. Whoever names one gets a clear
+A client in the trash counts too: brought back, it would stand beside its double. Whoever names one gets a clear
 refusal (``client_name_taken``, ``client_name_in_bin``, ``project_name_taken``, ``team_name_taken``).
 
 Clients and teams nexsuite brings never fail on it: one whose name is taken here gets a number behind it, here only,
@@ -92,7 +92,7 @@ def check_client(db: Session, name: str, own_id: str | None = None) -> None:
     for row in db.scalars(select(Client).where(Client.id != (own_id or ""))):
         if key(row.name) == wanted:
             if row.deleted_at is not None:
-                raise NameTaken("client_name_in_bin", "A client of this name is in the bin. Restore it, or choose "
+                raise NameTaken("client_name_in_bin", "A client of this name is in the trash. Restore it, or choose "
                                 "another name.")
             raise NameTaken("client_name_taken", "There is a client of this name already. Choose another name.")
 

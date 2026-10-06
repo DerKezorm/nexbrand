@@ -925,7 +925,7 @@ def _apply(db: Session, seen: dict[str, Any], token: str) -> None:
 
 def _apply_clients(db: Session, seen: dict[str, Any], account_of: dict[str, int], team_of: dict[str, int]) -> None:
     """Clients by their id in nexsuite: name, sector, contact, colour and rights follow. One nexsuite made comes here
-    without a design set. In nexsuite's bin: in this bin too, with its date; deleted there for good: here too."""
+    without a design set. In nexsuite's trash: in this trash too, with its date; deleted there for good: here too."""
     from . import brands
 
     spaces = {s.external_id: s for s in db.scalars(select(Space).where(Space.external_id != ""))}
@@ -950,7 +950,7 @@ def _apply_clients(db: Session, seen: dict[str, Any], account_of: dict[str, int]
             db.flush()
             client_of[space.id] = client
             logger.info("Client brought by nexsuite id=%s", client.id)
-        # A name another client here has (one of its own, one in the bin) gets a number here (F15).
+        # A name another client here has (one of its own, one in the trash) gets a number here (F15).
         client.name = names.unique(db, "client", names.from_suite(item["name"], 120) or client.name,
                                    db.scalars(select(Client.name).where(Client.id != client.id)), 120, client.id,
                                    client.name)
@@ -963,7 +963,7 @@ def _apply_clients(db: Session, seen: dict[str, Any], account_of: dict[str, int]
         _set_grants(db, space.id,
                     {account_of[g["id"]]: g["role"] for g in item.get("people", []) if g["id"] in account_of},
                     {team_of[g["id"]]: g["role"] for g in item.get("teams", []) if g["id"] in team_of})
-    # Deleted in nexsuite: into this bin too, with nexsuite's date, so both empty after the same 30 days. A restore
+    # Deleted in nexsuite: into this trash too, with nexsuite's date, so both empty after the same 30 days. A restore
     # there brings it back above.
     for sid, item in binned.items():
         space = spaces.get(sid)

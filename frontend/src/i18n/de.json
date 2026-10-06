@@ -563,7 +563,7 @@
     "oidc_issuer_mismatch": "Der Anmeldeanbieter meldet eine andere Adresse als eingetragen. Prüf die Adresse unter Einstellungen, Server, Anmeldung.",
     "oidc_provider_invalid": "Die Antwort des Anmeldeanbieters ist nicht zu verstehen.",
     "origin_refused": "Die API ist für Programme, nicht für Webseiten.",
-    "protocol_version": "Diese Fassung des MCP-Protokolls spricht nexbrand nicht.",
+    "protocol_version": "Diese Version des MCP-Protokolls spricht nexbrand nicht.",
     "slow_down": "Zu viele Anfragen mit diesem Token. Warte eine Minute.",
     "token_invalid": "Kein gültiges API-Token.",
     "too_many": "Zu viel auf einmal gewählt.",
