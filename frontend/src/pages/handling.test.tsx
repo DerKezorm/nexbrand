@@ -420,6 +420,109 @@ describe('the assistant for a new client', () => {
     expect(buttons(i18n.t('wizard.next'))).toHaveLength(0)
     expect(buttons(i18n.t('wizard.keepColors'))).toHaveLength(0)
   })
+  it('keeps a start colour as entered and only offers the one that reaches on the light ground (decided 06.10.2026)', async () => {
+    server.handler = (_m, path) => {
+      if (path === '/api/clients/name-check') return { status: 200, body: { free: true, code: null } }
+    }
+    const { NewClientPage } = await import('./NewClientPage')
+    const page = await mount(<NewClientPage />, '/new')
+    await type(page.querySelector(`input[placeholder="${i18n.t('wizard.nameHint')}"]`), 'Example Works')
+    await settle()
+    await click(buttons(i18n.t('wizard.next'))[0])
+    const field = () => page.querySelector(`input:not([type="color"])[aria-label="${i18n.t('wizard.startColor')}"]`) as HTMLInputElement
+    const note = () => page.querySelector('[role="status"]')
+    // The default reads on its off-white: nothing to say.
+    expect(field().value).toBe('#2E7D5B')
+    expect(note()).toBeNull()
+    // #D04343 reads on white, not on its off-white: the colour stays, the note says how far and what would reach.
+    await type(field(), '#D04343')
+    await settle()
+    expect(field().value).toBe('#D04343')
+    expect(note()?.textContent).toContain(i18n.t('wizard.shortStart', { ratio: '4.13:1', hex: '#C43F3F' }))
+    // Going on takes the colour as entered.
+    await click(buttons(i18n.t('wizard.takeThis'))[0])
+    const values = [...page.querySelectorAll('input')].map((input) => input.value.toUpperCase())
+    expect(values).toContain('#D04343')
+    expect(values).not.toContain('#C43F3F')
+  })
+
+  it('changes the start colour only with the button', async () => {
+    server.handler = (_m, path) => {
+      if (path === '/api/clients/name-check') return { status: 200, body: { free: true, code: null } }
+    }
+    const { NewClientPage } = await import('./NewClientPage')
+    const page = await mount(<NewClientPage />, '/new', 'de')
+    await type(page.querySelector(`input[placeholder="${i18n.t('wizard.nameHint')}"]`), 'Beispielwerk')
+    await settle()
+    await click(buttons(i18n.t('wizard.next'))[0])
+    const field = () => page.querySelector(`input:not([type="color"])[aria-label="${i18n.t('wizard.startColor')}"]`) as HTMLInputElement
+    await type(field(), '#D04343')
+    await settle()
+    expect(page.querySelector('[role="status"]')?.textContent).toContain('Auf hellem Grund erreicht diese Farbe nur 4,13:1, für Text sind 4,5:1 nötig. Gleicher Farbton, der reicht: #C43F3F')
+    await click(buttons('Übernehmen')[0])
+    expect(field().value).toBe('#C43F3F')
+    expect(page.querySelector('[role="status"]')).toBeNull()
+    await click(buttons(i18n.t('wizard.takeThis'))[0])
+    const values = [...page.querySelectorAll('input')].map((input) => input.value.toUpperCase())
+    expect(values).toContain('#C43F3F')
+    expect(values).not.toContain('#D04343')
+    await i18n.changeLanguage('en')
+  })
+
+  it('keeps the colours of a picture as measured and offers the main one that reaches, only taken by the button', async () => {
+    server.handler = (_m, path) => {
+      if (path === '/api/clients/name-check') return { status: 200, body: { free: true, code: null } }
+    }
+    // A picture of four colours, read the way the page reads one: through a canvas.
+    const pixels = new Uint8ClampedArray(96 * 96 * 4)
+    const parts: [string, number][] = [['#F6EFE4', 5000], ['#D9822B', 2000], ['#2B2A28', 1500], ['#6F8F55', 716]]
+    let at = 0
+    for (const [hex, count] of parts)
+      for (let n = 0; n < count; n++, at += 4) pixels.set([parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16), 255], at)
+    const context = { clearRect: () => undefined, drawImage: () => undefined, getImageData: () => ({ data: pixels }) }
+    const canvas = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation((() => context) as unknown as HTMLCanvasElement['getContext'])
+    const picture = vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation(() => 'data:image/png;base64,')
+    vi.stubGlobal('Image', class {
+      onload: () => void = () => undefined
+      set src(_value: string) {
+        queueMicrotask(() => this.onload())
+      }
+    })
+    const urls = URL as unknown as { createObjectURL?: unknown; revokeObjectURL?: unknown }
+    urls.createObjectURL = () => 'blob:picture'
+    urls.revokeObjectURL = () => undefined
+    try {
+      const { NewClientPage } = await import('./NewClientPage')
+      const page = await mount(<NewClientPage />, '/new')
+      await type(page.querySelector(`input[placeholder="${i18n.t('wizard.nameHint')}"]`), 'Example Works')
+      await settle()
+      await click(buttons(i18n.t('wizard.next'))[0])
+      await click([...page.querySelectorAll('[role="tab"]')].find((tab) => tab.textContent?.includes(i18n.t('wizard.mode.picture'))))
+      const input = page.querySelector('input[type="file"]') as HTMLInputElement
+      Object.defineProperty(input, 'files', { value: [new File(['x'], 'mood.png', { type: 'image/png' })] })
+      await act(async () => input.dispatchEvent(new Event('change', { bubbles: true })))
+      await settle()
+      const { contrast, formatRatio, reach } = await import('../lib/color')
+      // The main colour on the light one of the picture, and the nearest of its hue that reaches, as the checker says.
+      const better = reach('#D9822B', '#F6EFE4', 4.5)!
+      const note = () => page.querySelector('[role="status"]')
+      expect(note()?.textContent).toContain(i18n.t('wizard.shortPicture', { color: '#D9822B', ratio: formatRatio(contrast('#D9822B', '#F6EFE4'), 'en'), hex: better }))
+      const swatches = () => [...page.querySelectorAll('span.font-mono')].map((s) => s.textContent)
+      expect(swatches()).toEqual(['#F6EFE4', '#D9822B', '#2B2A28', '#6F8F55'])
+      await click(buttons(i18n.t('wizard.useBetter'))[0])
+      expect(note()).toBeNull()
+      expect(swatches()).toEqual(['#F6EFE4', better, '#2B2A28', '#6F8F55'])
+      await click(buttons(i18n.t('wizard.takeColors'))[0])
+      const values = [...page.querySelectorAll('input')].map((field) => field.value.toUpperCase())
+      for (const hex of [better, '#F6EFE4', '#2B2A28', '#6F8F55']) expect(values).toContain(hex)
+      expect(values).not.toContain('#D9822B')
+    } finally {
+      canvas.mockRestore()
+      picture.mockRestore()
+      delete urls.createObjectURL
+      delete urls.revokeObjectURL
+    }
+  })
 })
 
 // --- G11: the family in words --------------------------------------------------------------------------------------

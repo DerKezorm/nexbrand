@@ -203,3 +203,29 @@ def test_mcp_refuses_browsers_and_unknown_tokens(client: TestClient, space: int)
         auth = _token(client)
         assert program.post("/api/mcp", headers={**auth, "Origin": "https://x.example"}, json={}).status_code == 403
         assert program.post("/api/mcp", headers=auth, json={"jsonrpc": "2.0", "method": "x"}).status_code == 202
+
+
+def test_a_proposed_colour_stays_as_it_is_and_the_check_names_what_it_misses(client: TestClient, space: int) -> None:
+    """Decided 06.10.2026: a colour somebody brings is never darkened on the way in. #D04343 reads on white, not on
+    the off-white beside it; the draft keeps it, and the checks that come back say so."""
+    cid = _published(client, space)
+    data = {"colors": [{"name": "Signal", "hex": "#D04343", "role": "primary"},
+                       {"name": "Paper", "hex": "#F9F1F1", "role": "neutral"},
+                       {"name": "White", "hex": "#FFFFFF", "role": "neutral"}]}
+
+    def kept(answer: dict[str, Any]) -> None:
+        missing = [h for h in answer["checks"] if h["code"] == "primary_as_text"]
+        assert [(h["colors"], h["ratio"]) for h in missing] == [(["Signal", "Paper"], 4.13)]
+
+    with _program() as program:
+        made = program.post(f"/api/v1/clients/{cid}/drafts", headers=_token(client, "draft"),
+                            json={"label": "API", "data": data})
+        assert made.status_code == 201, made.text
+        kept(made.json())
+        over_mcp = _rpc(program, _token(client, "draft"), "tools/call", {"name": "propose_version", "arguments": {
+            "client": cid, "label": "MCP", "data": data}})
+        assert over_mcp["isError"] is False
+        kept(over_mcp["structuredContent"])
+    for version in client.get(f"/api/clients/{cid}").json()["versions"]:
+        if version["label"] in ("API", "MCP"):
+            assert [c["hex"] for c in version["data"]["colors"]] == ["#D04343", "#F9F1F1", "#FFFFFF"], version["label"]

@@ -14,11 +14,11 @@ import { WebPreview } from '../components/brand/WebPreview'
 import { Dialog } from '../components/Dialog'
 import { emptySet, type BrandColor, type BrandLogo, type BrandSet } from '../lib/brand'
 import { check } from '../lib/checks'
-import { isHex, textOn } from '../lib/color'
+import { formatRatio, isHex, textOn } from '../lib/color'
 import { errorText } from '../lib/errors'
 import { useTitle } from '../lib/title'
 import { CATALOG, PAIRINGS, catalogEntry, catalogFont, fontStack } from '../lib/fonts'
-import { colorsOfImage, directions, familyOf, fromAi, oneColor, RATIOS, rolesFor, startRules, typeScale, wordmarks, type Direction } from '../lib/generate'
+import { colorsOfImage, directions, familyOf, fromAi, oneColor, RATIOS, rolesFor, shortfall, startRules, startShortfall, typeScale, wordmarks, type Direction, type Shortfall } from '../lib/generate'
 import { useAuth } from '../state/auth'
 import { useBrands } from '../state/brands'
 import { Feedback } from './settings/ui'
@@ -528,7 +528,11 @@ function StartStep({
     window.setTimeout(() => (setDirs(directions(brief, name, names)), setLoading(false)), 300)
   }
   const [start, setStart] = useState('#2E7D5B')
+  const startShort = isHex(start) ? startShortfall(start, names) : null
   const [found, setFound] = useState<string[] | null>(null)
+  // The roles of a picture's colours, fixed once read: taking a suggested main colour changes that colour, not the roles.
+  const [pictureColors, setPictureColors] = useState<BrandColor[]>([])
+  const pictureShort = shortfall(pictureColors)
   const [picture, setPicture] = useState<string | null>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
 
@@ -538,7 +542,9 @@ function StartStep({
     ctx.clearRect(0, 0, 96, 96)
     draw(ctx)
     setPicture(c.toDataURL())
-    setFound(colorsOfImage(ctx.getImageData(0, 0, 96, 96).data))
+    const colors = colorsOfImage(ctx.getImageData(0, 0, 96, 96).data)
+    setFound(colors)
+    setPictureColors(rolesFor(colors, names))
   }
   const loadFile = (file: File) => {
     const url = URL.createObjectURL(file)
@@ -638,10 +644,20 @@ function StartStep({
                   </span>
                 ))}
               </div>
-              <button type="button" className="nc-btn nc-btn-accent" onClick={() => onColors(rolesFor(found, names))}>
+              <button type="button" className="nc-btn nc-btn-accent" onClick={() => onColors(pictureColors)}>
                 {t('wizard.takeColors')}
               </button>
             </div>
+          )}
+          {picture && pictureShort && (
+            <ShortNote
+              short={pictureShort}
+              text="wizard.shortPicture"
+              onUse={(better) => {
+                setFound((list) => list && list.map((c) => (c.toUpperCase() === pictureShort.color ? better : c)))
+                setPictureColors((list) => list.map((c) => (c.role === 'primary' ? { ...c, hex: better } : c)))
+              }}
+            />
           )}
         </div>
       )}
@@ -656,6 +672,7 @@ function StartStep({
               {t('wizard.takeThis')}
             </button>
           </div>
+          {startShort && <ShortNote short={startShort} text="wizard.shortStart" onUse={setStart} />}
         </div>
       )}
 
@@ -668,6 +685,24 @@ function StartStep({
         </div>
       )}
     </Panel>
+  )
+}
+
+/** A colour the client brought misses 4.5:1 on the light ground beside it: it stays as it is, and the nearest colour of
+ * the same hue that reaches it is offered. Only the button changes the colour (decided 06.10.2026). */
+function ShortNote({ short, text, onUse }: { short: Shortfall; text: 'wizard.shortStart' | 'wizard.shortPicture'; onUse: (better: string) => void }) {
+  const { t, i18n } = useTranslation()
+  const better = short.better
+  // On a light ground black always reaches 4.5:1, so there is a suggestion whenever there is a shortfall.
+  if (!better) return null
+  return (
+    <div role="status" className="flex flex-wrap items-center gap-2 rounded-xl border border-warn-500/40 bg-warn-500/8 px-3 py-2 text-sm text-mist-200">
+      <span>{t(text, { color: short.color, ratio: formatRatio(short.ratio, i18n.language), hex: better })}</span>
+      <span className="h-6 w-6 shrink-0 rounded-md border border-ink-700" style={{ background: better }} aria-hidden="true" />
+      <button type="button" className="nc-btn nc-btn-ghost !px-2.5 !py-0.5 !text-xs" onClick={() => onUse(better)}>
+        {t('wizard.useBetter')}
+      </button>
+    </div>
   )
 }
 

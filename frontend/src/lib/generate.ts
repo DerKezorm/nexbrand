@@ -63,13 +63,41 @@ export function neutralsFor(primary: string, names: Names): BrandColor[] {
   ]
 }
 
-/** "With one colour": the colour, its neutrals and white. A colour that reads on white but not on the off-white made for
- * it is darkened in its hue until it does: nexbrand's own neutral must not make a hint the colour did not have (F24). */
+/** "With one colour": the colour as it was entered, its neutrals and white. The colour is the client's and is never
+ * changed here (decided 06.10.2026); where it misses 4.5:1 on the light ground, `startShortfall` says so beside it. */
 export function oneColor(start: string, names: Names): BrandColor[] {
   const neutrals = neutralsFor(start, names)
-  let primary = start.toUpperCase()
-  if (contrast(primary, '#FFFFFF') >= 4.5 && contrast(primary, neutrals[0].hex) < 4.5) primary = reach(primary, neutrals[0].hex, 4.5) ?? primary
-  return [{ name: names.primary, hex: primary, role: 'primary' }, ...neutrals, { name: names.white, hex: '#FFFFFF', role: 'neutral' }]
+  return [{ name: names.primary, hex: start.toUpperCase(), role: 'primary' }, ...neutrals, { name: names.white, hex: '#FFFFFF', role: 'neutral' }]
+}
+
+/** The main colour on the light grounds beside it, as the check `primary_as_text` sees it: what it reaches on the
+ * weakest, and the nearest colour of the same hue that reaches 4.5:1 on all of them (`reach`, as in the contrast
+ * checker). Nothing when it reads, or when there is no main colour or no light ground. */
+export type Shortfall = { color: string; ratio: number; ground: string; better: string | null }
+
+export function shortfall(colors: BrandColor[]): Shortfall | null {
+  const primary = colors.find((c) => c.role === 'primary')
+  const grounds = colors.filter((c) => c.role === 'neutral' && luminance(c.hex) > 0.6)
+  if (!primary || !grounds.length) return null
+  const weakest = grounds.reduce((a, b) => (contrast(primary.hex, b.hex) < contrast(primary.hex, a.hex) ? b : a))
+  const ratio = contrast(primary.hex, weakest.hex)
+  if (ratio >= 4.5) return null
+  // On a light ground only a darker colour can reach 4.5:1, and one that reads on the darkest of them reads on all.
+  const darkest = grounds.reduce((a, b) => (luminance(b.hex) < luminance(a.hex) ? b : a))
+  return { color: primary.hex.toUpperCase(), ratio, ground: weakest.hex, better: reach(primary.hex, darkest.hex, 4.5) }
+}
+
+/** `shortfall` for "with one colour". Taken, the suggestion gets an off-white of its own: it has to read on that too. */
+export function startShortfall(start: string, names: Names): Shortfall | null {
+  const short = shortfall(oneColor(start, names))
+  if (!short?.better) return short
+  let better = short.better
+  for (let round = 0; round < 8; round++) {
+    const again = shortfall(oneColor(better, names))
+    if (!again?.better) break
+    better = again.better
+  }
+  return { ...short, better }
 }
 
 export const RATIOS = [1.125, 1.2, 1.25, 1.333, 1.5]
