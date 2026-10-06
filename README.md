@@ -1,12 +1,73 @@
 # nexbrand
 
+[![Website: www.nexbrand.de](https://img.shields.io/badge/website-www.nexbrand.de-2f7bff?style=for-the-badge)](https://www.nexbrand.de)
+
 The corporate design of your clients in one place, on your own server: colours, fonts, logos, type scale, rules and
 example files, per client and per project, with every version kept. For agencies, freelancers and developers who build
 for several brands.
 
-nexbrand is one of the nex apps and looks like them, dark and light. It runs on its own, or as part of the suite with
-[nexsuite](#part-of-the-suite) doing accounts, teams and sign-in. Whoever knows nexlore or nexcanvas finds the same
-frame here: accounts, second factor, sign-in through a provider, log, languages and backups.
+nexbrand is one of the nex apps and looks like them: cobalt, dark and light. Whoever knows nexlore or nexcanvas finds
+the same frame here: accounts, second factor, sign-in through a provider, log, languages and backups. What it can do
+and a guide from the first client to the first review are on the project site,
+**[www.nexbrand.de](https://www.nexbrand.de)**.
+
+> **Early days.** nexbrand is at its first version. It works and is well tested, but a lot of it is still finding
+> its shape, and this is the time when ideas and feedback change the most. What do you keep for your clients today,
+> and where? What is missing, what is in the way, what would make you switch? Tell me in an
+> [issue](https://github.com/DerKezorm/nexbrand/issues), small or large.
+
+![A client: its versions on a time line, the current one open, the colours with their contrast and values](docs/screenshots/colors.png)
+
+*A client. Its versions on a time line: 2019, 2022, the current 2026 and a draft for 2027 that is before the client,
+who has left three comments. Every colour with the text that reads on it, its values for screen and print, and the
+name it has in code.*
+
+## Screenshots
+
+![All clients with their logos, colours, versions and projects](docs/screenshots/clients.png)
+
+*Every client with its logo and colours, the version it is at, its projects and drafts, and what is new from the
+client. People and teams get access per client.*
+
+![Two versions compared: a colour changed with its distance, new colours and fonts](docs/screenshots/history.png)
+
+*Two versions side by side: a colour that changed, with its distance (ΔE) and print values, new colours and fonts,
+logos that changed. "As of" shows the CI of any day. A project stays on the version it was made with until somebody
+moves it, so a reprint looks like the first print.*
+
+![The checks of a design set and the start of the contrast table](docs/screenshots/checks.png)
+
+*Checks computed from the set, never written by hand: contrast by WCAG 2.2 with the colour of the set that would
+work, colours that a colour vision deficiency pulls together, rules the set breaks, fonts that stay in the house.
+Below, the contrast of every pair.*
+
+![The workbench: three directions for a new client, each on a sample page](docs/screenshots/workbench.png)
+
+*The workbench for a client without a CI: three directions from a few words, each on a sample page and checked
+before anything is chosen. From there colours with harmonies, a font pair and a type scale, while the sample page
+and the checks follow every change.*
+
+![The client's side of a review: a sample page in the direction, the palette and comments](docs/screenshots/review.png)
+
+*The client's side of a review, without an account: the agency's own drafts to leaf through, every direction on a
+sample page in light and dark, comments on the whole or on one picture, and a button to choose. The choice becomes
+the next version.*
+
+<p>
+  <img src="docs/screenshots/ui.png" alt="Buttons, fields, a card and badges drawn from the CI" width="49%">
+  <img src="docs/screenshots/contrast.png" alt="The contrast checker with a suggested colour and colour vision deficiencies" width="49%">
+</p>
+
+*UI elements drawn from the CI, in its light and its dark mode, and the contrast checker, which proposes the nearest
+colour of the same hue that passes.*
+
+<p>
+  <img src="docs/screenshots/light.png" alt="The fonts of a client in the light theme" width="68%">
+  <img src="docs/screenshots/phone.png" alt="A public page with the design set, on a phone" width="28%">
+</p>
+
+*Light and dark, and on the right the public page a developer gets: the design set read only, also as code, without
+an account and with an end date.*
 
 ## What it does
 
@@ -149,27 +210,6 @@ With an image: `docker compose pull && docker compose up -d`. Built from source:
 | `NEXBRAND_API_DOCS` | `false` | Serves `/api/docs` and `/api/openapi.json` |
 | `PUID`, `PGID` | `1000` | Owner of the files in the data directory |
 
-## Part of the suite
-
-nexbrand runs on its own, or joins [nexsuite](https://github.com/DerKezorm/nexsuite), which then keeps the people,
-teams and clients of all connected apps, decides who may see which client, and signs everybody in. The operator connects under **Settings →
-Server → nexsuite** with the address of nexsuite and a one-time code created there, matches the accounts and clients here
-to those there, and from then on people sign in through nexsuite. A person there without an address or a display
-name takes the one of the account matched to it, so nothing gets lost. Clients are created in nexsuite then; one created there
-shows up in nexbrand without a CI and gets it here; it is also put in the trash and deleted for good there. A blocked
-person is signed out at once, and a page they still have open goes to the sign-in within seconds, saying why. A link
-to a page survives the sign-in, through nexsuite as through any other provider. Connecting again later suggests each
-account the person it had before and leaves blocked accounts blocked unless the operator chooses otherwise. Signing
-out of nexbrand leaves nexsuite signed in, as single sign-on does; the sign-in page says so and leads to nexsuite to sign
-out there and come back as someone else.
-
-Disconnecting brings nexbrand back on its own with everything it got; the operator's own sign-in with a password
-works throughout as the emergency account, and an emergency code disconnects when nexsuite is out of reach (nexsuite
-hears of it once it is back). An operator role that came from nexsuite alone ends with the connection: the dialog
-names those accounts before, and they are members again afterwards. While connected, only the emergency account
-downloads or deletes a backup, since an archive contains its password and second factor; restoring or uploading one waits for the
-disconnect.
-
 ## For programs and AI tools
 
 Build pipelines, scripts, nexdeck and AI tools in an editor read design sets with an API token: as JSON, as CSS,
@@ -200,7 +240,7 @@ chosen and run out after 90 days unless somebody wants more on purpose. Everythi
 - Deleting a client for good takes the own password, as do the operator's acts on other accounts.
 - After signing in, nexbrand only ever sends the browser to one of its own pages, never to another address.
 - The log never contains a client's design, passwords, keys or tokens.
-- Names and titles contain no control characters, those from nexsuite included, and every answer asks search engines
+- Names and titles contain no control characters, wherever they come from, and every answer asks search engines
   not to index it, the public pages too.
 
 ## Development
