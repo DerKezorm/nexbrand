@@ -7,6 +7,7 @@ that an existing provider is updated instead of duplicated. No network anywhere.
 
 from __future__ import annotations
 
+import ast
 import json
 import logging
 import re
@@ -235,6 +236,8 @@ def test_steps_stop_at_the_first_failure_and_nothing_is_stored(
     assert steps(result) == [("reached", True), ("signingKey", False)]
     failed = result["steps"][1]["detail"]
     assert "500" in failed and "generate" in failed
+    assert (result["steps"][1]["reason"], result["steps"][1]["status"]) == ("answered", 500)
+    assert "reason" not in result["steps"][0], "a step that worked carries no reason"
     assert TOKEN not in failed
     assert result["client_id"] == ""
     assert stored()["oidc_issuer"] == ""
@@ -247,12 +250,14 @@ def test_unreachable_authentik_fails_at_the_first_step(client: TestClient, opera
     result = run_setup(client, url="https://nowhere.example.com")
     assert steps(result) == [("reached", False)]
     assert "not reachable" in result["steps"][0]["detail"]
+    assert result["steps"][0]["reason"] == "unreachable"
 
 
 def test_wrong_token_is_reported_without_repeating_it(client: TestClient, operator: Account, fake: FakeAuthentik) -> None:
     result = run_setup(client, token="wrong-token")
     assert steps(result) == [("reached", False)]
     assert "403" in result["steps"][0]["detail"]
+    assert (result["steps"][0]["reason"], result["steps"][0]["status"]) == ("token", 403)
     assert "wrong-token" not in json.dumps(result)
 
 
@@ -387,3 +392,36 @@ def test_every_step_the_server_sends_has_a_name_in_both_languages() -> None:
         missing = [key for key in authentik.STEP_KEYS if not str(names.get(key, "")).strip()]
         assert not missing, f"{language}.json has no name for {missing}"
         assert sorted(names) == sorted(authentik.STEP_KEYS), f"{language}.json names steps the server never sends"
+
+
+def reasons_in_the_code() -> set[str]:
+    """Every reason a failed step can carry: the words handed to ``StepFailed`` as its second argument or as
+    ``reason=``, read from the module itself."""
+    tree = ast.parse(Path(authentik.__file__).read_text(encoding="utf-8"))
+    found: set[str] = set()
+    for call in ast.walk(tree):
+        if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Name) and call.func.id == "StepFailed"):
+            continue
+        given = call.args[1:2] + [keyword.value for keyword in call.keywords if keyword.arg == "reason"]
+        for node in given:
+            words = [part.value for part in ast.walk(node) if isinstance(part, ast.Constant)]
+            found |= {word for word in words if isinstance(word, str)}
+    return found
+
+
+def test_every_reason_the_server_sends_has_a_sentence_in_both_languages() -> None:
+    """A failed step shows its reason as a sentence in the operator's language, as in nexsuite (Prüfgang C4); a reason
+    the files do not know would show the English line meant for the log."""
+    reasons = reasons_in_the_code()
+    assert {"unreachable", "token"} <= reasons, reasons
+    src = Path(__file__).resolve().parents[2] / "frontend" / "src"
+    page = (src / "pages" / "settings" / "ServerCards.tsx").read_text(encoding="utf-8")
+    looked_up = re.search(r"t\(`([\w.]+)\.\$\{step\.reason\}`", page)
+    assert looked_up, "the step list no longer says a failed step's reason in words"
+    for language in ("de", "en"):
+        sentences = json.loads((src / "i18n" / f"{language}.json").read_text(encoding="utf-8"))
+        for part in looked_up.group(1).split("."):
+            sentences = sentences.get(part, {})
+        missing = sorted(reason for reason in reasons if not str(sentences.get(reason, "")).strip())
+        assert not missing, f"{language}.json has no sentence for {missing}"
+        assert sorted(sentences) == sorted(reasons), f"{language}.json has sentences for reasons the server never sends"
