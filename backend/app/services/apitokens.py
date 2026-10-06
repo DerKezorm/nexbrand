@@ -81,7 +81,7 @@ def make(
         spaces = sorted(set(spaces))
     count = len(db.scalars(select(ApiToken.id).where(ApiToken.account_id == account.id)).all())
     if count >= MAX_TOKENS:
-        raise TokenError("too_many_tokens", "An account holds at most 20 tokens.", 409)
+        raise TokenError("too_many_tokens", "An account has at most 20 tokens.", 409)
     token = TOKEN_PREFIX + secrets.token_urlsafe(32)
     now = utcnow()
     row = ApiToken(account_id=account.id, name=name.strip()[:100] or "API", level=level, token_hash=digest(token),

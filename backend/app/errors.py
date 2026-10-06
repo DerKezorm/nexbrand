@@ -27,4 +27,4 @@ def error(code: str, text: str, status_code: int = 400, **values: Any) -> HTTPEx
 
 def invalid_characters() -> HTTPException:
     """A name or title with a control character in it (``services.names.has_control``)."""
-    return error("invalid_characters", "The text holds control characters you cannot see.", 422)
+    return error("invalid_characters", "The text contains control characters you cannot see.", 422)

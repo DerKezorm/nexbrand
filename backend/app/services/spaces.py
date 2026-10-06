@@ -31,7 +31,7 @@ class SpaceError(Exception):
 def clean_name(name: str) -> str:
     text = " ".join(name.split())
     if any(unicodedata.category(char) == "Cc" and char not in "\t\n\r" for char in name):
-        raise SpaceError("invalid_characters", "The text holds control characters you cannot see.")
+        raise SpaceError("invalid_characters", "The text contains control characters you cannot see.")
     if not text or len(text) > MAX_NAME:
         raise SpaceError("invalid_name", "A client needs a name of 1 to 80 characters.")
     return text

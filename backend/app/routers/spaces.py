@@ -79,7 +79,7 @@ def listing(account: Account, db: DbSession) -> list[dict[str, Any]]:
     return [_view(db, account, space) for space in rows]
 
 
-@router.put("/{space_id}/teams/{team_id}", summary="Give a team a right in the space (managers)")
+@router.put("/{space_id}/teams/{team_id}", summary="Grant a team a right in the space (managers)")
 def give_team(
     space_id: SpaceId, team_id: SpaceId, payload: TeamRight, account: Account, db: DbSession
 ) -> dict[str, Any]:

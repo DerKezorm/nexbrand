@@ -578,7 +578,7 @@ def unblock_account(
     logger.warning("Account unblocked name=%s by=%s", row.name, operator.name)
 
 
-@router.put("/accounts/{account_id}/role", summary="Make an account operator or member")
+@router.put("/accounts/{account_id}/role", summary="Set the role of an account: operator or member")
 def set_role(
     account_id: int, payload: RoleIn, request: Request, operator: OperatorAccount, db: DbSession,
 ) -> dict[str, Any]:

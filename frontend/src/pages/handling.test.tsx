@@ -154,6 +154,8 @@ beforeEach(() => {
 
 afterEach(async () => {
   await act(async () => root?.unmount())
+  // A test that switched to German leaves English behind for the next one.
+  await i18n.changeLanguage('en')
   host?.remove()
   root = null
   host = null
@@ -420,6 +422,50 @@ describe('the assistant for a new client', () => {
     expect(buttons(i18n.t('wizard.next'))).toHaveLength(0)
     expect(buttons(i18n.t('wizard.keepColors'))).toHaveLength(0)
   })
+  async function directionsFrom(ai: boolean): Promise<HTMLElement> {
+    server.handler = (_m, path) => {
+      if (path === '/api/clients/name-check') return { status: 200, body: { free: true, code: null } }
+      if (path === '/api/ai') return { status: 200, body: { ready: ai } }
+      if (path === '/api/ai/directions')
+        return { status: 200, body: { directions: [{ label: 'Oven', why: 'Warm like bread', hue: 20, accent_hue: 200, saturation: 60, mood: 'warm', head: 'fraunces', body: 'inter' }] } }
+    }
+    const { NewClientPage } = await import('./NewClientPage')
+    const page = await mount(<NewClientPage />, '/new')
+    await type(page.querySelector(`input[placeholder="${i18n.t('wizard.nameHint')}"]`), 'Example Bakery')
+    const brief = page.querySelector('textarea') as HTMLTextAreaElement
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(brief, 'warm craft bakery')
+      brief.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    await settle()
+    await click(buttons(i18n.t('wizard.next'))[0])
+    if (ai) await click(buttons(i18n.t('wizard.proposeAi'))[0])
+    else {
+      // Without AI the rules answer after a short pause; the clock is moved by hand, nothing waits for it.
+      vi.useFakeTimers({ toFake: ['setTimeout'] })
+      try {
+        await click(buttons(i18n.t('wizard.propose'))[0])
+        await act(async () => void vi.advanceTimersByTime(300))
+      } finally {
+        vi.useRealTimers()
+      }
+      await settle()
+    }
+    return page
+  }
+
+  it('says that the directions came from the account\'s AI when they did', async () => {
+    const page = await directionsFrom(true)
+    expect(page.textContent).toContain(i18n.t('wizard.proposeNoteAi'))
+    expect(page.textContent).not.toContain(i18n.t('wizard.proposeNote'))
+  })
+
+  it('says that the directions came from the keywords when there is no AI', async () => {
+    const page = await directionsFrom(false)
+    expect(page.textContent).toContain(i18n.t('wizard.proposeNote'))
+    expect(page.textContent).not.toContain(i18n.t('wizard.proposeNoteAi'))
+  })
+
   it('keeps a start colour as entered and only offers the one that reaches on the light ground (decided 06.10.2026)', async () => {
     server.handler = (_m, path) => {
       if (path === '/api/clients/name-check') return { status: 200, body: { free: true, code: null } }
@@ -458,7 +504,7 @@ describe('the assistant for a new client', () => {
     const field = () => page.querySelector(`input:not([type="color"])[aria-label="${i18n.t('wizard.startColor')}"]`) as HTMLInputElement
     await type(field(), '#D04343')
     await settle()
-    expect(page.querySelector('[role="status"]')?.textContent).toContain('Auf hellem Grund erreicht diese Farbe nur 4,13:1, für Text sind 4,5:1 nötig. Gleicher Farbton, der reicht: #C43F3F')
+    expect(page.querySelector('[role="status"]')?.textContent).toContain('Auf dem hellen Grundton, den nexbrand dazulegt, erreicht diese Farbe nur 4,13:1. Für Text sind 4,5:1 nötig. Im gleichen Farbton reicht #C43F3F.')
     await click(buttons('Übernehmen')[0])
     expect(field().value).toBe('#C43F3F')
     expect(page.querySelector('[role="status"]')).toBeNull()
@@ -466,16 +512,46 @@ describe('the assistant for a new client', () => {
     const values = [...page.querySelectorAll('input')].map((input) => input.value.toUpperCase())
     expect(values).toContain('#C43F3F')
     expect(values).not.toContain('#D04343')
-    await i18n.changeLanguage('en')
   })
 
-  it('keeps the colours of a picture as measured and offers the main one that reaches, only taken by the button', async () => {
+  it('takes a start colour as people write it: without "#", or short', async () => {
     server.handler = (_m, path) => {
       if (path === '/api/clients/name-check') return { status: 200, body: { free: true, code: null } }
     }
-    // A picture of four colours, read the way the page reads one: through a canvas.
+    const { NewClientPage } = await import('./NewClientPage')
+    const page = await mount(<NewClientPage />, '/new')
+    await type(page.querySelector(`input[placeholder="${i18n.t('wizard.nameHint')}"]`), 'Example Works')
+    await settle()
+    await click(buttons(i18n.t('wizard.next'))[0])
+    const field = () => page.querySelector(`input:not([type="color"])[aria-label="${i18n.t('wizard.startColor')}"]`) as HTMLInputElement
+    const go = () => buttons(i18n.t('wizard.takeThis'))[0] as HTMLButtonElement
+    // Without "#": the same note as with it, and the way on is open.
+    await type(field(), 'd04343')
+    await settle()
+    expect(page.querySelector('[role="status"]')?.textContent).toContain(i18n.t('wizard.shortStart', { ratio: '4.13:1', hex: '#C43F3F' }))
+    expect(go().disabled).toBe(false)
+    // Short: #555 is #555555, which reads on its off-white, so nothing to say.
+    await type(field(), '#555')
+    await settle()
+    expect(page.querySelector('[role="status"]')).toBeNull()
+    expect(go().disabled).toBe(false)
+    // Not a colour: the way on stays shut.
+    await type(field(), '#55')
+    await settle()
+    expect(go().disabled).toBe(true)
+    await type(field(), '#555')
+    await settle()
+    await click(go())
+    expect(taken(page)[0]).toBe('#555555')
+  })
+
+  /** The start "from a picture" with a picture of these colours (and how many pixels each), read the way the page reads
+   * one: through a canvas. */
+  async function withPicture(parts: [string, number][], test: (page: HTMLElement) => Promise<void>): Promise<void> {
+    server.handler = (_m, path) => {
+      if (path === '/api/clients/name-check') return { status: 200, body: { free: true, code: null } }
+    }
     const pixels = new Uint8ClampedArray(96 * 96 * 4)
-    const parts: [string, number][] = [['#F6EFE4', 5000], ['#D9822B', 2000], ['#2B2A28', 1500], ['#6F8F55', 716]]
     let at = 0
     for (const [hex, count] of parts)
       for (let n = 0; n < count; n++, at += 4) pixels.set([parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16), 255], at)
@@ -502,26 +578,44 @@ describe('the assistant for a new client', () => {
       Object.defineProperty(input, 'files', { value: [new File(['x'], 'mood.png', { type: 'image/png' })] })
       await act(async () => input.dispatchEvent(new Event('change', { bubbles: true })))
       await settle()
-      const { contrast, formatRatio, reach } = await import('../lib/color')
-      // The main colour on the light one of the picture, and the nearest of its hue that reaches, as the checker says.
-      const better = reach('#D9822B', '#F6EFE4', 4.5)!
-      const note = () => page.querySelector('[role="status"]')
-      expect(note()?.textContent).toContain(i18n.t('wizard.shortPicture', { color: '#D9822B', ratio: formatRatio(contrast('#D9822B', '#F6EFE4'), 'en'), hex: better }))
-      const swatches = () => [...page.querySelectorAll('span.font-mono')].map((s) => s.textContent)
-      expect(swatches()).toEqual(['#F6EFE4', '#D9822B', '#2B2A28', '#6F8F55'])
-      await click(buttons(i18n.t('wizard.useBetter'))[0])
-      expect(note()).toBeNull()
-      expect(swatches()).toEqual(['#F6EFE4', better, '#2B2A28', '#6F8F55'])
-      await click(buttons(i18n.t('wizard.takeColors'))[0])
-      const values = [...page.querySelectorAll('input')].map((field) => field.value.toUpperCase())
-      for (const hex of [better, '#F6EFE4', '#2B2A28', '#6F8F55']) expect(values).toContain(hex)
-      expect(values).not.toContain('#D9822B')
+      await test(page)
     } finally {
       canvas.mockRestore()
       picture.mockRestore()
       delete urls.createObjectURL
       delete urls.revokeObjectURL
     }
+  }
+
+  const swatches = (page: HTMLElement) => [...page.querySelectorAll('span.font-mono')].map((s) => s.textContent)
+  /** The colours in the colour step, in their order (main colour first), each once. */
+  const taken = (page: HTMLElement) => [...new Set([...page.querySelectorAll('input')].map((field) => field.value.toUpperCase()).filter((value) => /^#[0-9A-F]{6}$/.test(value)))]
+
+  it('keeps the colours of a picture as measured and offers the main one that reaches, only taken by the button', async () => {
+    await withPicture([['#F6EFE4', 5000], ['#D9822B', 2000], ['#2B2A28', 1500], ['#6F8F55', 716]], async (page) => {
+      const { contrast, formatRatio, reach } = await import('../lib/color')
+      // The main colour on the light one of the picture, and the nearest of its hue that reaches, as the checker says.
+      const better = reach('#D9822B', '#F6EFE4', 4.5)!
+      const note = () => page.querySelector('[role="status"]')
+      expect(note()?.textContent).toContain(i18n.t('wizard.shortPicture', { color: '#D9822B', ratio: formatRatio(contrast('#D9822B', '#F6EFE4'), 'en'), hex: better }))
+      expect(swatches(page)).toEqual(['#F6EFE4', '#D9822B', '#2B2A28', '#6F8F55'])
+      await click(buttons(i18n.t('wizard.useBetter'))[0])
+      expect(note()).toBeNull()
+      expect(swatches(page)).toEqual(['#F6EFE4', better, '#2B2A28', '#6F8F55'])
+      await click(buttons(i18n.t('wizard.takeColors'))[0])
+      expect(taken(page)).toEqual([better, '#6F8F55', '#F6EFE4', '#2B2A28'])
+    })
+  })
+
+  it('keeps the roles of a picture when the darker main colour is taken, though it is now the darkest', async () => {
+    // Read anew, the darker orange would be the dark neutral and the grey blue the main colour.
+    await withPicture([['#F6EFE4', 5000], ['#F2A65A', 2000], ['#8A9A8A', 1500], ['#6F8FA5', 716]], async (page) => {
+      const { reach } = await import('../lib/color')
+      const better = reach('#F2A65A', '#F6EFE4', 4.5)!
+      await click(buttons(i18n.t('wizard.useBetter'))[0])
+      await click(buttons(i18n.t('wizard.takeColors'))[0])
+      expect(taken(page)).toEqual([better, '#8A9A8A', '#F6EFE4', '#6F8FA5'])
+    })
   })
 })
 
@@ -562,6 +656,18 @@ describe('the family', () => {
     await click(page.querySelector('button[aria-haspopup="true"]'))
     expect(shown()).toEqual(order)
     forgetAddedLanguages()
+  })
+
+  it('lists the added languages on the operator\'s card by name, after the two built in', async () => {
+    server.handler = (_m, path) => {
+      if (path === '/api/locales')
+        // As the server sends them: by code.
+        return { status: 200, body: [{ code: 'af', name: 'Zulu', keys: 3 }, { code: 'cs', name: 'Čeština', keys: 3 }, { code: 'es', name: 'Español', keys: 3 }, { code: 'fr', name: 'Français', keys: 3 }] }
+    }
+    const { LanguagesCard } = await import('./settings/ServerCards')
+    const page = await mount(<LanguagesCard />, '/settings')
+    const chips = [...page.querySelectorAll('span.rounded-full')].map((chip) => chip.textContent?.split(' ')[0])
+    expect(chips).toEqual(['Deutsch', 'English', 'Čeština', 'Español', 'Français', 'Zulu'])
   })
 
   it('German keys are "Strg", and the header names its parts as nexsuite and nextasks do', async () => {

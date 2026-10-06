@@ -290,7 +290,7 @@ def start(db: Session, url: str, code: str, redirect_uri: str, own_url: str) -> 
     code = code.strip()
     if not 4 <= len(code) <= 40:
         # nexsuite's own rule, checked here: its refusal of the form would read as "not nexsuite" (B24).
-        raise SuiteError("pair_code_invalid", "This code is not valid. Make a new one in nexsuite.", 409)
+        raise SuiteError("pair_code_invalid", "This code is not valid. Create a new one in nexsuite.", 409)
     try:
         made = request("POST", base + "/api/connect/v1/pair", body={
             "code": code, "url": own_url, "kind": KIND, "name": "nexbrand", "version": __version__,

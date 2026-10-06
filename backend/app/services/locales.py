@@ -148,7 +148,7 @@ def available() -> list[Locale]:
     result: list[Locale] = []
     files = sorted(p for p in directory.iterdir() if p.suffix == ".json")
     if len(files) > MAX_FILES:
-        logger.warning("Language directory holds %d files, only the first %d are read", len(files), MAX_FILES)
+        logger.warning("Language directory contains %d files, only the first %d are read", len(files), MAX_FILES)
         files = files[:MAX_FILES]
     for name in set(_seen) - {path.name for path in files}:
         del _seen[name]

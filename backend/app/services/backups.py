@@ -298,7 +298,7 @@ def receive(received: Path) -> str:
         with zipfile.ZipFile(received) as archive:
             manifest = _manifest(archive)
             if DATABASE_ENTRY not in archive.namelist():
-                raise BackupError("backup_invalid", "the archive holds no database")
+                raise BackupError("backup_invalid", "the archive contains no database")
     except zipfile.BadZipFile as exc:
         raise BackupError("backup_invalid", "not a ZIP archive") from exc
     try:

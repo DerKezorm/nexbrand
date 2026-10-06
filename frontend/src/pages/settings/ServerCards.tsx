@@ -933,7 +933,8 @@ export function LanguagesCard() {
   const file = useRef<HTMLInputElement>(null)
   const action = useAction()
   const load = useCallback(() => {
-    api<Locale[]>('/api/locales').then(setList, () => undefined)
+    // By name, as everywhere languages are offered; the two built in stay in front.
+    api<Locale[]>('/api/locales').then((items) => setList([...items].sort((a, b) => a.name.localeCompare(b.name))), () => undefined)
   }, [])
   useEffect(load, [load])
   const chip = 'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs'

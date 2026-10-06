@@ -160,7 +160,8 @@ const KEYWORDS: [RegExp, Mood, number][] = [
   [/ruhig|calm|medizin|medic|praxis|clinic|pflege|care|therapie|therapy|klar|clear|sanft|gentle|wellness/, 'calm', 188],
 ]
 
-export type Direction = { id: 'a' | 'b' | 'c'; mood: Mood; second: Mood; colors: BrandColor[]; head: string; body: string; label?: string; why?: string }
+/** `byAi`: proposed by the account's AI (`fromAi`), not by the keywords of the description; the page says which. */
+export type Direction = { id: 'a' | 'b' | 'c'; mood: Mood; second: Mood; colors: BrandColor[]; head: string; body: string; label?: string; why?: string; byAi?: boolean }
 
 /** Three directions from a few words, without an AI: hue and fonts by the moods the words name. The main colour is
  * then darkened until a button with white text and a link on the light ground reach 4.5:1. */
@@ -222,6 +223,7 @@ export function fromAi(list: AiDirection[], names: Names): Direction[] {
       body: catalogFont(d.body) ? d.body : fallback.body,
       label: d.label,
       why: d.why,
+      byAi: true,
       colors: [
         { name: names.primary, hex: primary, role: 'primary' },
         { name: names.accent, hex: fromHsl(wrap(d.accent_hue), 65, 55), role: 'accent' },

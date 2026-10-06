@@ -10,10 +10,10 @@ frame here: accounts, second factor, sign-in through a provider, log, languages 
 
 ## What it does
 
-- **Clients and their design sets.** A client holds colours with roles (primary, secondary, accent, neutral) and
+- **Clients and their design sets.** A client has colours with roles (primary, secondary, accent, neutral) and
   their print values, fonts with their licence, logos with the ground they belong on, a type scale, do's and don'ts,
   and example files. Each colour shows its scale from 50 to 950, contrast with white and dark, RGB, HSL and CMYK.
-- **Versions on a time line.** Every change becomes a draft first; publishing freezes it with the day it holds from.
+- **Versions on a time line.** Every change becomes a draft first; publishing freezes it with the day it applies from.
   "As of" shows the design set of any day, "three years ago" is one click. Two versions side by side show what
   changed, colours with their distance, and how the checks changed with them.
 - **Projects keep their version.** A project (a website, a reprint, a trade fair) is pinned to the version it was
@@ -33,15 +33,15 @@ frame here: accounts, second factor, sign-in through a provider, log, languages 
   against the CI that finds the nearly right shades and the foreign fonts.
 - **As code.** Every version as CSS variables, a Tailwind 4 theme, SCSS or design tokens (JSON), with scales, fonts and
   the type scale with size, line height and weight. Public pages show a design set read only, a fixed version or always the current one, with an end date and a
-  password if you like, and give a developer the same code without an account.
+  password if you like, and hand a developer the same code without an account.
 - **For programs and AI tools.** API tokens read design sets over [`/api/v1`](docs/api.md) and over MCP, so an AI in an
   editor builds with the right colours. A token of the level "draft" writes a redesign back, as a draft; publishing
   stays with a person.
 - **Your own AI, if you want one.** Each account may enter its own service: a hosted one, Ollama at home, or any
   other with the usual chat interface. It sorts what was collected and proposes directions for a new
   client. Off until the operator allows it; every request is listed word for word for 14 days.
-- **Access per client.** People and teams get access to a client, to read, write or manage it; whoever makes a
-  client manages it, and the operator decides whether members may make clients. Teams are the operator's; the lead
+- **Access per client.** People and teams get access to a client, to read, write or manage it; whoever creates a
+  client manages it, and the operator decides whether members may create clients. Teams are the operator's; the lead
   of a team changes its members only when the operator allows it (off from the start). A client somebody may not see
   answers like one that does not exist. Clients go to the trash for 30 days.
 - **Around it, as in nexlore.** Accounts by invitation (the mail, like the operator's test mail, in the receiver's
@@ -106,7 +106,7 @@ nexbrand is made to be reachable from outside, for yourself on the road or for a
    off until you open them.
 6. **Optionally keep the operator's settings at home**: `NEXBRAND_OPERATOR_NETWORKS: "192.168.0.0/16"` refuses them
    from anywhere else (behind a proxy only together with `NEXBRAND_TRUSTED_PROXIES`).
-7. **Backups somewhere else**: they hold everything, logos, fonts and files included. Copy one off the machine now and
+7. **Backups somewhere else**: they contain everything, logos, fonts and files included. Copy one off the machine now and
    then, as carefully as the data directory, and try a restore with "Check".
 8. **Pin a version** instead of `latest`, update on purpose, back up before.
 
@@ -155,7 +155,7 @@ nexbrand runs on its own, or joins [nexsuite](https://github.com/DerKezorm/nexsu
 teams and clients of all connected apps, decides who may see which client, and signs everybody in. The operator connects under **Settings →
 Server → nexsuite** with the address of nexsuite and a one-time code made there, matches the accounts and clients here
 to those there, and from then on people sign in through nexsuite. A person there without an address or a display
-name takes the one of the account matched to it, so nothing gets lost. Clients are made in nexsuite then; one made there
+name takes the one of the account matched to it, so nothing gets lost. Clients are created in nexsuite then; one created there
 shows up in nexbrand without a CI and gets it here; it is also put in the trash and deleted for good there. A blocked
 person is signed out at once, and a page they still have open goes to the sign-in within seconds, saying why. A link
 to a page survives the sign-in, through nexsuite as through any other provider. Connecting again later suggests each
@@ -167,7 +167,7 @@ Disconnecting brings nexbrand back on its own with everything it got; the operat
 works throughout as the emergency account, and an emergency code disconnects when nexsuite is out of reach (nexsuite
 hears of it once it is back). An operator role that came from nexsuite alone ends with the connection: the dialog
 names those accounts before, and they are members again afterwards. While connected, only the emergency account
-downloads or deletes a backup, since an archive holds its password and second factor; restoring or uploading one waits for the
+downloads or deletes a backup, since an archive contains its password and second factor; restoring or uploading one waits for the
 disconnect.
 
 ## For programs and AI tools
@@ -175,7 +175,7 @@ disconnect.
 Build pipelines, scripts, nexdeck and AI tools in an editor read design sets with an API token: as JSON, as CSS,
 Tailwind, SCSS or design tokens, of any version or day, with a project's own colours. Over MCP an AI checks contrast,
 compares versions, audits the colours in code against the CI, and with a draft token writes a redesign back as a
-draft. Off until the operator switches it on; every account then makes its own tokens, which see only the clients
+draft. Off until the operator switches it on; every account then creates its own tokens, which see only the clients
 chosen and run out after 90 days unless somebody wants more on purpose. Everything is in
 [docs/api.md](docs/api.md).
 
@@ -187,11 +187,11 @@ chosen and run out after 90 days unless somebody wants more on purpose. Everythi
 - Every changing request needs the header `X-Nexbrand-Client`, which a page on another site cannot send.
 - A client somebody may not see answers exactly like one that does not exist, in every route.
 - A published version never changes; drafts from tokens or collecting stay drafts until a person publishes them. One
-  published to hold from a later day holds from that day on, in the app, the code and the API alike.
+  published to apply from a later day applies from that day on, in the app, the code and the API alike.
 - Fonts marked internal never leave as a file: not on public pages, not through a token or MCP, not as an example
   or a logo download either.
 - The links of public pages and reviews are keys: from the right to write for a client up a person sees, copies and
-  makes them; readers only see that there are some.
+  creates them; readers only see that there are some.
 - Collecting fetches only public addresses, resolved and checked by nexbrand itself, every redirect again, with size
   limits; a key for GitHub never follows a redirect to another host. An AI service in the own network needs the operator to name its host.
 - Files are served with their own sandboxing policy; whatever a browser would not show by itself is a download.
@@ -200,7 +200,7 @@ chosen and run out after 90 days unless somebody wants more on purpose. Everythi
 - Deleting a client for good takes the own password, as do the operator's acts on other accounts.
 - After signing in, nexbrand only ever sends the browser to one of its own pages, never to another address.
 - The log never contains a client's design, passwords, keys or tokens.
-- Names and titles hold no control characters, those from nexsuite included, and every answer asks search engines
+- Names and titles contain no control characters, those from nexsuite included, and every answer asks search engines
   not to index it, the public pages too.
 
 ## Development

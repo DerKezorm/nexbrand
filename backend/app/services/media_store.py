@@ -304,7 +304,7 @@ def finish(
             raise MediaError("svg_encoding", "Save the SVG as UTF-8 and upload it again.", 422)
         if problem is not None:
             logger.info("SVG refused why=%s by=%s", problem, account.name)
-            raise MediaError("svg_unsafe", "This SVG holds a script, an event, embedded HTML or a DOCTYPE; save it "
+            raise MediaError("svg_unsafe", "This SVG contains a script, an event, embedded HTML or a DOCTYPE; save it "
                              "as a plain drawing and upload it again.", 422)
     if expect in EXPECTED and kind not in EXPECTED[expect][0] | ({"heic"} if expect == "picture" else set()):
         _, code, text = EXPECTED[expect]

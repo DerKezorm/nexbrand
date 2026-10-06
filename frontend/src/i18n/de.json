@@ -1671,6 +1671,7 @@
     "noBrief": "keine Beschreibung",
     "propose": "Drei Richtungen vorschlagen",
     "proposeNote": "Die Richtungen entstehen aus den Stichworten der Beschreibung. Danach rechnet nexbrand nach und dunkelt die Hauptfarbe ab, bis Knöpfe mit weißer Schrift und Verweise auf hellem Grund 4,5:1 erreichen.",
+    "proposeNoteAi": "Farbton, Schriftpaar und Begründung jeder Richtung kommen von deiner KI. Danach rechnet nexbrand nach und dunkelt die Hauptfarbe ab, bis Knöpfe mit weißer Schrift und Verweise auf hellem Grund 4,5:1 erreichen.",
     "dir": {
       "a": {
         "label": "Richtung A, nah an der Beschreibung",
@@ -1701,8 +1702,8 @@
     "takeColors": "Diese Farben nehmen",
     "colorText": "Eine Farbe, die der Kunde mitbringt. Dazu kommen passende Neutraltöne; Akzente schlägt der nächste Schritt vor.",
     "startColor": "Startfarbe",
-    "shortStart": "Auf hellem Grund erreicht diese Farbe nur {{ratio}}, für Text sind 4,5:1 nötig. Gleicher Farbton, der reicht: {{hex}}",
-    "shortPicture": "Auf dem hellen Ton des Bildes erreicht die Hauptfarbe {{color}} nur {{ratio}}, für Text sind 4,5:1 nötig. Gleicher Farbton, der reicht: {{hex}}",
+    "shortStart": "Auf dem hellen Grundton, den nexbrand dazulegt, erreicht diese Farbe nur {{ratio}}. Für Text sind 4,5:1 nötig. Im gleichen Farbton reicht {{hex}}.",
+    "shortPicture": "Auf dem hellen Ton aus dem Bild erreicht die Hauptfarbe {{color}} nur {{ratio}}. Für Text sind 4,5:1 nötig. Im gleichen Farbton reicht {{hex}}.",
     "useBetter": "Übernehmen",
     "emptyText": "Für einen Kunden, der schon eine CI hat: leer beginnen und Farben, Schriften und Logos aus dem Styleguide eintragen.",
     "startEmpty": "Leer beginnen",

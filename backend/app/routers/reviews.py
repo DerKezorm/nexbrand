@@ -270,7 +270,7 @@ def _comment(db: Any, review: Review, variant: str, author: str, text: str, *, a
         raise error("review_closed", "This review is closed.", 409)
     count = db.scalar(select(func.count()).select_from(ReviewComment).where(ReviewComment.review_id == review.id))
     if (count or 0) >= MAX_COMMENTS:
-        raise error("too_many_comments", "This review holds as many comments as it may.", 409)
+        raise error("too_many_comments", "This review has as many comments as it may.", 409)
     clean = text.strip()
     if not clean or any(ord(char) < 32 and char not in "\n\t" for char in clean):
         raise error("invalid_input", "The input is not valid.", 422)

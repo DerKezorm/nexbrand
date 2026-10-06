@@ -8,9 +8,9 @@ middleware's and MCP's refusals and the sign-in redirects (``?error=code``). A c
 
 from __future__ import annotations
 
+import ast
 import json
 import re
-import tokenize
 from pathlib import Path
 
 import pytest
@@ -100,6 +100,18 @@ def _values(tree: object) -> list[str]:
     return [tree] if isinstance(tree, str) else []
 
 
+def _strings(source: str) -> list[tuple[int, str]]:
+    """Every piece of text in Python source, with its line: plain strings, docstrings, and the literal parts of f- and
+    t-strings (since Python 3.12 the tokenizer hands those out in pieces, not as one string)."""
+    return [(node.lineno, node.value) for node in ast.walk(ast.parse(source))
+            if isinstance(node, ast.Constant) and isinstance(node.value, str)]
+
+
+def test_the_strings_of_the_server_include_f_strings() -> None:
+    found = [text for _, text in _strings('x = f"A {a} is in the bin."\n"""Doc."""\ny = "plain"\n')]
+    assert sorted(found) == [" is in the bin.", "A ", "Doc.", "plain"]
+
+
 def test_english_says_trash_where_german_says_papierkorb() -> None:
     """The family says "trash" (decided 06.10.2026): the page, what's new, the server's sentences and the API's own
     descriptions. Keys, routes and fields named ``bin`` stay: nexsuite reads them."""
@@ -111,12 +123,30 @@ def test_english_says_trash_where_german_says_papierkorb() -> None:
         text = path.read_text(encoding="utf-8").replace(".venv/bin", "")
         found += [f"{path.name}: {line.strip()}" for line in text.splitlines() if bin_word.search(line)]
     for path in sorted(APP.rglob("*.py")):
-        with path.open("rb") as handle:
-            found += [f"{path.name}:{token.start[0]}" for token in tokenize.tokenize(handle.readline)
-                      if token.type == tokenize.STRING and bin_word.search(token.string)]
+        found += [f"{path.name}:{line}" for line, text in _strings(path.read_text(encoding="utf-8"))
+                  if bin_word.search(text)]
     # The guard sees what it should: the German word is there, and so are the keys it leaves alone.
     assert "Papierkorb" in (FRONTEND / "i18n" / "de.json").read_text(encoding="utf-8")
     assert '"binEmpty": "The trash is empty."' in (FRONTEND / "i18n" / "en.json").read_text(encoding="utf-8")
+    assert found == []
+
+
+def test_the_server_speaks_english_not_german_word_for_word() -> None:
+    """As ``used.test.ts`` for the page: enter, create and contain, not give, make and hold (nexbrand #job-159). Every
+    string a program or the log can show counts, f-strings included; docstrings are for the code's readers."""
+    stiff = re.compile(r"\bGive (a|the)\b|\bMake a new\b|\bholds\b|\bmak(e|es|ing) (a |an |its own |their own |read-only )?"
+                       r"(clients?|accounts?|tokens?|drafts?|pages?|links?)\b|\b(is|are) made (there|here|in nexsuite)\b",
+                       re.IGNORECASE)
+    found = []
+    for path in sorted(APP.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        docs = {id(node.body[0].value) for node in ast.walk(tree)
+                if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) and node.body
+                and isinstance(node.body[0], ast.Expr) and isinstance(node.body[0].value, ast.Constant)}
+        found += [f"{path.name}:{node.lineno}" for node in ast.walk(tree)
+                  if isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in docs
+                  and stiff.search(node.value)]
+    assert stiff.search("The archive holds it.") and not stiff.search("Make an operator")
     assert found == []
 
 

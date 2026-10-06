@@ -65,11 +65,16 @@ describe('the shipped texts', () => {
     expect(managed('server.allSpaces.membersNoManager', { count: 1 })).toBe('eine Person mit Zugriff, niemand verwaltet den Kunden')
   })
 
-  it('speak English, not German word for word', () => {
+  it('speak English, not German word for word, on the page, in what is new, in the README and the API guide', async () => {
     // "Angeben" is enter, "anlegen" is create, "enthalten" is contain (WORTLAUTE.md, nexbrand #job-159).
-    const text = (key: string) => String(key.split('.').reduce<unknown>((tree, part) => (tree as Record<string, unknown>)[part], en))
-    const stiff = flat(en).filter((key) => /\bGive (a|the)\b|\bMake a new\b|\bholds\b/i.test(text(key)))
-    expect(stiff).toEqual([])
+    const stiff = /\bGive (a|the)\b|\bMake a new\b|\bholds\b|\bmak(e|es|ing) (a |an |its own |their own |read-only )?(clients?|accounts?|tokens?|drafts?|pages?|links?)\b|\b(is|are) made (there|here|in nexsuite)\b/i
+    expect(stiff.test('Whoever makes a client manages it.') && stiff.test('The archive holds it.') && !stiff.test('Make operator')).toBe(true)
+    const whatsNew = (await import('./whatsnew/en.json')).default as unknown as Record<string, unknown>
+    // By value, not by key: the release "0.1.0" has dots in its key.
+    const texts = (tree: unknown): string[] => (tree && typeof tree === 'object' ? Object.values(tree).flatMap(texts) : [String(tree)])
+    const lines = (file: string) => files.readFileSync(file, 'utf-8').split('\n')
+    const found = [...texts(en), ...texts(whatsNew), ...lines('../README.md'), ...lines('../docs/api.md')].filter((line) => stiff.test(line))
+    expect(found).toEqual([])
   })
 
   it('call the program version "Version" and keep "Fassung" for a CI (decided 06.10.2026)', async () => {

@@ -94,7 +94,7 @@ TOOLS: list[dict[str, Any]] = [
          "css": {"type": "string", "maxLength": 500000}},
          "required": ["client"], "additionalProperties": False}},
     {"name": "propose_version", "level": "draft",
-     "description": "Write a new version back as a draft, e.g. after a redesign. Give the parts that change "
+     "description": "Write a new version back as a draft, e.g. after a redesign. Send the parts that change "
                     "(colors, fonts, scale, rules) in nexbrand's shape; with based_on, the rest is kept from that "
                     "version. A person reviews and publishes it in nexbrand. Answers the checks of the draft.",
      "inputSchema": {"type": "object", "properties": {
@@ -139,9 +139,9 @@ def _check(schema: dict[str, Any], args: dict[str, Any]) -> str | None:
         if "enum" in spec and value not in spec["enum"]:
             return f"'{key}' must be one of {', '.join(map(str, spec['enum']))}."
         if isinstance(value, str) and len(value) > spec.get("maxLength", len(value)):
-            return f"'{key}' holds at most {spec['maxLength']} characters."
+            return f"'{key}' may have at most {spec['maxLength']} characters."
         if isinstance(value, list) and len(value) > spec.get("maxItems", len(value)):
-            return f"'{key}' holds at most {spec['maxItems']} entries."
+            return f"'{key}' may have at most {spec['maxItems']} entries."
     return None
 
 

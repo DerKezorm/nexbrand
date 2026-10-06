@@ -62,7 +62,7 @@ def new_id() -> str:
 def _text(value: str | None, most: int, code: str, *, required: bool = False) -> str:
     if names.has_control(value or ""):
         # Every control character, DEL and C1 too, also those ``split`` would fold away unseen.
-        raise BrandError("invalid_characters", "The text holds control characters you cannot see.")
+        raise BrandError("invalid_characters", "The text contains control characters you cannot see.")
     text = " ".join((value or "").split())
     if len(text) > most or (required and not text):
         raise BrandError(code, "This value is not valid.")
@@ -72,7 +72,7 @@ def _text(value: str | None, most: int, code: str, *, required: bool = False) ->
 def _note(value: str | None, most: int) -> str:
     text = (value or "").strip()
     if names.has_control(text, "\n\t"):
-        raise BrandError("invalid_characters", "The text holds control characters you cannot see.")
+        raise BrandError("invalid_characters", "The text contains control characters you cannot see.")
     if len(text) > most:
         raise BrandError("invalid_note", "This note is too long.")
     return text
@@ -134,9 +134,9 @@ def _create_client(
     from . import spaces, suite
 
     if suite.connected(db):
-        raise BrandError("managed_by_suite", "Clients are made in nexsuite now.", 409)
+        raise BrandError("managed_by_suite", "Clients are created in nexsuite now.", 409)
     if not may_create(db, account):
-        raise BrandError("forbidden", "The operator has not allowed members to make clients.", 403)
+        raise BrandError("forbidden", "The operator has not allowed members to create clients.", 403)
     clean = _text(name, 120, "invalid_name", required=True)
     _name_free(db, "client", clean)
     try:
@@ -484,7 +484,7 @@ def change_draft(
     note: str | None = None, data: Any = None,
 ) -> BrandVersion:
     if row.status != DRAFT:
-        raise BrandError("published", "A published version never changes. Make a new draft from it.", 409)
+        raise BrandError("published", "A published version never changes. Create a new draft from it.", 409)
     if label is not None:
         row.label = _text(label, 60, "invalid_label", required=True)
     if note is not None:

@@ -14,7 +14,7 @@ import { WebPreview } from '../components/brand/WebPreview'
 import { Dialog } from '../components/Dialog'
 import { emptySet, type BrandColor, type BrandLogo, type BrandSet } from '../lib/brand'
 import { check } from '../lib/checks'
-import { formatRatio, isHex, textOn } from '../lib/color'
+import { formatRatio, isHex, normalHex, textOn } from '../lib/color'
 import { errorText } from '../lib/errors'
 import { useTitle } from '../lib/title'
 import { CATALOG, PAIRINGS, catalogEntry, catalogFont, fontStack } from '../lib/fonts'
@@ -528,7 +528,9 @@ function StartStep({
     window.setTimeout(() => (setDirs(directions(brief, name, names)), setLoading(false)), 300)
   }
   const [start, setStart] = useState('#2E7D5B')
-  const startShort = isHex(start) ? startShortfall(start, names) : null
+  // As people write a colour: `#abc`, `2e7d5b` without `#`, `rgb(…)` all count, as `#RRGGBB`.
+  const startHex = normalHex(start.trim())
+  const startShort = isHex(startHex) ? startShortfall(startHex, names) : null
   const [found, setFound] = useState<string[] | null>(null)
   // The roles of a picture's colours, fixed once read: taking a suggested main colour changes that colour, not the roles.
   const [pictureColors, setPictureColors] = useState<BrandColor[]>([])
@@ -594,7 +596,7 @@ function StartStep({
           )}
           {dirs && (
             <>
-              <p className="text-xs text-mist-500">{t('wizard.proposeNote')}</p>
+              <p className="text-xs text-mist-500">{dirs.some((d) => d.byAi) ? t('wizard.proposeNoteAi') : t('wizard.proposeNote')}</p>
               <div className="grid gap-3 xl:grid-cols-3">
                 {dirs.map((d) => {
                   const n = check({ colors: d.colors, fonts: [], logos: [], scale: [] }).filter((h) => h.level !== 'info').length
@@ -666,9 +668,9 @@ function StartStep({
         <div className="space-y-3">
           <p className="text-sm text-mist-500">{t('wizard.colorText')}</p>
           <div className="flex items-center gap-2">
-            <input type="color" aria-label={t('wizard.startColor')} value={isHex(start) ? start : '#000000'} onChange={(e) => setStart(e.target.value.toUpperCase())} className="h-10 w-14 rounded-lg border border-ink-700 bg-ink-850" />
+            <input type="color" aria-label={t('wizard.startColor')} value={isHex(startHex) ? startHex.toLowerCase() : '#000000'} onChange={(e) => setStart(e.target.value.toUpperCase())} className="h-10 w-14 rounded-lg border border-ink-700 bg-ink-850" />
             <input value={start} onChange={(e) => setStart(e.target.value)} aria-label={t('wizard.startColor')} className="h-10 w-28 rounded-lg border border-ink-700 bg-ink-850 px-3 font-mono text-sm" />
-            <button type="button" className="nc-btn nc-btn-accent" disabled={!isHex(start)} onClick={() => onColors(oneColor(start, names))}>
+            <button type="button" className="nc-btn nc-btn-accent" disabled={!isHex(startHex)} onClick={() => onColors(oneColor(startHex, names))}>
               {t('wizard.takeThis')}
             </button>
           </div>

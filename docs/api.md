@@ -12,7 +12,7 @@ stays a person's act in nexbrand.
 
 ## Switching it on
 
-API tokens are off until the operator switches them on, under **Settings → Server → API**. Then every account makes
+API tokens are off until the operator switches them on, under **Settings → Server → API**. Then every account creates
 its own tokens under **My account → Connections**:
 
 - A token reads what its account may read, never more. A new one sees only the clients chosen for it; every client the
@@ -66,10 +66,10 @@ id or its label (`2026`, `1.0`). A project by its id or its name. No two clients
 projects of one client: nexbrand compares names without capitals, without spaces at the ends, with spaces inside
 folded to one, without invisible signs (a zero-width space) and in one Unicode form (NFKC).
 
-The version that holds today is the published one with the latest day that is not after today. A version published
-to hold from a later day (`valid_from`) holds from that day on, not before: until then `current_version`, the
+The version that applies today is the published one with the latest day that is not after today. A version published
+to apply from a later day (`valid_from`) applies from that day on, not before: until then `current_version`, the
 standard answer, the code and the audit go by the version before it. With no version before it (a client or project
-whose only published version holds from a later day), `current_version` is `null`, and the standard answer, the code
+whose only published version applies from a later day), `current_version` is `null`, and the standard answer, the code
 and the audit give that coming version with `current: false`.
 
 ### `GET /api/v1/me`
@@ -81,12 +81,12 @@ the `version` of nexbrand.
 
 The clients the token may read. `?search=` keeps those whose name or sector contains it.
 
-Each: `id`, `name`, `sector`, `current_version` (the label of the version that holds today, or `null`),
+Each: `id`, `name`, `sector`, `current_version` (the label of the version that applies today, or `null`),
 `colors` (up to twelve hex values of that version) and `projects` (`id`, `name`).
 
 ### `GET /api/v1/clients/{client}`
 
-A client's design set. Without a parameter, the version that holds today.
+A client's design set. Without a parameter, the version that applies today.
 
 | Parameter | Meaning |
 |---|---|
@@ -117,7 +117,7 @@ applies. Nothing to say means an empty list.
 
 ### `GET /api/v1/clients/{client}/versions`
 
-Every version, published ones in the order they hold, then drafts; each as `version` above.
+Every version, published ones in the order they apply, then drafts; each as `version` above.
 
 ### `GET /api/v1/clients/{client}/code`
 
@@ -169,7 +169,7 @@ code export give is always the whole set as the project shows it.
 
 `dark` in a design set is optional: which of its colours is what in dark mode, each by name: `ground` (the page),
 `surface` (cards, panels), `text`, `muted` (quieter text), `primary` (links, buttons), `on_primary` (text on
-buttons). The checks hold text, quiet text, links and button text at 4.5:1 to what they stand on (codes starting
+buttons). The checks measure text, quiet text, links and button text against 4.5:1 to what they stand on (codes starting
 with `dark_`), and `dark_missing` names a colour the palette no longer has. The code export carries it as
 `--dark-ground: var(--color-…)` (CSS), `--color-dark-…` (Tailwind), `$dark-…` (SCSS) and a `dark` group (JSON).
 
@@ -229,7 +229,7 @@ configuration of an editor:
 | `list_clients` | read | The clients, with their current version, main colours and projects. |
 | `get_brand` | read | A client's design set, with `version`, `at` or `project` as in the routes above. |
 | `get_code` | read | The design set as CSS, Tailwind, SCSS or tokens. |
-| `list_versions` | read | Every version, with the day it holds from. |
+| `list_versions` | read | Every version, with the day it applies from. |
 | `compare_versions` | read | What changed between two versions: colours (with their distance), fonts, and in `changes` every part (colours, fonts, logos, type scale, rules, examples, dark mode), each field with its value before and after. |
 | `check_contrast` | read | Contrast of a text colour on a ground, with grades and the nearest passing colour. |
 | `audit` | read | Colour values from code against the design set; with `css`, colour pairs against the rules. |
