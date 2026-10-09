@@ -260,6 +260,8 @@ export type ClientInfo = {
   color: string
   /** Kept in nexsuite: name, sector, contact, colour and who may see it are changed there. */
   managed: boolean
+  /** nexsuite no longer gives nexbrand this client: only the operator sees it, and may put it away here (B18). */
+  dropped?: boolean
   sector: string
   contact: string
   /** The client's addresses, for collecting with a click; nexbrand's own, also for a client nexsuite keeps. */

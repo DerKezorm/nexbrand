@@ -141,8 +141,9 @@ function BinCard({ client }: { client: ClientInfo }) {
       <h2 className="font-semibold break-words text-mist-100" data-testid="bin-name">
         {client.name}
       </h2>
-      {/* Deleted in nexsuite: brought back or deleted for good there, never here (B6, B14). */}
-      {!client.managed && (
+      {/* Deleted in nexsuite: brought back or deleted for good there, never here (B6, B14). One nexsuite let go is the
+          operator's to decide here (B18). */}
+      {(!client.managed || client.dropped) && (
         <div className="flex flex-wrap items-center gap-2">
           <Button busy={restore.busy} label={t('clients.restoreThis', { name: client.name })} onClick={() => void restore.run(async () => {
             await clientsApi.restore(client.id)
@@ -157,7 +158,7 @@ function BinCard({ client }: { client: ClientInfo }) {
           )}
         </div>
       )}
-      {client.managed && <p className="text-xs text-mist-500">{t('clients.binSuite')}</p>}
+      {client.managed && !client.dropped && <p className="text-xs text-mist-500">{t('clients.binSuite')}</p>}
       <Feedback problem={restore.problem} />
       {asking && (
         <Confirm

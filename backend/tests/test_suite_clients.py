@@ -15,7 +15,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.db import SessionLocal
-from app.models import Account, Client, Space
+from app.models import Account, Client, Membership, Space
 from app.security import encrypt_secret
 from app.services import oidc, settings_service, suite
 
@@ -866,3 +866,120 @@ def test_the_same_password_or_block_set_again_keeps_the_browsers(client: TestCli
     with new_client() as browser:
         sign_in(browser, anna)
         assert browser.get("/api/auth/me").status_code == 200
+
+
+# --- B18: a client nexsuite no longer gives nexbrand ------------------------------------------------------------------
+
+
+def _shown(browser: TestClient, cid: str) -> dict[str, Any]:
+    return next(c for c in browser.get("/api/clients").json() if c["id"] == cid)
+
+
+def test_b18_a_client_nexsuite_lets_go_is_marked_and_the_operator_may_put_it_away(
+        client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
+    connect(client, world, operator)
+    ideen = client_of(client, world["ideen"])
+    assert _shown(client, ideen)["dropped"] is False
+    fake.ticked.discard("10")
+    client.post("/api/suite/sync")
+    shown = _shown(client, ideen)
+    assert shown["dropped"] is True
+    assert client.delete(f"/api/clients/{ideen}").status_code == 204
+    assert ideen in [c["id"] for c in client.get("/api/clients?deleted=true").json()]
+    assert client.post(f"/api/clients/{ideen}/restore").status_code == 200
+    assert client.delete(f"/api/clients/{ideen}").status_code == 204
+    assert _purge(client, ideen).status_code == 204, "nexsuite says nothing about it any more: deleted here for good"
+    with SessionLocal() as db:
+        assert db.get(Client, ideen) is None
+
+
+def test_b18_given_again_it_is_nexsuites_again(client: TestClient, operator: Account, world: dict,
+                                               fake: FakeSuite) -> None:
+    connect(client, world, operator)
+    ideen = client_of(client, world["ideen"])
+    fake.ticked.discard("10")
+    client.post("/api/suite/sync")
+    fake.ticked.add("10")
+    client.post("/api/suite/sync")
+    shown = _shown(client, ideen)
+    assert shown["dropped"] is False and shown["managed"] is True
+    refused = client.delete(f"/api/clients/{ideen}")
+    assert refused.status_code == 409 and refused.json()["detail"]["code"] == "managed_by_suite"
+
+
+def test_b18_one_in_nexsuites_bin_is_not_let_go(client: TestClient, operator: Account, world: dict,
+                                                fake: FakeSuite) -> None:
+    connect(client, world, operator)
+    ideen = client_of(client, world["ideen"])
+    fake.ticked.discard("10")
+    fake.clients_bin = [{"id": "10", "deleted_at": "2026-10-04T10:00:00+00:00"}]
+    client.post("/api/suite/sync")
+    shown = next(c for c in client.get("/api/clients?deleted=true").json() if c["id"] == ideen)
+    assert shown["dropped"] is False and shown["managed"] is True, "it comes back or goes for good in nexsuite"
+
+
+def test_b18_let_go_first_and_binned_in_nexsuite_after_it_is_nexsuites_again(
+        client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
+    connect(client, world, operator)
+    ideen = client_of(client, world["ideen"])
+    fake.ticked.discard("10")
+    client.post("/api/suite/sync")
+    assert _shown(client, ideen)["dropped"] is True
+    fake.clients_bin = [{"id": "10", "deleted_at": "2026-10-04T10:00:00+00:00"}]
+    client.post("/api/suite/sync")
+    shown = next(c for c in client.get("/api/clients?deleted=true").json() if c["id"] == ideen)
+    assert shown["dropped"] is False, "nexsuite's bin decides now, not the operator here"
+    refused = client.post(f"/api/clients/{ideen}/restore")
+    assert refused.status_code == 409 and refused.json()["detail"]["code"] == "managed_by_suite"
+
+
+def test_b18_only_the_operator_in_the_interface_puts_it_away(client: TestClient, operator: Account, world: dict,
+                                                             fake: FakeSuite) -> None:
+    connect(client, world, operator)
+    ideen = client_of(client, world["ideen"])
+    fake.ticked.discard("10")
+    client.post("/api/suite/sync")
+    with SessionLocal() as db:
+        space = db.get(Space, world["ideen"])
+        assert space is not None and space.suite_dropped_at is not None
+        db.add(Membership(space_id=space.id, account_id=world["anna"].id, role="manage"))
+        db.commit()
+    with new_client(world["anna"]) as browser:
+        refused = browser.delete(f"/api/clients/{ideen}")
+        assert refused.status_code == 409 and refused.json()["detail"]["code"] == "managed_by_suite"
+
+
+def test_b18_disconnecting_forgets_the_mark(client: TestClient, operator: Account, world: dict,
+                                            fake: FakeSuite) -> None:
+    connect(client, world, operator)
+    fake.ticked.discard("10")
+    client.post("/api/suite/sync")
+    with SessionLocal() as db:
+        suite.disconnect(db, tell=False)
+        db.commit()
+    with SessionLocal() as db:
+        space = db.get(Space, world["ideen"])
+        assert space is not None and space.suite_dropped_at is None and space.external_id == ""
+
+
+def test_b18_put_away_it_goes_by_the_clock_here(client: TestClient, operator: Account, world: dict,
+                                                fake: FakeSuite) -> None:
+    from datetime import timedelta
+
+    from app.models import utcnow
+    from app.services import cleanup
+
+    connect(client, world, operator)
+    ideen = client_of(client, world["ideen"])
+    studio = client_of(client, world["studio"])
+    fake.ticked.discard("10")
+    client.post("/api/suite/sync")
+    assert client.delete(f"/api/clients/{ideen}").status_code == 204
+    with SessionLocal() as db:
+        for cid in (ideen, studio):
+            db.get(Client, cid).deleted_at = utcnow() - timedelta(days=40)  # type: ignore[union-attr]
+        db.commit()
+    cleanup.run_once()
+    with SessionLocal() as db:
+        assert db.get(Client, ideen) is None, "nexsuite says nothing about it: the clock here counts"
+        assert db.get(Client, studio) is not None, "one nexsuite still gives waits for nexsuite"

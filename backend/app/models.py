@@ -92,6 +92,9 @@ class Space(Base):
     external_id: Mapped[str] = mapped_column(String(40), default="")
     #: Set when a manager deleted the space; it lies in the trash with its clients for 30 days.
     deleted_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    #: Set when nexsuite no longer gives nexbrand this client (and has not binned it): only the operator sees it then,
+    #: and may put it away here (B18). Cleared when nexsuite gives it again or nexbrand disconnects.
+    suite_dropped_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
 
 class Account(Base):

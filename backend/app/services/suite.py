@@ -165,6 +165,11 @@ def refuse_unless_keeper(db: Session, account: Account, code: str = "disconnect_
         raise error(code, text, 403)
 
 
+def dropped(db: Session, space: Space | None) -> bool:
+    """A client nexsuite gave nexbrand once and no longer does, while connected (B18)."""
+    return space is not None and bool(space.external_id) and space.suite_dropped_at is not None and connected(db)
+
+
 def refuse_if_space_managed(db: Session, space_id: int, account: Account | None = None) -> None:
     """The rights of a space nexsuite gives this app are kept there. With ``account``: a space it may not even read
     answers as if there were none (404), not "kept in nexsuite" (A14)."""
@@ -624,6 +629,7 @@ def _confirm(db: Session, token: str, plan: dict[str, Any]) -> list[dict[str, st
         space = db.get(Space, space_id)
         if space is not None:
             space.external_id = external
+            space.suite_dropped_at = None
     for account_id, row in accounts_here.items():
         # Which accounts nexsuite knows from now on, by its person (B8, B21): the matched and the made ones. One left
         # out is not nexsuite's; it keeps whatever sign-in link it had here (authentik) and is never renamed for it.
@@ -1071,6 +1077,7 @@ def _apply_clients(db: Session, seen: dict[str, Any], account_of: dict[str, int]
         space.color = str(item.get("color") or space.color)[:16]
         if client.deleted_at is not None and sid not in binned:
             client.deleted_at = None
+        space.suite_dropped_at = None
         _set_grants(db, space.id,
                     {account_of[g["id"]]: g["role"] for g in item.get("people", []) if g["id"] in account_of},
                     {team_of[g["id"]]: g["role"] for g in item.get("teams", []) if g["id"] in team_of})
@@ -1081,10 +1088,17 @@ def _apply_clients(db: Session, seen: dict[str, Any], account_of: dict[str, int]
         client = client_of.get(space.id) if space is not None else None
         if client is not None and client.deleted_at is None:
             client.deleted_at = _moment(item.get("deleted_at"))
-    # A client nexsuite no longer lists and has not binned: nobody but the operator sees it any more.
+    # A client nexsuite no longer lists and has not binned: nobody but the operator sees it any more, marked "no longer
+    # in nexsuite", and the operator may put it into the trash here (B18). One in nexsuite's bin is still nexsuite's:
+    # it comes back or goes for good from there, never by the clock or the trash here (E1, E3).
     for sid, space in spaces.items():
+        if sid in binned:
+            space.suite_dropped_at = None
         if sid not in given and sid not in binned:
             _set_grants(db, space.id, {}, {})
+            if space.suite_dropped_at is None:
+                space.suite_dropped_at = utcnow()
+                logger.info("Client no longer given by nexsuite space=%s", space.id)
     # Deleted for good there: here too, with its versions (their files go with the next clean-up).
     for sid in seen.get("clients_gone") or []:
         space = spaces.get(str(sid))
@@ -1198,6 +1212,7 @@ def _disconnect(db: Session, *, tell: bool) -> tuple[list[str], list[str], list[
         team.source, team.external_id = TEAM_LOCAL, ""
     for space in db.scalars(select(Space).where(Space.external_id != "")):
         space.external_id = ""
+        space.suite_dropped_at = None
     keeper = db.get(Account, int(settings_service.get(db, "suite_emergency_account") or 0))
     if keeper is not None and keeper.blocked_at is not None:
         # Blocked because nexsuite blocked or deleted the person: with nexsuite gone, it is the way in again (D8).

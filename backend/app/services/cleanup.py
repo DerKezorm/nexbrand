@@ -7,7 +7,7 @@ import asyncio
 import logging
 from datetime import timedelta
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 
 from ..db import SessionLocal
 from ..models import BrandVersion, Client, Media, Review, Share, Space, utcnow
@@ -39,9 +39,12 @@ def run_once() -> None:
     now = utcnow()
     with SessionLocal() as db:
         # A client from nexsuite goes when nexsuite says so ("clients_gone"): by the clock here it went up to a day
-        # early, and a restore there then brought back an empty client (E3). Its group of rights goes with it.
+        # early, and a restore there then brought back an empty client (E3). Its group of rights goes with it. One
+        # nexsuite no longer gives nexbrand was put into the trash here by the operator (B18): nexsuite says nothing
+        # about it, so the clock here counts.
         expired = db.execute(select(Client, Space).join(Space, Space.id == Client.space_id).where(
-            Client.deleted_at < now - timedelta(days=BIN_DAYS), Space.external_id == "")).all()
+            Client.deleted_at < now - timedelta(days=BIN_DAYS),
+            or_(Space.external_id == "", Space.suite_dropped_at.is_not(None)))).all()
         for client, space in expired:
             db.delete(client)
             db.delete(space)

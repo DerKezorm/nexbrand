@@ -244,26 +244,34 @@ def touch(client: Client, account: Account) -> None:
     client.updated_by = account.name
 
 
-def trash(db: Session, client: Client) -> None:
-    if managed(db, client):
+def let_go(db: Session, client: Client) -> bool:
+    """Whether nexsuite no longer gives nexbrand this client (B18): the operator puts it away here then."""
+    from . import suite
+
+    return suite.dropped(db, db.get(Space, client.space_id))
+
+
+def trash(db: Session, client: Client, *, let_go: bool = False) -> None:
+    if managed(db, client) and not let_go:
         raise BrandError("managed_by_suite", "Clients are deleted in nexsuite now.", 409)
     client.deleted_at = utcnow()
     db.commit()
     logger.info("Client moved to the trash id=%s", client.id)
 
 
-def restore(db: Session, client: Client) -> None:
-    if managed(db, client):
+def restore(db: Session, client: Client, *, let_go: bool = False) -> None:
+    if managed(db, client) and not let_go:
         raise BrandError("managed_by_suite", "Clients are restored in nexsuite now.", 409)
     client.deleted_at = None
     db.commit()
     logger.info("Client restored id=%s", client.id)
 
 
-def purge(db: Session, client: Client) -> None:
+def purge(db: Session, client: Client, *, let_go: bool = False) -> None:
     """The client and its group of rights, with the files in it (their bytes go with the next clean-up). Not one
-    nexsuite keeps: deleted here for good, nexsuite would bring it back as an empty client under a new id (B6)."""
-    if managed(db, client):
+    nexsuite keeps: deleted here for good, nexsuite would bring it back as an empty client under a new id (B6). One
+    nexsuite let go (``let_go``, B18) says nothing about it any more: the operator decides here."""
+    if managed(db, client) and not let_go:
         raise BrandError("managed_by_suite", "Clients are deleted for good in nexsuite now.", 409)
     space = db.get(Space, client.space_id)
     db.delete(client)

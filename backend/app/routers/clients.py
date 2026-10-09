@@ -218,6 +218,8 @@ def client_view(db: DbSession, account: AccountRow, client: Client) -> dict[str,
         "name": client.name,
         "color": space.color if space is not None else "#2f7bff",
         "managed": brands.managed(db, client),
+        #: nexsuite no longer gives nexbrand this client: only the operator sees it, and may put it away (B18).
+        "dropped": brands.let_go(db, client),
         "sector": client.sector,
         "contact": client.contact,
         "links": client.links or [],
@@ -340,10 +342,17 @@ def visited(client_id: ClientId, account: Account, db: DbSession) -> None:
     brands.visit(db, account, client_of(db, account, client_id, READ))
 
 
+def _let_go(db: DbSession, account: AccountRow, client: Client) -> bool:
+    """A client nexsuite no longer gives nexbrand is put away, brought back and deleted for good by the operator in
+    the interface, nobody else (B18)."""
+    return brands.let_go(db, client) and rights.operator_powers(account)
+
+
 @router.delete("/clients/{client_id}", status_code=204, summary="Move a client to the trash (writers)")
 def trash(client_id: ClientId, account: Account, db: DbSession) -> None:
+    client = client_of(db, account, client_id, WRITE)
     try:
-        brands.trash(db, client_of(db, account, client_id, WRITE))
+        brands.trash(db, client, let_go=_let_go(db, account, client))
     except brands.BrandError as exc:
         raise _fail(exc) from exc
 
@@ -352,7 +361,7 @@ def trash(client_id: ClientId, account: Account, db: DbSession) -> None:
 def restore(client_id: ClientId, account: Account, db: DbSession) -> dict[str, Any]:
     client = client_of(db, account, client_id, WRITE, deleted=True)
     try:
-        brands.restore(db, client)
+        brands.restore(db, client, let_go=_let_go(db, account, client))
     except brands.BrandError as exc:
         raise _fail(exc) from exc
     return client_view(db, account, client)
@@ -369,12 +378,13 @@ class PurgeIn(BaseModel):
 def purge(client_id: ClientId, request: Request, account: Account, db: DbSession,
           payload: PurgeIn | None = None) -> None:
     client = client_of(db, account, client_id, MANAGE, deleted=True)
-    if brands.managed(db, client):
+    let_go = _let_go(db, account, client)
+    if brands.managed(db, client) and not let_go:
         # Before the password: there is nothing to confirm for what is not done here.
         raise error("managed_by_suite", "Clients are deleted for good in nexsuite now.", 409)
     confirm_operator(request, db, account, payload.current_password if payload else "")
     try:
-        brands.purge(db, client)
+        brands.purge(db, client, let_go=let_go)
     except brands.BrandError as exc:
         raise _fail(exc) from exc
 

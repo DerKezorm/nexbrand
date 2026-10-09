@@ -897,6 +897,8 @@
     "managedSignIn": "Angemeldet wird über nexsuite. Ob nexsuite selbst prüft oder authentik fragt, stellst du dort ein. Dein eigenes Passwort bleibt als Notzugang.",
     "managedMail": "Der Mailserver kommt aus nexsuite und wird dort geändert. Deine eigene Einstellung ist aufbewahrt, falls du trennst.",
     "managedTeams": "Teams kommen aus nexsuite und gelten in jeder verbundenen App.",
+    "dropped": "nicht mehr in nexsuite",
+    "droppedHint": "nexsuite gibt nexbrand diesen Kunden nicht mehr. Seine Fassungen bleiben, sehen kann ihn nur der Betreiber. Du kannst ihn in den Papierkorb legen.",
     "managedProfile": "Profilbild, Anzeigename und Adresse kommen aus nexsuite und gelten in jeder verbundenen App. Ändern lassen sie sich dort.",
     "mailTitle": "E-Mail",
     "fromSuite": "aus nexsuite",

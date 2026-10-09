@@ -247,6 +247,11 @@ export function ClientPage() {
               )}
             </h1>
             {project?.note && <p className="mt-0.5 text-sm text-mist-400">{project.note}</p>}
+            {!project && whole.dropped && (
+              <p className="mt-2 max-w-2xl rounded-lg border border-accent-500/30 bg-accent-500/8 px-3 py-2 text-xs text-mist-300" data-testid="client-dropped-hint">
+                {t('suite.droppedHint')}
+              </p>
+            )}
           </div>
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">
             {canWrite && (
@@ -472,7 +477,7 @@ export function ClientPage() {
           </div>
         )}
 
-        {canWrite && (project || !whole.managed) && (
+        {canWrite && (project || !whole.managed || whole.dropped) && (
           <div className="flex justify-end pt-4">
             <button type="button" className="nc-btn nc-btn-ghost text-mist-500" onClick={() => setDialog('trash')}>
               <Trash2 className="h-4 w-4" /> {project ? t('projects.delete') : t('client.trash')}
@@ -567,6 +572,7 @@ function NoDesignYet({ whole, reload, onMade }: { whole: ClientWhole; reload: ()
   const space = brands.space(whole.space_id)
   const canWrite = whole.role === 'write' || whole.role === 'manage'
   const { busy, problem, run } = useAction()
+  const [trashing, setTrashing] = useState(false)
   return (
     <main className="nc-scroll min-w-0 flex-1 overflow-y-auto">
       <div className="mx-auto max-w-4xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
@@ -582,6 +588,11 @@ function NoDesignYet({ whole, reload, onMade }: { whole: ClientWhole; reload: ()
               {whole.sector && <> · {whole.sector}</>}
             </div>
             <h1 className="text-2xl font-bold tracking-tight">{whole.name}</h1>
+            {whole.dropped && (
+              <p className="mt-2 max-w-2xl rounded-lg border border-accent-500/30 bg-accent-500/8 px-3 py-2 text-xs text-mist-300" data-testid="client-dropped-hint">
+                {t('suite.droppedHint')}
+              </p>
+            )}
           </div>
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">{space && <AccessButtons space={space} />}</div>
         </div>
@@ -623,7 +634,17 @@ function NoDesignYet({ whole, reload, onMade }: { whole: ClientWhole; reload: ()
           )}
           <Feedback problem={problem} />
         </section>
+        {canWrite && (!whole.managed || whole.dropped) && (
+          <div className="flex justify-end">
+            <button type="button" className="nc-btn nc-btn-ghost text-mist-500" onClick={() => setTrashing(true)}>
+              <Trash2 className="h-4 w-4" /> {t('client.trash')}
+            </button>
+          </div>
+        )}
       </div>
+      {trashing && (
+        <Confirm title={t('client.trash')} text={t('client.trashText', { name: whole.name })} confirm={t('client.trash')} danger onCancel={() => setTrashing(false)} onConfirm={async () => (await clientsApi.trash(whole.id), await brands.refresh(), navigate('/'))} />
+      )}
     </main>
   )
 }

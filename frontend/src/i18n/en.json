@@ -897,6 +897,8 @@
     "managedSignIn": "People sign in through nexsuite. Whether nexsuite checks itself or asks authentik is set there. Your own password stays as the emergency way in.",
     "managedMail": "The mail server comes from nexsuite and is changed there. Your own setting is kept in case you disconnect.",
     "managedTeams": "Teams come from nexsuite and apply in every connected app.",
+    "dropped": "no longer in nexsuite",
+    "droppedHint": "nexbrand no longer gets this client from nexsuite. Its versions stay, only the operator sees it. You can move it to the trash.",
     "managedProfile": "Profile picture, display name and address come from nexsuite and apply in every connected app. They are changed there.",
     "mailTitle": "Mail",
     "fromSuite": "from nexsuite",
