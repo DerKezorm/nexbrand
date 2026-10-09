@@ -272,8 +272,9 @@ describe('the connect assistant', () => {
       if (method === 'PUT' && path === '/api/suite/choices') return { status: 204 }
     }
     await wizard()
+    // robin's person has no display name there: connecting gives it the one from here (B16), so nothing changes.
     const robin = document.body.querySelector('[data-testid="suite-row-robin"]')
-    expect(robin?.textContent).toContain(i18n.t('suite.changesName', { name: 'robin' }))
+    expect(robin?.textContent).not.toContain(i18n.t('suite.changesName', { name: 'robin' }))
     const cleo = document.body.querySelector('[data-testid="suite-row-cleo"]')!
     const badges = (row: Element) => [...row.querySelectorAll('span')].map((span) => span.textContent)
     expect(badges(cleo)).toContain(i18n.t('suite.rowBlocked'))
@@ -365,6 +366,22 @@ describe('the connect assistant', () => {
 const CONNECTING = { status: 200, body: { state: 'connecting', url: 'https://suite.example.com' } }
 
 describe('the connect assistant after a failed last step', () => {
+  it('names no change of display name for a person without one: connecting gives it the one from here', async () => {
+    server.handler = (method, path) => {
+      if (path === '/api/suite') return CONNECTING
+      if (path === '/api/suite/proposal') return { status: 200, body: PROPOSAL }
+      if (method === 'PUT' && path === '/api/suite/choices') return { status: 204 }
+    }
+    await wizard()
+    // robin's person has no display name in nexsuite: finishing sends "Robin Example" along (B16), nothing changes.
+    const robin = document.body.querySelector('[data-testid="suite-row-robin"]')!
+    expect(robin.textContent).not.toContain('Display name becomes')
+    // A person with a display name of its own still names the change.
+    const cleo = document.body.querySelector('[data-testid="suite-row-cleo"]')!
+    await choose(cleo.querySelector('select'), '60')
+    expect(cleo.textContent).toContain('Display name becomes “Cleo Example”')
+  })
+
   it('says what stays in nexsuite on giving up, only once something was created there', async () => {
     let made = 0
     server.handler = (method, path) => {
