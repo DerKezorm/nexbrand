@@ -873,9 +873,9 @@ def _settle_subjects(db: Session, people: dict[str, dict[str, Any]], keeper: int
     the old one is blocked. An account whose ``suite_person`` names another person never claims a subject: it goes
     back to its own person. Among the rest, unmarked ones only when not blocked, carrying the person's sign-in name, or
     (person deleted there) switched to the provider by a sync, so a deleted person's id never turns into a link of its
-    own on disconnecting; the first by: marked for exactly this person (the operator's choice when connecting), the sign-in name is the
-    person's, not blocked, smallest id. Address and display name do not count:
-    an old sync may have copied them onto a stranger's account. Every other account lets the subject go: when its
+    own on disconnecting; the first by: marked for exactly this person (the operator's choice when connecting), the
+    sign-in name is the person's, not blocked, smallest id. Address and display name do not count: an old sync may
+    have copied them onto a stranger's account. Every other account lets the subject go: when its
     own link is aside already, the subject came with the connection and is dropped; otherwise nothing tells whether it
     is its own link (a connection from before kept no mark), so it is put aside (``own_subject``, given back on
     disconnecting). Left without a person it is blocked like an account left out; an
