@@ -405,7 +405,6 @@
     "invalid_input": "Die Eingabe ist nicht gültig.",
     "sign_in_required": "Bitte erst anmelden.",
     "locale_unusable": "Diese Sprachdatei lässt sich nicht verwenden.",
-    "locked": "Jemand anderes bearbeitet diese Notiz gerade.",
     "client_required": "Die Anfrage sagte nicht, aus welchem Tab sie kam. Lade die Seite neu.",
     "wrong_credentials": "Anmeldename oder Passwort stimmt nicht.",
     "account_locked": "Zu viele falsche Passwörter. Das Konto wartet eine Viertelstunde.",

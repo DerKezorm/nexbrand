@@ -405,7 +405,6 @@
     "invalid_input": "The input is not valid.",
     "sign_in_required": "Sign in first.",
     "locale_unusable": "This language file cannot be used.",
-    "locked": "Somebody else is editing this note.",
     "client_required": "The request did not say which tab sent it. Reload the page.",
     "wrong_credentials": "Sign-in name or password is wrong.",
     "account_locked": "Too many wrong passwords. The account waits a quarter of an hour.",
