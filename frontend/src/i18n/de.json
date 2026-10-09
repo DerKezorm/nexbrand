@@ -407,7 +407,7 @@
     "locale_unusable": "Diese Sprachdatei lässt sich nicht verwenden.",
     "locked": "Jemand anderes bearbeitet diese Notiz gerade.",
     "client_required": "Die Anfrage sagte nicht, aus welchem Tab sie kam. Lade die Seite neu.",
-    "wrong_credentials": "Name oder Passwort stimmt nicht.",
+    "wrong_credentials": "Anmeldename oder Passwort stimmt nicht.",
     "account_locked": "Zu viele falsche Passwörter. Das Konto wartet eine Viertelstunde.",
     "too_many_attempts": "Zu viele Versuche. Kurz warten und noch einmal.",
     "password_login_off": "Die Anmeldung mit Passwort ist abgeschaltet.",
@@ -589,7 +589,7 @@
     "connection_sent": "Die Verbindung ist schon an nexsuite geschickt. Es gilt die Auswahl von damals; für eine andere Auswahl brich ab und verbinde neu."
   },
   "auth": {
-    "name": "Name",
+    "name": "Anmeldename",
     "password": "Passwort",
     "passwordHint": "Mindestens 12 Zeichen.",
     "or": "oder",
@@ -735,7 +735,7 @@
       "displayHint": "So sehen dich andere. Leer zeigt deinen Anmeldenamen {{name}}; mit ihm meldest du dich weiter an.",
       "displaySave": "Speichern",
       "displaySaved": "Anzeigename gespeichert.",
-      "name": "Name",
+      "name": "Anmeldename",
       "role": "Rolle",
       "email": "E-Mail",
       "upload": "Bild hochladen",
@@ -778,7 +778,8 @@
   },
   "twofactor": {
     "title": "Zweiter Faktor",
-    "lead": "Neben dem Passwort ein Code aus einer App auf dem Handy (jede Authenticator-App, die einen QR-Code nimmt). Wiederherstellungscodes auf Papier bringen dich hinein, wenn das Handy weg ist. Sie gehören zum zweiten Faktor; die Notfallcodes aus nexsuite sind etwas anderes, mit ihnen trennt der Betreiber nexbrand von nexsuite.",
+    "lead": "Neben dem Passwort ein Code aus einer App auf dem Handy (jede Authenticator-App, die einen QR-Code nimmt). Wiederherstellungscodes auf Papier bringen dich hinein, wenn das Handy weg ist.",
+    "leadSuite": "Sie gehören zum zweiten Faktor; die Notfallcodes aus nexsuite sind etwas anderes, mit ihnen trennt der Betreiber nexbrand von nexsuite.",
     "provider": "Du meldest dich über den Anbieter an; dort gilt sein zweiter Faktor.",
     "off": "Aus.",
     "on_one": "An. Noch {{count}} Wiederherstellungscode.",

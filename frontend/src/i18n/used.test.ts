@@ -51,6 +51,28 @@ describe('the shipped texts', () => {
     expect(unused).toEqual([])
   })
 
+  it('have every key a page asks for, in both languages', () => {
+    // A key named whole in the code: t('client.back'), i18nKey="…", or a constant handed to t() later. Built keys
+    // (`notices.${kind}`) are left to the check above. A missing key shows its bare name on the page.
+    const spaces = new Set(Object.keys(de))
+    const keys = new Set(flat(de))
+    const english = new Set(flat(en))
+    const has = (set: Set<string>, key: string) => set.has(key) || set.has(`${key}_one`) || set.has(`${key}_other`)
+    const asked = [...source.matchAll(/['"`]([a-z][A-Za-z0-9]*(?:\.[A-Za-z0-9_]+)+)['"`]/g)]
+      .map((m) => m[1])
+      .filter((key) => spaces.has(key.split('.')[0]) && !/\.(tsx?|json|svg|png|css|js)$/.test(key))
+    // A floor: the scan finds the keys of the pages, not an empty list that passes.
+    expect(asked.length).toBeGreaterThan(500)
+    expect([...new Set(asked.filter((key) => !has(keys, key) || !has(english, key)))]).toEqual([])
+  })
+
+  it('call the name one signs in with the sign-in name where that is meant', () => {
+    expect([de.auth.name, de.me.profile.name, de.auth.invite.name]).toEqual(['Anmeldename', 'Anmeldename', 'Anmeldename'])
+    expect([en.auth.name, en.me.profile.name, en.auth.invite.name]).toEqual(['Sign-in name', 'Sign-in name', 'Sign-in name'])
+    expect(de.errors.wrong_credentials).toBe('Anmeldename oder Passwort stimmt nicht.')
+    expect(en.errors.wrong_credentials).toBe('Sign-in name or password is wrong.')
+  })
+
   it('count one and many in both languages', async () => {
     await i18n.init({ resources: { de: { translation: de }, en: { translation: en } }, lng: 'de', interpolation: { escapeValue: false } })
     const content = (language: string, clients: number, count: number) => {

@@ -557,6 +557,24 @@ describe('while connected', () => {
     expect(page.querySelector('[data-testid="suite-link"]')?.getAttribute('href')).toBe('https://suite.example.com')
   })
 
+  it('the second factor names the emergency codes from nexsuite only while connected', async () => {
+    server.handler = (_m, path) => {
+      if (path === '/api/auth/methods') return { status: 200, body: { password: true, oidc: false, oidc_name: '' } }
+    }
+    const { AccountPage } = await import('./AccountPage')
+    const alone = await mount(<AccountPage />, '/account?tab=security')
+    const lead = (page: HTMLElement) => page.querySelector('[data-testid="second-factor-lead"]')?.textContent
+    expect(lead(alone)).toBe(i18n.t('twofactor.lead'))
+    expect(lead(alone)).not.toContain('nexsuite')
+    await act(async () => root?.unmount())
+    host?.remove()
+    // The emergency account signs in with its password while connected: there are emergency codes to tell apart.
+    auth.me = { ...ME, suite: 'connected', suite_emergency: true } as Me
+    const connected = await mount(<AccountPage />, '/account?tab=security')
+    expect(lead(connected)).toBe(`${i18n.t('twofactor.lead')} ${i18n.t('twofactor.leadSuite')}`)
+    expect(lead(connected)).toContain('emergency codes from nexsuite')
+  })
+
   it('the mail card shows what came from nexsuite, in words of the page', async () => {
     auth.me = { ...ME, suite: 'connected', suite_mail: true } as Me
     const { MailCard } = await import('./settings/ServerCards')

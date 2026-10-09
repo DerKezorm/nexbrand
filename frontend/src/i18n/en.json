@@ -407,7 +407,7 @@
     "locale_unusable": "This language file cannot be used.",
     "locked": "Somebody else is editing this note.",
     "client_required": "The request did not say which tab sent it. Reload the page.",
-    "wrong_credentials": "Name or password is wrong.",
+    "wrong_credentials": "Sign-in name or password is wrong.",
     "account_locked": "Too many wrong passwords. The account waits a quarter of an hour.",
     "too_many_attempts": "Too many attempts. Wait a moment and try again.",
     "password_login_off": "Signing in with a password is turned off.",
@@ -589,7 +589,7 @@
     "connection_sent": "The connection has been sent to nexsuite already. The choices from then apply; for other choices, cancel and connect again."
   },
   "auth": {
-    "name": "Name",
+    "name": "Sign-in name",
     "password": "Password",
     "passwordHint": "At least 12 characters.",
     "or": "or",
@@ -735,7 +735,7 @@
       "displayHint": "How others see you. Empty shows your sign-in name {{name}}; you still sign in with it.",
       "displaySave": "Save",
       "displaySaved": "Display name saved.",
-      "name": "Name",
+      "name": "Sign-in name",
       "role": "Role",
       "email": "Email",
       "upload": "Upload a picture",
@@ -778,7 +778,8 @@
   },
   "twofactor": {
     "title": "Second factor",
-    "lead": "Besides the password, a code from an app on your phone (any authenticator app that takes a QR code). Recovery codes on paper get you in when the phone is gone. They belong to the second factor; the emergency codes from nexsuite are something else, the operator disconnects nexbrand from nexsuite with them.",
+    "lead": "Besides the password, a code from an app on your phone (any authenticator app that takes a QR code). Recovery codes on paper get you in when the phone is gone.",
+    "leadSuite": "They belong to the second factor; the emergency codes from nexsuite are something else, the operator disconnects nexbrand from nexsuite with them.",
     "provider": "You sign in through the provider; its second factor applies.",
     "off": "Off.",
     "on_one": "On. {{count}} recovery code left.",
