@@ -255,7 +255,9 @@ def test_a12_a_plain_svg_with_styles_and_links_inside_comes_in(client: TestClien
 
 
 @pytest.mark.parametrize("address", ["anna\x00@example.com", "anna@example.com\n", "an\x1bna@example.com",
-                                     "anna@exam\x7fple.com", "anna@example.com\x00"])
+                                     "anna@exam\x7fple.com", "anna@example.com\x00",
+                                     # C1 (U+0080 to U+009F): the CSI in an address went through before.
+                                     "anna@exa\x9bmple.com", "an\x80na@example.com"])
 def test_a13_a_mail_address_with_a_control_character_is_none(address: str) -> None:
     assert not accounts.EMAIL_PATTERN.match(address)
 

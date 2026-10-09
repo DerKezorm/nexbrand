@@ -42,8 +42,9 @@ logger = logging.getLogger("nexbrand.auth")
 
 NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]{1,63}$")
 #: Enough to catch a typo, not a validation of the address: the mail server has the last word. No control character
-#: (NUL, ESC, DEL went through into the mail before, A13), and ``\Z``: ``$`` lets a closing line break pass.
-EMAIL_PATTERN = re.compile(r"^[^@\s<>,;\x00-\x1f\x7f]+@[^@\s<>,;\x00-\x1f\x7f]+\.[^@\s<>,;\x00-\x1f\x7f]+\Z")
+#: (NUL, ESC, DEL and C1 went through into the mail before, A13), and ``\Z``: ``$`` lets a closing line break pass.
+_PART = r"[^@\s<>,;\x00-\x1f\x7f-\x9f]+"
+EMAIL_PATTERN = re.compile(rf"^{_PART}@{_PART}\.{_PART}\Z")
 #: How long an invitation may run, in days; the one who invites picks within this.
 INVITE_DAYS = (1, 7, 30)
 
