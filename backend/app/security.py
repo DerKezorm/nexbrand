@@ -237,12 +237,15 @@ def device_of(db: Session, token: str | None) -> int | None:
     if not token or token.count(".") != 2:
         return None
     account, nonce, mark = token.split(".")
-    if not account.isdigit() or len(account) > 18:
+    # Digits of ASCII only: "²" is a digit to ``str.isdigit`` and none to ``int``; a header arrives as Latin-1.
+    if not account.isascii() or not account.isdigit() or len(account) > 18:
         return None
     row = db.get(Account, int(account))
     if row is None or not row.device_key:
         return None
-    return row.id if secrets.compare_digest(mark, _device_mark(row.id, row.device_key, nonce)) else None
+    # Compared as bytes: a mark with characters beyond ASCII is simply wrong, not a failure of the server.
+    expected = _device_mark(row.id, row.device_key, nonce)
+    return row.id if secrets.compare_digest(mark.encode("utf-8", "replace"), expected.encode()) else None
 
 
 def _aad(context: str) -> bytes:

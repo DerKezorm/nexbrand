@@ -390,6 +390,70 @@ def _passes(browser: TestClient, name: str, password: str = PASSWORD) -> int:
     return browser.post("/api/auth/login", json={"name": name, "password": password}).status_code
 
 
+def _spray_name(name: str, count: int = 12) -> list[int]:
+    """A stranger behind the same proxy guesses the password of one name only."""
+    stranger = _browser()
+    return [stranger.post("/api/auth/login", json={"name": name, "password": f"guess {n}"}).status_code
+            for n in range(count)]
+
+
+@pytest.mark.parametrize("name", ["tester", "anna"])
+def test_a_stranger_guessing_that_very_name_does_not_keep_its_known_browser_out(client: TestClient,
+                                                                                operator: Account, name: str) -> None:
+    """Behind a proxy nobody named, everybody has one address: the count per address and name would hold the own
+    browser too after five guesses at the operator's (or the emergency account's) name. For a browser with a device
+    cookie of that name the count per name goes with the browser."""
+    from app.security import brake
+
+    if name != "tester":
+        make_account(name)
+    own = _known(name)
+    brake.forget()
+    assert 429 in _spray_name(name)
+    without = _browser().post("/api/auth/login", json={"name": name, "password": PASSWORD})
+    assert without.status_code == 429, "without the cookie the sender waits"
+    assert own.post("/api/auth/login", json={"name": name, "password": PASSWORD}).status_code == 200
+    brake.forget()
+
+
+def test_the_known_browser_is_still_slowed_by_its_own_wrong_passwords(client: TestClient, operator: Account) -> None:
+    from app.security import brake
+
+    own = _known("tester")
+    brake.forget()
+    tries = [own.post("/api/auth/login", json={"name": "tester", "password": f"wrong {n}"}).status_code
+             for n in range(8)]
+    assert tries[:5] == [401] * 5 and 429 in tries
+    # The count is its own: another name from the same browser is not held by it.
+    make_account("anna")
+    assert own.post("/api/auth/login", json={"name": "anna", "password": PASSWORD}).status_code == 200
+    brake.forget()
+
+
+def test_a_device_cookie_with_an_endless_account_number_is_no_cookie(client: TestClient, operator: Account) -> None:
+    from app.security import DEVICE_COOKIE
+
+    browser = _browser("192.0.2.77")
+    browser.cookies.set(DEVICE_COOKIE, "9" * 40 + ".abc." + "0f" * 16, path="/api/auth")
+    assert browser.post("/api/auth/login", json={"name": "tester", "password": PASSWORD}).status_code == 200
+
+
+def test_a_device_cookie_beyond_ascii_is_no_cookie(client: TestClient, operator: Account) -> None:
+    """Digits beyond ASCII (which ``int`` refuses or reads as others) and a mark beyond ASCII: no cookie, and the
+    sign-in goes on instead of failing on the server. A header arrives as Latin-1."""
+    from app.security import DEVICE_COOKIE, device_of
+
+    with SessionLocal() as db:
+        for token in ("\u00b2.abc." + "0f" * 16, f"{operator.id}\u0661.abc." + "0f" * 16,
+                      f"{operator.id}.abc." + "\u00e9" * 32):
+            assert device_of(db, token) is None, ascii(token)
+    browser = _browser("192.0.2.78")
+    cookie = f"{DEVICE_COOKIE}=\u00b2.abc.{'0f' * 16}".encode("latin-1")
+    answer = browser.post("/api/auth/login", json={"name": "tester", "password": PASSWORD},
+                          headers={"Cookie": cookie})  # type: ignore[dict-item]
+    assert answer.status_code == 200
+
+
 def test_a_device_cookie_from_before_a_new_password_counts_no_more(client: TestClient, operator: Account) -> None:
     make_account("anna")
     old = _known("anna")
