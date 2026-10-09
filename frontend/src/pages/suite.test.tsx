@@ -465,6 +465,8 @@ describe('the connect assistant after a failed last step', () => {
       if (path === '/api/suite/proposal') return { status: 200, body: PROPOSAL }
       if (method === 'PUT' && path === '/api/suite/choices') return { status: 204 }
       if (method === 'POST' && path === '/api/suite/abort') return kept ? { status: 200, body: { kept_in_suite: true } } : { status: 204 }
+      // The card loads the state and the own account anew once the assistant is closed.
+      if (path === '/api/auth/me') return { status: 200, body: ME }
     }
     await wizard()
     await click(buttons(i18n.t('suite.abort'))[0])
