@@ -619,6 +619,7 @@ def _confirm(db: Session, token: str, plan: dict[str, Any]) -> list[dict[str, st
         logger.info("nexsuite has the connection already; it is finished here now")
     operator_id = int(plan["operator"])
     accounts_here = {row.id: row for row in db.scalars(select(Account))}
+    chosen_accounts = (plan.get("chosen") or {}).get("accounts") or {}
     for space_id, external in space_of.items():
         space = db.get(Space, space_id)
         if space is not None:
@@ -634,9 +635,13 @@ def _confirm(db: Session, token: str, plan: dict[str, Any]) -> list[dict[str, st
             # nexsuite ("2") would otherwise sign that person in as this account, or hand it the person's rights.
             row.own_subject, row.oidc_subject = row.oidc_subject, ""
         row.suite_person = person or ""
-    for account_id in plan["skip"]:
-        if int(account_id) in accounts_here and int(account_id) != operator_id:
-            accounts_here[int(account_id)].blocked_at = utcnow()
+        # Left out, or made here after the choices (between pairing and finishing, or after /finish went out): no
+        # person in nexsuite, so no way in while connected, and never a sign-in with a password of its own beside
+        # nexsuite. Never the emergency account.
+        if person is None and account_id != operator_id and row.blocked_at is None:
+            row.blocked_at = utcnow()
+            if str(account_id) not in chosen_accounts:
+                logger.info("Account created after the choices blocked, no person in nexsuite name=%s", row.name)
     for team_id, external in team_of.items():
         team = db.get(Team, team_id)
         if team is not None:
