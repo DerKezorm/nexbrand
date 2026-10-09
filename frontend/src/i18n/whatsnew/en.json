@@ -1,4 +1,25 @@
 {
+  "0.1.1": {
+    "lead": "Signing in stands up better to strangers, and the authentik button finds its own provider again after a move.",
+    "sections": [
+      {
+        "title": "Signing in stands up better to strangers",
+        "where": "Sign-in page",
+        "body": "Whoever guesses passwords now waits themselves. A browser you signed in with before still gets in, even when someone from the same address tried wrong passwords for your very sign-in name."
+      },
+      {
+        "title": "authentik after a move",
+        "where": "Settings, Server, Sign-in, “authentik in one step”",
+        "body": "When nexbrand moves to a new address, the button finds the provider in authentik that belongs to this nexbrand again, also when it was renamed there. The accounts keep their sign-in, and a second nexbrand on the same authentik keeps its own provider."
+      }
+    ],
+    "smallTitle": "Also",
+    "small": [
+      "Where the sign-in name is meant, it is called that now: on the sign-in page, under My account and in the message after a wrong password.",
+      "A mail address with an invisible control character is refused.",
+      "A damaged browser cookie no longer leads to an error when signing in."
+    ]
+  },
   "0.1.0": {
     "lead": "The first version of nexbrand: your clients' corporate design in one place, with every version, the checks that go with it, each client's projects and the way into code.",
     "sections": [

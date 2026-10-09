@@ -1,4 +1,25 @@
 {
+  "0.1.1": {
+    "lead": "Die Anmeldung hält Fremden besser stand, und der authentik-Knopf findet nach einem Umzug seinen eigenen Anbieter wieder.",
+    "sections": [
+      {
+        "title": "Die Anmeldung hält Fremden besser stand",
+        "where": "Anmeldeseite",
+        "body": "Wer Passwörter rät, wartet jetzt selbst. Ein Browser, in dem du dich schon angemeldet hast, kommt weiter herein, auch wenn jemand von derselben Adresse aus falsche Passwörter für genau deinen Anmeldenamen probiert hat."
+      },
+      {
+        "title": "authentik nach einem Umzug",
+        "where": "Einstellungen, Server, Anmeldung, „authentik in einem Schritt“",
+        "body": "Zieht nexbrand an eine neue Adresse, findet der Knopf den Anbieter in authentik wieder, der zu diesem nexbrand gehört, auch wenn er dort umbenannt wurde. Die Konten behalten ihre Anmeldung, und ein zweites nexbrand am selben authentik behält seinen eigenen Anbieter."
+      }
+    ],
+    "smallTitle": "Außerdem",
+    "small": [
+      "Wo der Anmeldename gemeint ist, heißt er jetzt auch so: auf der Anmeldeseite, unter Mein Konto und in der Meldung nach einem falschen Passwort.",
+      "Eine Mailadresse mit einem unsichtbaren Steuerzeichen wird abgelehnt.",
+      "Ein beschädigtes Browser-Cookie führt bei der Anmeldung nicht mehr zu einem Fehler."
+    ]
+  },
   "0.1.0": {
     "lead": "Die erste Version von nexbrand: die CI deiner Kunden an einem Ort, mit allen Fassungen, den Prüfungen dazu, den Projekten jedes Kunden und dem Weg in den Code.",
     "sections": [
