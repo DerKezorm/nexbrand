@@ -273,6 +273,10 @@ class Proposal:
     team_candidates: list[dict[str, Any]] = field(default_factory=list)
     #: The choices kept from before (``keep_choices``), or None.
     chosen: dict[str, Any] | None = None
+    #: How many people, teams and clients an earlier try made in nexsuite already: they stay there on giving up.
+    made: int = 0
+    #: A /finish went out whose answer did not come: its choices hold, others are refused (``connection_sent``).
+    sent: bool = False
 
 
 def _fold(text: str) -> str:
@@ -369,19 +373,51 @@ def proposal(db: Session) -> Proposal:
     teams_out = _suggest([{"id": t.id, "name": t.name, "color": t.color}
                           for t in db.scalars(select(Team).where(Team.source == TEAM_LOCAL).order_by(Team.id))],
                          team_candidates)
-    chosen = (settings_service.get(db, "suite_pending") or {}).get("chosen")
+    pending = settings_service.get(db, "suite_pending") or {}
+    chosen = pending.get("chosen") or None
+    sent = pending.get("sent") or {}
+    if "chosen" in sent:
+        # /finish went out: the choices that went with it, as they were, with their targets by name (nexsuite offers
+        # no client once it has the connection). Accounts, clients and teams that came here since are not among them.
+        picked, named = sent["chosen"], sent.get("names") or {}
+        accounts_out = [entry for entry in accounts_out if str(entry["id"]) in picked["accounts"]]
+        clients_out = [entry for entry in clients_out if str(entry["id"]) in picked["clients"]]
+        teams_out = [entry for entry in teams_out if str(entry["id"]) in picked["teams"]]
+        listed = {str(person["id"]) for person in people}
+        people = people + [person for person in named.get("people") or [] if person["id"] not in listed]
+        candidates = list(named.get("clients") or [])
+        listed_teams = {team["id"] for team in team_candidates}
+        team_candidates = team_candidates + [team for team in named.get("teams") or []
+                                             if team["id"] not in listed_teams]
+        chosen = {**picked, "step": 3}
     return Proposal(people=people, accounts=accounts_out, clients=clients_out, candidates=candidates,
-                    teams=teams_out, team_candidates=team_candidates, chosen=chosen or None)
+                    teams=teams_out, team_candidates=team_candidates, chosen=chosen,
+                    made=len(pending.get("made") or {}), sent=bool(sent))
+
+
+def _as_sent(accounts_map: dict[int, str], clients_map: dict[str, str], teams_map: dict[int, str]) -> dict[str, Any]:
+    """The operator's choices as kept with a /finish that went out, to show them again after a reload."""
+    return {"accounts": {str(k): v for k, v in accounts_map.items()},
+            "clients": {str(k): v for k, v in clients_map.items()}, "teams": {str(k): v for k, v in teams_map.items()}}
+
+
+def _sent_already() -> SuiteError:
+    return SuiteError("connection_sent", "The connection was sent to nexsuite already; its choices apply. Cancel and "
+                                         "connect again for other choices.", 409)
 
 
 def keep_choices(db: Session, chosen: dict[str, Any]) -> None:
     """The operator's choices so far and the step, kept with the connection under way: closing the assistant or
-    reloading the page resumes there instead of at the suggestions (B23)."""
+    reloading the page resumes there instead of at the suggestions (B23). Checked and written under the lock a finish
+    takes, so a late save never brings back what finishing cleared."""
     with _connect_lock:
         db.expire_all()
         if state(db) != "connecting":
             raise SuiteError("not_connecting", "Start with the address and the code.", 409)
         pending = dict(settings_service.get(db, "suite_pending") or {})
+        if pending.get("sent"):
+            # The choices of the /finish that went out hold; another one would only seem kept.
+            raise _sent_already()
         pending["chosen"] = chosen
         settings_service.save(db, {"suite_pending": pending})
         db.commit()
@@ -437,6 +473,13 @@ def _finish(db: Session, operator: Account, accounts_map: dict[int, str], client
     if state(db) != "connecting":
         raise SuiteError("not_connecting", "Start with the address and the code.", 409)
     teams_map = teams_map or {}
+    sent = (settings_service.get(db, "suite_pending") or {}).get("sent")
+    if sent:
+        # /finish went out before and its answer did not come, or writing it here failed: nexsuite may have the
+        # connection already and refuse everything else. Only /finish again, with what was matched then. What came
+        # with this request does not count: the choices are fixed since (keeping others is refused, the assistant
+        # shows these locked), and accounts made or deleted meanwhile change nothing.
+        return _confirm(db, _token(db), sent)
     _no_twice(accounts_map, "person")
     _no_twice(clients_map, "client")
     _no_twice(teams_map, "team")
@@ -509,7 +552,10 @@ def _finish(db: Session, operator: Account, accounts_map: dict[int, str], client
             made = request("POST", _api(db, f"/teams/{int(choice)}/join"), token=token,
                            body={"members": members, "lead": lead})
         team_of[team.id] = str(made["id"])
-    clients_done = 0
+    # Nothing here changes before nexsuite has confirmed the connection (``/finish``): only what was made there is
+    # kept on the way (``remember``). A failure at any step, the last one too, leaves the accounts, teams and clients
+    # as they were, and giving up leaves nothing half connected.
+    space_of: dict[int, str] = {}
     for client_id, choice in clients_map.items():
         client = db.get(Client, client_id)
         space = db.get(Space, client.space_id) if client is not None and client.deleted_at is None else None
@@ -529,13 +575,54 @@ def _finish(db: Session, operator: Account, accounts_map: dict[int, str], client
                     body["color"] = space.color.lower()
                 made = {"id": str(request("POST", _api(db, "/clients"), token=token, body=body)["id"])}
                 remember(f"client:{client.id}", made)
-            space.external_id = made["id"]
+            space_of[space.id] = made["id"]
         else:
             # Matched: the rights it has here come along, nexsuite keeps the higher where it has one (B1).
             request("POST", _api(db, f"/clients/{int(choice)}/tick"), token=token,
                     body={"people": people, "teams": teams})
-            space.external_id = str(int(choice))
-        clients_done += 1
+            space_of[space.id] = str(int(choice))
+    # Kept before /finish goes out: nexsuite may take it and the answer never come back (a lost answer, or writing
+    # here fails afterwards). The next try sends only /finish again and applies this.
+    wanted = {str(choice) for choice in (*accounts_map.values(), *clients_map.values(), *teams_map.values())}
+    plan = {"operator": operator.id, "people": {str(k): v for k, v in person_of.items()},
+            "teams": {str(k): v for k, v in team_of.items()}, "spaces": {str(k): v for k, v in space_of.items()},
+            "skip": [k for k, v in accounts_map.items() if v == "skip"], "new_people": new_people,
+            "chosen": _as_sent(accounts_map, clients_map, teams_map),
+            # The targets by name, for showing the choices after a reload: nexsuite offers no client once it has
+            # the connection.
+            "names": {
+                "people": [{"id": str(p["id"]), "name": p.get("name") or "",
+                            "display_name": p.get("display_name") or "", "email": p.get("email") or ""}
+                           for p in seen["people"] if str(p["id"]) in wanted],
+                "clients": [{"id": str(c["id"]), "name": c.get("name") or "", "color": c.get("color") or ""}
+                            for c in seen.get("clients_candidates") or [] if str(c["id"]) in wanted],
+                "teams": [{"id": str(t["id"]), "name": t.get("name") or "", "color": t.get("color") or ""}
+                          for t in seen.get("teams") or [] if str(t["id"]) in wanted]}}
+    pending = dict(settings_service.get(db, "suite_pending") or {})
+    pending["sent"] = plan
+    settings_service.save(db, {"suite_pending": pending})
+    return _confirm(db, token, plan)
+
+
+def _confirm(db: Session, token: str, plan: dict[str, Any]) -> list[dict[str, str]]:
+    """Sends ``/finish`` and, once nexsuite has the connection, applies what was matched, here in one transaction with
+    the settings (``settings_service.save`` commits). nexsuite's ``already_connected`` to it, asked with this app's own
+    token, says it took an earlier ``/finish`` whose answer got lost: that is the confirmation too."""
+    person_of = {int(k): str(v) for k, v in plan["people"].items()}
+    team_of = {int(k): str(v) for k, v in plan["teams"].items()}
+    space_of = {int(k): str(v) for k, v in plan["spaces"].items()}
+    try:
+        request("POST", _api(db, "/finish"), token=token, body={"people": len(person_of), "clients": len(space_of)})
+    except SuiteError as exc:
+        if exc.code != "already_connected":
+            raise
+        logger.info("nexsuite has the connection already; it is finished here now")
+    operator_id = int(plan["operator"])
+    accounts_here = {row.id: row for row in db.scalars(select(Account))}
+    for space_id, external in space_of.items():
+        space = db.get(Space, space_id)
+        if space is not None:
+            space.external_id = external
     for account_id, row in accounts_here.items():
         # Which accounts nexsuite knows from now on, by its person (B8, B21): the matched and the made ones. One left
         # out is not nexsuite's; it keeps whatever sign-in link it had here (authentik) and is never renamed for it.
@@ -547,15 +634,14 @@ def _finish(db: Session, operator: Account, accounts_map: dict[int, str], client
             # nexsuite ("2") would otherwise sign that person in as this account, or hand it the person's rights.
             row.own_subject, row.oidc_subject = row.oidc_subject, ""
         row.suite_person = person or ""
-    for account_id, choice in accounts_map.items():
-        if choice == "skip" and account_id in accounts_here and account_id != operator.id:
-            accounts_here[account_id].blocked_at = utcnow()
+    for account_id in plan["skip"]:
+        if int(account_id) in accounts_here and int(account_id) != operator_id:
+            accounts_here[int(account_id)].blocked_at = utcnow()
     for team_id, external in team_of.items():
         team = db.get(Team, team_id)
         if team is not None:
             team.source, team.external_id = TEAM_ADMIN, external
-    db.commit()
-    request("POST", _api(db, "/finish"), token=token, body={"people": len(person_of), "clients": clients_done})
+    # Confirmed: everything here in one transaction with the settings below (``settings_service.save`` commits).
     pending = settings_service.get(db, "suite_pending") or {}
     values = settings_service.get_all(db)
     settings_service.save(db, {
@@ -571,24 +657,33 @@ def _finish(db: Session, operator: Account, accounts_map: dict[int, str], client
         "password_login": False,
         "suite_pending": None,
         "suite_state": "connected",
-        "suite_emergency_account": operator.id,
+        "suite_emergency_account": operator_id,
     })
-    logger.info("Connected to nexsuite: %s accounts, %s clients", len(person_of), clients_done)
+    logger.info("Connected to nexsuite: %s accounts, %s clients", len(person_of), len(space_of))
     sync(db)
-    return new_people
+    return list(plan.get("new_people") or [])
 
 
-def abort(db: Session) -> None:
+def abort(db: Session) -> bool:
     """Gives up a connection that did not finish; nexsuite is asked to forget the app. A finished connection is not
-    given up this way: nexsuite would keep the app while it ran on its own, without anybody's password (B2)."""
-    if state(db) == "connected":
-        raise SuiteError("already_connected", "nexbrand is already connected.", 409)
-    if state(db) == "connecting":
-        try:
-            request("POST", _api(db, "/leave"), token=_token(db))
-        except SuiteError:
-            pass
-    _forget(db)
+    given up this way: nexsuite would keep the app while it ran on its own, without anybody's password (B2). Under the
+    lock a finish holds: a give-up from another tab waits for it and then finds the connection done. True when
+    /finish had gone out and nexsuite could not be told: it may list the app as connected still."""
+    with _connect_lock:
+        db.expire_all()
+        if state(db) == "connected":
+            raise SuiteError("already_connected", "nexbrand is already connected.", 409)
+        kept = False
+        if state(db) == "connecting":
+            sent = bool((settings_service.get(db, "suite_pending") or {}).get("sent"))
+            try:
+                request("POST", _api(db, "/leave"), token=_token(db))
+            except SuiteError:
+                kept = sent
+                if kept:
+                    logger.warning("nexsuite not told of giving up a connection it may have; it may list the app")
+        _forget(db)
+        return kept
 
 
 # --- Keeping in step --------------------------------------------------------------------------------------------------
@@ -765,12 +860,20 @@ def _same_name(row: Account, person: dict[str, Any] | None) -> bool:
     return person is not None and row.name == str(person.get("name") or "")
 
 
+def _switched(row: Account) -> bool:
+    """An account with a password of its own that signs in through the provider: only a sync switches one so (the
+    operator's "set a password" switches back, a provider makes accounts without one). Its subject is a person of
+    nexsuite's, never a link of its own, also once nexsuite has deleted the person."""
+    return row.sign_in == SIGN_IN_OIDC and bool(row.password_hash)
+
+
 def _settle_subjects(db: Session, people: dict[str, dict[str, Any]], keeper: int, signed_out: list[int]) -> None:
     """Each subject is claimed by one account at most: a connection made before ``suite_person`` was kept (c485f67)
     knows no owner, and a person blocked in nexsuite must not lose its account to a new one ("erik2") just because
     the old one is blocked. An account whose ``suite_person`` names another person never claims a subject: it goes
-    back to its own person. Among the rest, unmarked ones only when not blocked or carrying the person's sign-in name;
-    the first by: marked for exactly this person (the operator's choice when connecting), the sign-in name is the
+    back to its own person. Among the rest, unmarked ones only when not blocked, carrying the person's sign-in name, or
+    (person deleted there) switched to the provider by a sync, so a deleted person's id never turns into a link of its
+    own on disconnecting; the first by: marked for exactly this person (the operator's choice when connecting), the sign-in name is the
     person's, not blocked, smallest id. Address and display name do not count:
     an old sync may have copied them onto a stranger's account. Every other account lets the subject go: when its
     own link is aside already, the subject came with the connection and is dropped; otherwise nothing tells whether it
@@ -785,7 +888,8 @@ def _settle_subjects(db: Session, people: dict[str, dict[str, Any]], keeper: int
     for subject, group in holders.items():
         person = people.get(subject)
         able = [row for row in group if row.suite_person == subject
-                or (not row.suite_person and (row.blocked_at is None or _same_name(row, person)))]
+                or (not row.suite_person and (row.blocked_at is None or _same_name(row, person)
+                                              or (person is None and _switched(row))))]
         if able:
             # The operator's choice when connecting comes first: an account marked for exactly this person.
             owner[subject] = min(able, key=lambda row: (row.suite_person != subject, not _same_name(row, person),
@@ -793,7 +897,9 @@ def _settle_subjects(db: Session, people: dict[str, dict[str, Any]], keeper: int
     for row in rows:
         subject = row.oidc_subject
         if owner.get(subject) is row:
-            if subject in people:
+            # Marked as the person's: also one whose person nexsuite deleted, when a sync had switched it to the
+            # provider; a disconnect then gives it its password back instead of keeping the id as a link.
+            if subject in people or _switched(row):
                 row.suite_person = subject
             continue
         person = people.get(subject)

@@ -584,7 +584,8 @@
     "slow_down": "Too many requests with this token. Wait a minute.",
     "token_invalid": "No valid API token.",
     "too_many": "Too many chosen at once.",
-    "invalid_note": "The note is too long."
+    "invalid_note": "The note is too long.",
+    "connection_sent": "The connection has been sent to nexsuite already. The choices from then apply; for other choices, cancel and connect again."
   },
   "auth": {
     "name": "Name",
@@ -984,7 +985,10 @@
     "someoneElseHint": "nexsuite opens in a new tab. Sign out there, then use “Sign in with nexsuite” here.",
     "leaveOperators": "Operators through nexsuite only, members again afterwards: {{names}}.",
     "operatorsBack": "Members again, they were operators through nexsuite only: {{names}}.",
-    "leaveOperatorsUnknown": "For this connection it is not known who was an operator before; these operators stay operators: {{names}}."
+    "leaveOperatorsUnknown": "For this connection it is not known who was an operator before; these operators stay operators: {{names}}.",
+    "abortMade": "What is created in nexsuite already (people, teams, clients) stays there if you cancel. New people with an address have been sent the mail to set their password. Connecting again suggests them once more.",
+    "sentChoices": "The connection has been sent to nexsuite already. The choices from then apply; for other choices, cancel and connect again.",
+    "abortKept": "nexsuite could not be reached. nexbrand may still be listed there under Apps; disconnect it there before you connect again."
   },
   "origin": {
     "hand": "by hand",

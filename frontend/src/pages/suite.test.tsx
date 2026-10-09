@@ -360,6 +360,109 @@ describe('the connect assistant', () => {
   })
 })
 
+// --- A connection that fails at its last step, or whose answer got lost (from nexcanvas) -------------------------
+
+const CONNECTING = { status: 200, body: { state: 'connecting', url: 'https://suite.example.com' } }
+
+describe('the connect assistant after a failed last step', () => {
+  it('says what stays in nexsuite on giving up, only once something was created there', async () => {
+    let made = 0
+    server.handler = (method, path) => {
+      if (path === '/api/suite') return CONNECTING
+      if (path === '/api/suite/proposal') return { status: 200, body: { ...PROPOSAL, made } }
+      if (method === 'PUT' && path === '/api/suite/choices') return { status: 204 }
+      if (method === 'POST' && path === '/api/suite/finish') {
+        made = 1
+        return { status: 502, body: { detail: { code: 'suite_unreachable' } } }
+      }
+    }
+    await wizard()
+    expect(document.body.querySelector('[data-testid="suite-made"]')).toBeNull()
+    await click(buttons(i18n.t('suite.next'))[0])
+    await click(buttons(i18n.t('suite.finish'))[0])
+    await click(buttons(i18n.t('suite.back'))[0])
+    expect(document.body.querySelector('[data-testid="suite-made"]')?.textContent).toBe(
+      'What is created in nexsuite already (people, teams, clients) stays there if you cancel. New people with an address have been sent the mail to set their password. Connecting again suggests them once more.',
+    )
+  })
+
+  it('locks the choices once the connection went out to nexsuite, and says so', async () => {
+    let sent = false
+    server.handler = (method, path) => {
+      if (path === '/api/suite') return CONNECTING
+      if (path === '/api/suite/proposal') return { status: 200, body: { ...PROPOSAL, made: sent ? 1 : 0, sent } }
+      if (method === 'PUT' && path === '/api/suite/choices') return { status: 204 }
+      if (method === 'POST' && path === '/api/suite/finish') {
+        sent = true
+        return { status: 502, body: { detail: { code: 'suite_unreachable' } } }
+      }
+    }
+    await wizard()
+    expect(document.body.querySelector('[data-testid="suite-sent"]')).toBeNull()
+    expect((document.body.querySelector('[data-testid="suite-row-cleo"] select') as HTMLSelectElement).disabled).toBe(false)
+    await click(buttons(i18n.t('suite.next'))[0])
+    await click(buttons(i18n.t('suite.finish'))[0])
+    const sentence = 'The connection has been sent to nexsuite already. The choices from then apply; for other choices, cancel and connect again.'
+    expect(document.body.querySelector('[data-testid="suite-sent"]')?.textContent).toBe(sentence)
+    await click(buttons(i18n.t('suite.back'))[0])
+    expect(document.body.querySelector('[data-testid="suite-sent"]')?.textContent).toBe(sentence)
+    const selects = [...document.body.querySelectorAll('li select')] as HTMLSelectElement[]
+    expect(selects.length).toBeGreaterThan(0)
+    expect(selects.every((select) => select.disabled)).toBe(true)
+  })
+
+  it('shows after a reload exactly the choices that went out, locked, though nexsuite offers no client any more', async () => {
+    server.handler = (method, path) => {
+      if (path === '/api/suite') return CONNECTING
+      if (path === '/api/suite/proposal')
+        return {
+          status: 200,
+          body: {
+            ...PROPOSAL,
+            clients: [{ id: 'c1', name: 'Example Bakery', color: '#f472b6', suggest: 'new' }],
+            candidates: [{ id: '10', name: 'Ideen' }],
+            sent: true,
+            made: 1,
+            chosen: { accounts: { 1: '1', 4: '60', 5: 'skip' }, clients: { c1: '10' }, teams: {}, step: 3 },
+          },
+        }
+      if (method === 'PUT' && path === '/api/suite/choices') return { status: 204 }
+    }
+    await wizard()
+    const bakery = document.body.querySelector('li select') as HTMLSelectElement
+    expect(bakery.value).toBe('10')
+    expect(bakery.selectedOptions[0].textContent).toContain('Ideen')
+    expect(bakery.disabled).toBe(true)
+    expect(document.body.querySelector('[data-testid="suite-sent"]')).not.toBeNull()
+    await click(buttons(i18n.t('suite.back'))[0])
+    expect((document.body.querySelector('[data-testid="suite-row-cleo"] select') as HTMLSelectElement).value).toBe('60')
+    expect((document.body.querySelector('[data-testid="suite-row-anna"] select') as HTMLSelectElement).value).toBe('skip')
+    expect((document.body.querySelector('[data-testid="suite-row-cleo"] select') as HTMLSelectElement).disabled).toBe(true)
+    expect(server.calls.filter((c) => c.method === 'PUT' && c.path === '/api/suite/choices')).toHaveLength(0)
+  })
+
+  it('says after giving up when nexsuite may still list nexbrand, and only then', async () => {
+    let kept = true
+    server.handler = (method, path) => {
+      if (path === '/api/suite') return CONNECTING
+      if (path === '/api/suite/proposal') return { status: 200, body: PROPOSAL }
+      if (method === 'PUT' && path === '/api/suite/choices') return { status: 204 }
+      if (method === 'POST' && path === '/api/suite/abort') return kept ? { status: 200, body: { kept_in_suite: true } } : { status: 204 }
+    }
+    await wizard()
+    await click(buttons(i18n.t('suite.abort'))[0])
+    expect(document.body.querySelector('[data-testid="suite-kept"]')?.textContent).toBe(
+      'nexsuite could not be reached. nexbrand may still be listed there under Apps; disconnect it there before you connect again.',
+    )
+    await act(async () => root?.unmount())
+    host?.remove()
+    kept = false
+    await wizard()
+    await click(buttons(i18n.t('suite.abort'))[0])
+    expect(document.body.querySelector('[data-testid="suite-kept"]')).toBeNull()
+  })
+})
+
 // --- B12, B26: sign-in and invitation ------------------------------------------------------------------------------
 
 describe('the pages before signing in', () => {
