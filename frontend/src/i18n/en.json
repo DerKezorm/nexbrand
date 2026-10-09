@@ -322,7 +322,8 @@
         "unreachable": "authentik cannot be reached at this address. Check the address and whether nexbrand reaches that network.",
         "unusable": "This address cannot be used. Check how it is written.",
         "token": "authentik did not accept the token (answer {{status}}). Check that it is valid and has the rights it needs.",
-        "answered": "Something answers at this address, but not authentik as expected (answer {{status}}). Check the address; the whole answer is in the log."
+        "answered": "Something answers at this address, but not authentik as expected (answer {{status}}). Check the address; the whole answer is in the log.",
+        "slug": "Every slug nexbrand would give its application already belongs to another application in authentik. Rename the nexbrand provider there and try again."
       }
     },
     "publicAllowedHint": "Those who may write for a client may then create read-only pages and reviews. Switched off, every link answers as if it had never existed.",
