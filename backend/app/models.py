@@ -25,6 +25,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     event,
+    false,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.types import TypeDecorator
@@ -116,9 +117,11 @@ class Account(Base):
     email: Mapped[str] = mapped_column(String(255), default="")
     #: The address came from a sign-in provider (an account through the provider only follows it, another one took
     #: it when offered): it goes with the last link. An address of its own (invitation, nexsuite) stays.
-    email_from_provider: Mapped[bool] = mapped_column(Boolean, default=False)
+    # A server default too: 0.1.1 (the way back) knows no such column and must still make accounts.
+    email_from_provider: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     #: The single provider's subject before the provider list (or, while connected, the person in nexsuite): read
-    #: once by the migration into ``oidc_links`` (``services/oidc_store.py``), then left for one version, then gone.
+    #: once by the migration into ``oidc_links`` (``services/oidc_store.py``), then for one version only the way back
+    #: to 0.1.1, written from the links (``oidc_store.keep_way_back``), then gone.
     oidc_subject: Mapped[str] = mapped_column(String(255), default="")
     #: The interface language chosen in the account menu; empty: the browser's.
     language: Mapped[str] = mapped_column(String(16), default="")
@@ -156,8 +159,8 @@ class Account(Base):
     #: person first, so an account nexsuite once brought is not made a second time.
     suite_person: Mapped[str] = mapped_column(String(64), default="")
     #: Before the provider list: the own link (authentik) of an account left out when connecting, set aside while
-    #: connected. Read once by the migration (it becomes a link of the set-aside own provider), then left for one
-    #: version, then gone. Links belong to their provider now, so nothing has to be set aside any more.
+    #: connected. Read once by the migration (it becomes a link of the set-aside own provider), then for one version
+    #: only the way back to 0.1.1 (``oidc_store.keep_way_back``), then gone. Links belong to their provider now.
     own_subject: Mapped[str] = mapped_column(String(255), default="")
     #: Not stored. Set on the account an API token acts as when the token may see only some spaces.
     key_spaces: ClassVar[frozenset[int] | None] = None

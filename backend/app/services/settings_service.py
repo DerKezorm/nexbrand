@@ -30,7 +30,8 @@ DEFAULTS: dict[str, Any] = {
     #: account page. Accounts from OIDC bring their provider's.
     "two_factor_required": False,
     #: The single OIDC provider before the provider list (``oidc_providers``, ``services/oidc_store.py``): read once
-    #: by the migration, then kept for one version as the way back, then gone. Never written any more.
+    #: by the migration, then for one version only the way back to 0.1.1, written from the list
+    #: (``oidc_store.keep_way_back``), then gone.
     "oidc_issuer": "",
     "oidc_client_id": "",
     "oidc_client_secret_enc": "",
@@ -87,6 +88,9 @@ DEFAULTS: dict[str, Any] = {
     #: The coupling to nexsuite as the shared sign-in module keeps it (``coupling.Coupling.as_dict``): the nexsuite
     #: entry and how each own entry looked before it was set aside, for uncoupling.
     "suite_coupling": None,
+    #: Persons of nexsuite a coupled migration could not give an account without their sign-in name, settled by the
+    #: first sync: ``{subject: [account ids]}`` (``oidc_store.coupled_pairs``).
+    "suite_unsettled": None,
     #: Set once the single provider of the settings was looked at for the provider list (``services/oidc_store.py``).
     "oidc_list_migrated": False,
 }

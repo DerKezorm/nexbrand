@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 import re
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, event, func, select, update
 from sqlalchemy.orm import Session
 
 from .. import __version__
@@ -36,6 +36,7 @@ from ..models import Invite as InviteRow
 from ..security import decrypt_secret, encrypt_secret
 from ..vendor import nexoidc
 from ..vendor.nexoidc import (
+    LEGACY_SLUG,
     MANAGED_NEXSUITE,
     AccountState,
     Invite,
@@ -44,6 +45,7 @@ from ..vendor.nexoidc import (
     ProviderValues,
     coupling,
     migrate,
+    protocol,
     secret_context,
 )
 from . import accounts, settings_service
@@ -186,6 +188,7 @@ class SqlStore:
         self.db.flush()
         row.client_secret_enc = encrypt_secret(values.client_secret or "", secret_context(row.id))
         self.db.flush()
+        _changed(self.db)
         provider = self._provider(row)
         assert provider is not None
         return provider
@@ -197,13 +200,14 @@ class SqlStore:
         if values.client_secret is not None:
             row.client_secret_enc = encrypt_secret(values.client_secret, secret_context(row.id))
         self.db.flush()
+        _changed(self.db)
         provider = self._provider(row)
         assert provider is not None
         return provider
 
     def delete_provider(self, provider_id: int) -> None:
         # Foreign keys are on (db.py), the links would go anyway; said here so that nothing depends on a pragma.
-        self.drop_links(provider_id)
+        self.drop_links(provider_id)  # marks the way back (``_changed``)
         self.db.execute(delete(OidcProvider).where(OidcProvider.id == provider_id))
 
     def _managed(self, provider_id: int) -> str:
@@ -232,6 +236,7 @@ class SqlStore:
         self.db.add(OidcLink(provider_id=link.provider_id, subject=link.subject, account_id=link.account_id,
                              issuer=link.issuer, email=link.email))
         self.db.flush()
+        _changed(self.db)
         self._address(link.provider_id, link.account_id, link.email)
 
     def remove_link(self, provider_id: int, account_id: int) -> bool:
@@ -240,12 +245,14 @@ class SqlStore:
         )
         removed = bool(result.rowcount)  # type: ignore[attr-defined]
         if removed:
+            _changed(self.db)
             self._forget_provider_address(account_id)
         return removed
 
     def drop_links(self, provider_id: int) -> int:
         holders = set(self.db.scalars(select(OidcLink.account_id).where(OidcLink.provider_id == provider_id)))
         result = self.db.execute(delete(OidcLink).where(OidcLink.provider_id == provider_id))
+        _changed(self.db)
         for account_id in holders:
             self._forget_provider_address(account_id)
         return int(result.rowcount or 0)  # type: ignore[attr-defined]
@@ -393,36 +400,52 @@ def _coupled_at_migration(db: Session) -> bool:
     return suite.connected(db) and bool(settings_service.get(db, "oidc_issuer"))
 
 
-def coupled_pairs(db: Session) -> tuple[list[tuple[int, str]], list[tuple[int, str]], list[int]]:
+def coupled_pairs(
+    db: Session,
+) -> tuple[list[tuple[int, str]], list[tuple[int, str]], list[int], dict[str, list[int]]]:
     """For an instance connected to nexsuite before the list: which account is which person (``oidc_subject`` of the
     accounts nexsuite knew), the own links set aside since connecting (``own_subject``, issued by the own provider),
-    and the accounts that lose a person to another.
+    the accounts that lose a person to another, and the persons that wait for the directory.
 
     ``oidc_subject`` of a connected instance is nexsuite's, never the own provider's: it becomes a link at nexsuite's
     entry or nothing, never a link at an own entry (a subject only holds with its issuer; an authentik user with the
-    same ``sub`` would otherwise come in as that account). Per subject one account: the one marked for that very
-    person (``suite_person``, the operator's choice when connecting and every sync since), then one not blocked, then
-    the oldest; the others lose it and are blocked, as the sync before the list blocked an account that did not keep a
-    subject (``_settle_subjects``). An account nexsuite never knew (blocked, unmarked) gets no link from it."""
+    same ``sub`` would otherwise come in as that account). Per subject one account, in the order the sync before the
+    list settled them (``_settle_subjects`` of 0.1.1): an account whose ``suite_person`` names another person never
+    claims it; among the rest the one marked for exactly this person (the operator's choice when connecting) wins.
+    Without a mark the sign-in name of the person decided, and a blocked account could win by it; the name is
+    nexsuite's and unknown here. So an unmarked subject is settled here only when a single account not blocked holds
+    it; otherwise it waits, untouched and without a link, for the first sync, which has the names
+    (``suite._settle_waiting``). An account that loses a subject takes its own person instead when nobody holds that
+    one, as before; the others lose it and are blocked, as the sync before the list blocked them."""
     rows = list(db.scalars(select(Account).order_by(Account.id)))
-
-    def claims(row: Account) -> bool:
-        return bool(row.oidc_subject) and (
-            row.suite_person == row.oidc_subject or (not row.suite_person and row.blocked_at is None)
-        )
-
-    people: list[tuple[int, str]] = []
-    taken: set[str] = set()
+    holders: dict[str, list[Account]] = {}
+    for row in rows:
+        if row.oidc_subject:
+            holders.setdefault(row.oidc_subject, []).append(row)
+    owner: dict[str, Account] = {}
+    waiting: dict[str, list[int]] = {}
+    for subject, group in holders.items():
+        candidates = [row for row in group if row.suite_person in ("", subject)]
+        marked = [row for row in candidates if row.suite_person == subject]
+        if len(marked) == 1:
+            owner[subject] = marked[0]
+        elif not marked and len(candidates) == 1 and candidates[0].blocked_at is None:
+            owner[subject] = candidates[0]
+        elif candidates:
+            waiting[subject] = [row.id for row in candidates]
     losers: list[int] = []
-    for row in sorted((row for row in rows if claims(row)),
-                      key=lambda row: (row.suite_person != row.oidc_subject, row.blocked_at is not None, row.id)):
-        if row.oidc_subject in taken:
-            losers.append(row.id)
+    for row in rows:
+        subject = row.oidc_subject
+        if not subject or owner.get(subject) is row or row.id in waiting.get(subject, ()):
             continue
-        taken.add(row.oidc_subject)
-        people.append((row.id, row.oidc_subject))
-    own = [(row.id, row.own_subject) for row in rows if row.own_subject]
-    return people, own, losers
+        own = row.suite_person if row.suite_person and row.suite_person != subject else ""
+        if own and own not in owner and own not in holders:
+            owner[own] = row  # its own person in nexsuite, whose account it stays
+            continue
+        losers.append(row.id)
+    people = sorted(((row.id, subject) for subject, row in owner.items()), key=lambda pair: pair[0])
+    own_subjects = [(row.id, row.own_subject) for row in rows if row.own_subject]
+    return people, own_subjects, losers, waiting
 
 
 def migration_due(db: Session) -> bool:
@@ -438,7 +461,7 @@ def _migrate_coupled(db: Session) -> Provider | None:
     values = settings_service.get_all(db)
     saved = values.get("suite_saved") if isinstance(values.get("suite_saved"), dict) else {}
     own = _legacy({key: saved.get(key) for key in LEGACY_KEYS}) if isinstance(saved, dict) else None
-    people, own_subjects, losers = coupled_pairs(db)
+    people, own_subjects, losers, waiting = coupled_pairs(db)
     keeper = int(values.get("suite_emergency_account") or 0)
     for account_id in losers:
         row = db.get(Account, account_id)
@@ -457,8 +480,11 @@ def _migrate_coupled(db: Session) -> Provider | None:
     if joined is None:
         db.rollback()
         return None
-    settings_service.save(db, {COUPLING: joined.as_dict(), MIGRATED: True}, commit=False)
+    settings_service.save(db, {COUPLING: joined.as_dict(), MIGRATED: True, WAITING: waiting or None}, commit=False)
+    _changed(db)
     db.commit()
+    if waiting:
+        logger.warning("OIDC: %d persons of nexsuite wait for the next sync to know their account", len(waiting))
     logger.warning("OIDC: the coupled instance moved to the provider list, %d persons, %d own links",
                    len(people), len(own_subjects))
     return store.get_provider(joined.provider_id)
@@ -484,8 +510,125 @@ def migrate_settings(*, backup: bool = True) -> Provider | None:
         if _coupled_at_migration(db):
             return _migrate_coupled(db)
         entry = migrate.apply(SqlStore(db), legacy_plan(db))
+        # The way back follows the list from now on: a subject the plan left out goes from the old column too.
+        _changed(db)
         settings_service.save(db, {MIGRATED: True})
         return entry
+
+
+#: Subjects of nexsuite a coupled migration could not give an account without the person's sign-in name:
+#: ``{subject: [account ids]}``, settled by the first sync (``suite._settle_waiting``).
+WAITING = "suite_unsettled"
+
+
+# --- The way back (one version): the settings and columns of 0.1.1 follow the list -----------------------------------
+
+#: The marker in ``Session.info``: an entry or a link changed in this transaction.
+_WAY_BACK = "nexbrand_oidc_way_back"
+#: The old settings when they name no provider.
+NO_LEGACY: dict[str, object] = {"oidc_issuer": "", "oidc_client_id": "", "oidc_client_secret_enc": "",
+                                 "oidc_provider_name": "", "oidc_auto_create": False}
+
+
+def _changed(db: Session) -> None:
+    db.info[_WAY_BACK] = True
+
+
+@event.listens_for(Session, "before_commit")
+def _write_way_back(session: Session) -> None:
+    if session.info.pop(_WAY_BACK, False):
+        keep_way_back(session)
+
+
+@event.listens_for(Session, "after_rollback")
+def _forget_way_back(session: Session) -> None:
+    session.info.pop(_WAY_BACK, None)
+
+
+def _as_legacy(entry: Provider, issuer: str, old: dict[str, object]) -> dict[str, object]:
+    sealed = str(old.get("oidc_client_secret_enc") or "")
+    secret = entry.client_secret or ""
+    if decrypt_secret(sealed) != secret or (secret and not sealed):
+        # Sealed without a context, as 0.1.1 reads it; a secret that did not change keeps its sealing.
+        sealed = encrypt_secret(secret) if secret else ""
+    return {"oidc_issuer": issuer, "oidc_client_id": entry.client_id, "oidc_client_secret_enc": sealed,
+            "oidc_provider_name": entry.label, "oidc_auto_create": bool(entry.auto_create)}
+
+
+def _own_legacy(old: dict[str, object], entry: Provider | None, on: bool) -> dict[str, object]:
+    """The old settings of the own provider: the entry the old settings became, while it is on and keeps the issuer
+    0.1.1 knew. Removed, switched off or given another issuer, the old settings are empty for good: 0.1.1 then signs
+    in with passwords only, never through a provider the operator took away, and never matches a subject of one
+    issuer against another."""
+    issuer = str(old.get("oidc_issuer") or "")
+    if entry is None or not on or not issuer or not protocol.same_issuer(issuer, entry.issuer):
+        return dict(NO_LEGACY)
+    return _as_legacy(entry, issuer, old)
+
+
+def keep_way_back(db: Session) -> None:
+    """Writes the settings and columns 0.1.1 reads from the list, so that starting 0.1.1 on this database (the way
+    back, for one version) finds exactly what the list holds, never more: the old settings name one issuer, and the
+    accounts' ``oidc_subject`` and ``own_subject`` are subjects of exactly that issuer, the links that are left.
+
+    Coupled, as 0.1.1 kept it: the old settings are nexsuite's, ``oidc_subject`` the person of each account linked at
+    nexsuite's entry (``suite_person`` says the same, written by the coupling and every sync), the own provider waits
+    in ``suite_saved`` and its links in ``own_subject``. On its own: the old settings and ``oidc_subject`` are the
+    entry ``oidc`` and its links, or empty.
+    Runs when a transaction that changed an entry or a link commits (``_changed``), and after the migration."""
+    db.flush()
+    values = settings_service.get_all(db)
+    if not values.get(MIGRATED):
+        return  # the old settings and columns are still the migration's input
+    raw = values.get("suite_saved")
+    saved = dict(raw) if isinstance(raw, dict) else {}
+    current = {key: values.get(key) for key in LEGACY_KEYS}
+    # Coupled by 0.1.1, or by this code once this ran: the own provider waits in ``suite_saved``.
+    own_before = {key: saved.get(key) for key in LEGACY_KEYS} if "oidc_issuer" in saved else current
+    store = SqlStore(db)
+    nexsuite = coupled_entry(db)
+    persons: dict[int, str] = {}
+    aside: dict[int, str] = {}
+    untouched: set[int] = set()
+    changes: dict[str, object] = {}
+    if nexsuite is not None:
+        kept = values.get(COUPLING)
+        items = kept.get("set_aside", []) if isinstance(kept, dict) else []
+        item = next((item for item in items if item.get("slug") == LEGACY_SLUG), None)
+        own = store.get_provider(int(item["id"])) if item else None
+        own_values = _own_legacy(own_before, own, bool(item and item.get("enabled")))
+        issuer = str(current.get("oidc_issuer") or "")
+        if not protocol.same_issuer(issuer, nexsuite.issuer):
+            issuer = nexsuite.issuer
+        legacy = {**_as_legacy(nexsuite, issuer, current), "oidc_auto_create": False}
+        changes["suite_saved"] = {**saved, **own_values}
+        persons = {link.account_id: link.subject for link in store.links_of_provider(nexsuite.id)}
+        if own is not None and own_values["oidc_issuer"]:
+            aside = {link.account_id: link.subject for link in store.links_of_provider(own.id)}
+        waiting = values.get(WAITING)
+        if isinstance(waiting, dict):
+            untouched = {int(account_id) for ids in waiting.values() for account_id in ids}
+    else:
+        entry = store.provider_by_slug(LEGACY_SLUG)
+        legacy = _own_legacy(own_before, entry, bool(entry and entry.enabled))
+        if "oidc_issuer" in saved:
+            changes["suite_saved"] = {key: value for key, value in saved.items() if key not in LEGACY_KEYS}
+        if entry is not None and legacy["oidc_issuer"]:
+            persons = {link.account_id: link.subject for link in store.links_of_provider(entry.id)}
+    if changes.get("suite_saved") == raw:
+        changes.pop("suite_saved", None)
+    changes.update({key: value for key, value in legacy.items() if current.get(key) != value})
+    for row in db.scalars(select(Account)):
+        if row.id in untouched:
+            continue  # waits for the first sync, as 0.1.1 left it
+        subject = persons.get(row.id, "")
+        if row.oidc_subject != subject:
+            row.oidc_subject = subject
+        if row.own_subject != aside.get(row.id, ""):
+            row.own_subject = aside.get(row.id, "")
+    if changes:
+        settings_service.save(db, changes, commit=False)
+    db.flush()
 
 
 def couple_store(db: Session) -> OneTransaction:
@@ -496,6 +639,7 @@ def couple_store(db: Session) -> OneTransaction:
 __all__ = [
     "COUPLING",
     "MIGRATED",
+    "WAITING",
     "OneTransaction",
     "SqlStore",
     "clean_name",
@@ -503,6 +647,7 @@ __all__ = [
     "coupled_entry",
     "coupling",
     "follows_provider",
+    "keep_way_back",
     "migrate_settings",
     "take_address",
 ]

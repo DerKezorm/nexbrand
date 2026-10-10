@@ -864,6 +864,61 @@ def _moment(text: Any) -> datetime:
     return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
 
 
+def _same_name(row: Account, person: dict[str, Any] | None) -> bool:
+    """The account's sign-in name is the person's: no earlier sync changed it, unlike address and display name, which
+    an old sync may have copied onto a stranger's account."""
+    return person is not None and row.name == str(person.get("name") or "")
+
+
+def _switched(row: Account) -> bool:
+    """An account with a password of its own that signs in through the provider: only a sync switches one so. Its
+    subject is a person of nexsuite's, never a link of its own, also once nexsuite has deleted the person."""
+    return row.sign_in == SIGN_IN_OIDC and bool(row.password_hash)
+
+
+def _settle_waiting(db: Session, store: oidc_store.SqlStore, entry: Any, people: dict[str, dict[str, Any]],
+                    keeper: int, signed_out: list[int]) -> None:
+    """The persons a migration from 0.1.1 left waiting (``oidc_store.coupled_pairs``): settled as 0.1.1's sync did
+    (``_settle_subjects``), now that the directory names them. Unmarked accounts claim a subject when not blocked,
+    when they carry the person's sign-in name, or (person deleted there) when a sync had switched them to the
+    provider; the first by: marked for exactly this person, the sign-in name is the person's, not blocked, smallest
+    id. The owner is linked at nexsuite's entry; the others lose the subject (never a link at an own entry) and are
+    blocked, and what they hold of the person's goes when address and display name are exactly hers."""
+    waiting = settings_service.get(db, oidc_store.WAITING)
+    if not isinstance(waiting, dict) or not waiting:
+        return
+    taken = {link.subject for link in store.links_of_provider(entry.id)}
+    linked = {link.account_id for link in store.links_of_provider(entry.id)}
+    for subject, ids in waiting.items():
+        person = people.get(subject)
+        group = [row for row in (db.get(Account, int(account_id)) for account_id in ids)
+                 if row is not None and row.oidc_subject == subject and row.id not in linked]
+        able = [row for row in group if row.suite_person == subject
+                or (not row.suite_person and (row.blocked_at is None or _same_name(row, person)
+                                              or (person is None and _switched(row))))]
+        owner = None
+        if able and subject not in taken:
+            owner = min(able, key=lambda row: (row.suite_person != subject, not _same_name(row, person),
+                                               row.blocked_at is not None, row.id))
+            store.add_link(Link(provider_id=entry.id, subject=subject, account_id=owner.id, issuer=entry.issuer))
+            owner.suite_person = subject
+            taken.add(subject)
+            linked.add(owner.id)
+        for row in group:
+            if row is owner:
+                continue
+            logger.info("A subject from before the list lost to another account name=%s", row.name)
+            row.oidc_subject, row.suite_person = "", ""
+            copied = (person is not None and row.email == str(person.get("email") or "")[:255]
+                      and row.display_name == names.from_suite(person.get("display_name"), 80, invisible=True))
+            if copied:
+                row.email, row.display_name = "", ""
+            if row.id != keeper and row.blocked_at is None:
+                row.blocked_at = utcnow()
+                signed_out.append(row.id)
+    settings_service.save(db, {oidc_store.WAITING: None}, commit=False)
+
+
 def _apply(db: Session, seen: dict[str, Any], token: str) -> None:
     keeper = int(settings_service.get(db, "suite_emergency_account") or 0)
     present = {str(person["id"]) for person in seen.get("people", [])}
@@ -877,6 +932,9 @@ def _apply(db: Session, seen: dict[str, Any], token: str) -> None:
         # matched by guessing then.
         logger.error("Connected to nexsuite, but its sign-in entry is missing; the directory was not applied")
         return
+    # Persons a migration from 0.1.1 could not settle without their sign-in name get their account first.
+    _settle_waiting(db, store, entry, {str(person["id"]): person for person in seen.get("people", [])}, keeper,
+                    signed_out)
     # Which account is which person: its link at nexsuite's entry, one identity per account and provider.
     by_subject: dict[str, Account] = {}
     for link in store.links_of_provider(entry.id):
@@ -1183,8 +1241,9 @@ def _disconnect(db: Session, *, tell: bool) -> tuple[list[str], list[str], list[
                if not row.password_hash and row.blocked_at is None and not oidc_store.has_links(db, row.id)]
     blocked = [row.name for row in
                db.scalars(select(Account).where(Account.blocked_at.is_not(None)).order_by(Account.name))]
+    # Persons a migration left waiting get no link any more: their accounts keep what they have here.
     settings_service.save(db, {"suite_former_url": str(settings_service.get(db, "suite_url") or ""),
-                               oidc_store.COUPLING: None}, commit=False)
+                               oidc_store.COUPLING: None, oidc_store.WAITING: None}, commit=False)
     db.commit()
     _forget(db)
     logger.warning("Disconnected from nexsuite; running on its own")
