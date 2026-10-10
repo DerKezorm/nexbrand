@@ -23,7 +23,7 @@ Paths (all below ``/api/oidc``):
 | GET | ``/{slug}/callback``, ``/callback`` | anybody: the return (the second belongs to the entry ``oidc``) |
 | GET | ``/me`` | signed in: every active entry with ``linked`` and the address the provider knows |
 | POST, DELETE | ``/{slug}/link`` | signed in: link (``{"password"}`` → ``{"url"}``), unlink |
-| POST | ``/{slug}/address`` | signed in: take the address the provider knows as the own one |
+| POST | ``/me/address`` | signed in: take the address of the provider named in ``{"slug"}`` as the own one |
 | DELETE | ``/admin/accounts/{account}/links/{provider}`` | operator, with the own password |
 | POST | ``/authentik/setup`` | operator: ``{"url", "token", "confirm_issuer_change", "public_url"}`` → 200, the steps |
 | GET, POST | ``/authentik/address`` | operator: what the card shows about the public address; "Use it only" |
@@ -107,6 +107,10 @@ class AddressIn(BaseModel):
     public_url: str = Field(max_length=500)
     #: The answer to the question "the redirect address at authentik changes" (409 ``public_url_change``).
     confirm: bool = False
+
+
+class TakeAddressIn(BaseModel):
+    slug: str = Field(min_length=1, max_length=40)
 
 
 class OrderIn(BaseModel):
@@ -457,12 +461,14 @@ def unlink(slug: Annotated[str, Path(max_length=40)], account: Account) -> None:
             raise error(exc.code, exc.message, 409) from exc
 
 
-@router.post("/{slug}/address", summary="Take the address the provider knows as the own one")
-def take_provider_address(slug: Annotated[str, Path(max_length=40)], account: Account) -> dict[str, str]:
+# Under ``/me`` with the slug in the body: ``/{slug}/address`` would be taken by the operator's ``/authentik/address``
+# for the entry the authentik button makes (its slug is ``authentik``).
+@router.post("/me/address", summary="Take the address the provider knows as the own one")
+def take_provider_address(payload: TakeAddressIn, account: Account) -> dict[str, str]:
     """Offered on the account page when the provider knows the account by another address (blueprint 01: only an
     account through the provider only follows it by itself). It goes again with the last link."""
     with store() as s:
-        entry = s.provider_by_slug(slug)
+        entry = s.provider_by_slug(payload.slug)
         link = next((item for item in s.links_of_account(account.id) if entry and item.provider_id == entry.id), None)
         row = s.db.get(AccountRow, account.id)
         if entry is None or link is None or not link.email or row is None or entry.managed == MANAGED_NEXSUITE:

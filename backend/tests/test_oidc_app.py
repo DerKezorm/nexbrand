@@ -27,6 +27,7 @@ from app.vendor.nexoidc import coupling
 from . import oidc_helpers
 from .conftest import PASSWORD, make_account, sign_in
 from .oidc_helpers import (
+    UI,
     FakeProvider,
     add_provider,
     come_back,
@@ -403,8 +404,8 @@ def test_an_account_with_a_password_is_offered_the_address_and_it_goes_with_the_
     mine = member.get("/api/oidc/me").json()
     assert mine == [{"slug": "sso", "label": "SSO", "linked": True, "address": "anna@example.com"},
                     {"slug": "work", "label": "Work", "linked": False, "address": None}]
-    assert member.post("/api/oidc/work/address").status_code == 404, "no link there"
-    taken = member.post("/api/oidc/sso/address")
+    assert member.post("/api/oidc/me/address", json={"slug": "work"}).status_code == 404, "no link there"
+    taken = member.post("/api/oidc/me/address", json={"slug": "sso"})
     assert taken.status_code == 200 and accounts_row("anna").email == "anna@example.com"
     assert member.get("/api/oidc/me").json()[0]["address"] is None, "nothing to offer any more"
     link(member, work, PASSWORD, slug="work", sub="anna-w", email="anna@work.example.com")
@@ -412,6 +413,23 @@ def test_an_account_with_a_password_is_offered_the_address_and_it_goes_with_the_
     assert accounts_row("anna").email == "anna@example.com", "it stays while another link holds"
     assert member.delete("/api/oidc/work/link").status_code == 204
     assert accounts_row("anna").email == "", "the provider's address goes with the last link"
+
+
+def test_a_member_takes_the_address_of_the_entry_the_authentik_button_makes(
+    client: TestClient, operator: Account, provider: FakeProvider
+) -> None:
+    """The slug ``authentik`` is the entry of the button; the operator's ``/authentik/address`` must not hide the
+    member's way (it answered 403 ``operator_only`` once)."""
+    add_provider(client, provider, slug="authentik", label="authentik")
+    make_account("anna")
+    member = fresh_browser()
+    sign_in(member, accounts_row("anna"))
+    link(member, provider, PASSWORD, slug="authentik", sub="anna-1", email="anna@example.com")
+    assert member.post("/api/oidc/authentik/address", json={"public_url": "https://x.example.com"},
+                       headers=UI).status_code == 403, "that one is the operator's"
+    taken = member.post("/api/oidc/me/address", json={"slug": "authentik"})
+    assert taken.status_code == 200, taken.text
+    assert taken.json() == {"email": "anna@example.com"} and accounts_row("anna").email == "anna@example.com"
 
 
 def test_an_offered_address_another_account_has_is_not_taken(
@@ -425,7 +443,7 @@ def test_an_offered_address_another_account_has_is_not_taken(
     member = fresh_browser()
     sign_in(member, accounts_row("anna"))
     link(member, provider, PASSWORD, sub="anna-1", email="anna@example.com")
-    refused = member.post("/api/oidc/sso/address")
+    refused = member.post("/api/oidc/me/address", json={"slug": "sso"})
     assert refused.status_code == 409 and refused.json()["detail"]["code"] == "email_taken"
     assert accounts_row("anna").email == ""
 
@@ -924,5 +942,9 @@ def test_a_proxy_nexbrand_trusts_hands_on_the_scheme_and_nobody_else_does(
     # What stands left of the proxy's own value a sender wrote itself.
     assert _seen_by("10.9.0.5", {"X-Forwarded-Proto": "https, http"}) == "http://brand.example.com"
     assert _seen_by("10.9.0.5", {"X-Forwarded-Proto": "http, https"}) == "https://brand.example.com"
+    # Written in capitals it is the same scheme; a value that is no scheme is none (the last one counts, also then).
+    assert _seen_by("10.9.0.5", {"X-Forwarded-Proto": "HTTPS"}) == "https://brand.example.com"
+    assert _seen_by("10.9.0.5", {"X-Forwarded-Proto": "https, Https"}) == "https://brand.example.com"
+    assert _seen_by("10.9.0.5", {"X-Forwarded-Proto": "https, ftp"}) == "http://brand.example.com"
     # Only the scheme: the host stays the one of the request.
     assert _seen_by("10.9.0.5", {**https, "X-Forwarded-Host": "evil.example.net"}) == "https://brand.example.com"

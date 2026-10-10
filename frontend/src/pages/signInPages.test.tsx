@@ -213,7 +213,7 @@ describe('my account', () => {
     auth.me = { ...ME, ...me } as Me
     server.handler = (method, p) => {
       if (p === '/api/oidc/me') return { status: 200, body: providers }
-      if (method === 'POST' && p === '/api/oidc/sso/address') return { status: 200, body: { email: 'robin.sso@example.com' } }
+      if (method === 'POST' && p === '/api/oidc/me/address') return { status: 200, body: { email: 'robin.sso@example.com' } }
       if (method === 'POST' && p === '/api/oidc/work/link') return { status: 200, body: { url: 'https://work.example.com/authorize?x=1' } }
       return undefined
     }
@@ -246,9 +246,10 @@ describe('my account', () => {
   it('offers the address the provider knows, and takes it only when asked', async () => {
     const page = await mine([{ slug: 'sso', label: 'SSO', linked: true, address: 'robin.sso@example.com' }])
     expect(page.textContent).toContain(own.me.oidc.addressOffer.replace('{{provider}}', 'SSO').replace('{{address}}', 'robin.sso@example.com'))
-    expect(server.calls.some((call) => call.path === '/api/oidc/sso/address')).toBe(false)
+    expect(server.calls.some((call) => call.path === '/api/oidc/me/address')).toBe(false)
     await click(button(own.me.oidc.takeAddress))
-    expect(server.calls.filter((call) => call.method === 'POST' && call.path === '/api/oidc/sso/address')).toHaveLength(1)
+    expect(server.calls.filter((call) => call.method === 'POST' && call.path === '/api/oidc/me/address')).toHaveLength(1)
+    expect(server.calls.find((call) => call.path === '/api/oidc/me/address')?.body).toEqual({ slug: 'sso' })
     expect(auth.refreshed).toBe(1)
   })
 

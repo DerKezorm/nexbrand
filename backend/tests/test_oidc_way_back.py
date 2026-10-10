@@ -641,6 +641,24 @@ def test_a_start_backs_up_only_when_0_1_1_changed_something(
     assert len(made) == 1 and "0.1.1" in made[0]
 
 
+def test_a_start_coupled_makes_no_backup_for_what_it_does_not_take_over(
+    client: TestClient, operator: Account, world: dict, fake: FakeSuite, provider: FakeProvider,
+    monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.services import backups
+
+    _legacy(provider, label="Company", subjects={"anna": "ak-anna"})
+    assert oidc_store.migrate_settings(backup=False) is not None
+    connect(client, world, operator)
+    made: list[str] = []
+    monkeypatch.setattr(backups, "create", lambda **kwargs: made.append(str(kwargs.get("note"))))
+    other = provider.network.add(fakes.FakeProvider("https://other.example.com"))  # type: ignore[attr-defined]
+    # 0.1.1 changed the old settings and a subject on the coupled database: nothing is taken over, so nothing is backed up.
+    _as_0_1_1_changed(other, anna="elsewhere")
+    assert oidc_store.migrate_settings(backup=True) is None
+    assert made == [], "a backup for nothing"
+
+
 def test_a_provider_made_without_the_new_column_gets_its_default(
     client: TestClient, operator: Account, provider: FakeProvider
 ) -> None:

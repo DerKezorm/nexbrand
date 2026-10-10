@@ -504,7 +504,7 @@ export const oidcApi = {
   mine: () => api<MyProvider[]>('/api/oidc/me'),
   link: (slug: string, password: string) => api<{ url: string }>(`/api/oidc/${encodeURIComponent(slug)}/link`, { method: 'POST', body: { password } }),
   unlink: (slug: string) => api<void>(`/api/oidc/${encodeURIComponent(slug)}/link`, { method: 'DELETE' }),
-  takeAddress: (slug: string) => api<{ email: string }>(`/api/oidc/${encodeURIComponent(slug)}/address`, { method: 'POST' }),
+  takeAddress: (slug: string) => api<{ email: string }>('/api/oidc/me/address', { method: 'POST', body: { slug } }),
   operatorUnlink: (account: number, provider: number, password: string) =>
     api<void>(`/api/oidc/admin/accounts/${account}/links/${provider}`, { method: 'DELETE', body: { current_password: password } }),
 }
