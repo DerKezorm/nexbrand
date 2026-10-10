@@ -373,6 +373,8 @@ LEGACY_KEYS = ("oidc_issuer", "oidc_client_id", "oidc_client_secret_enc", "oidc_
 #: Set once the settings were looked at: an operator who later removes every entry must not get the old provider
 #: back at the next start.
 MIGRATED = "oidc_list_migrated"
+#: What the old settings and the old column said when the way back was last written (``migrate.fingerprint``).
+FINGERPRINT = "oidc_legacy_fingerprint"
 #: nexbrand asked no code after the provider before the list: the migrated entries keep that (blueprint 06).
 TRUSTED_BEFORE = True
 
@@ -391,15 +393,22 @@ def _legacy(values: dict[str, object]) -> migrate.Legacy:
     )
 
 
-def legacy_plan(db: Session) -> migrate.Plan | None:
-    """The entry ``oidc`` and its links the old settings become; None when no provider was set up."""
+def read_legacy(db: Session) -> tuple[migrate.Legacy, list[tuple[int, str]]]:
+    """The old settings and the old column, read the one way the migration, the fingerprint and ``resync`` read them
+    (the secret opened, as the module wants it for the fingerprint)."""
     subjects = [
         (account_id, subject)
         for account_id, subject in db.execute(
             select(Account.id, Account.oidc_subject).where(Account.oidc_subject != "").order_by(Account.id)
         )
     ]
-    return migrate.plan(_legacy(settings_service.get_all(db)), subjects, trusts_second_factor=TRUSTED_BEFORE)
+    return _legacy(settings_service.get_all(db)), subjects
+
+
+def legacy_plan(db: Session) -> migrate.Plan | None:
+    """The entry ``oidc`` and its links the old settings become; None when no provider was set up."""
+    legacy, subjects = read_legacy(db)
+    return migrate.plan(legacy, subjects, trusts_second_factor=TRUSTED_BEFORE)
 
 
 def _coupled_at_migration(db: Session) -> bool:
@@ -507,6 +516,8 @@ def migrate_settings(*, backup: bool = True) -> Provider | None:
         if not migration_due(db):
             if not settings_service.get(db, MIGRATED):
                 settings_service.save(db, {MIGRATED: True})
+            else:
+                take_over_way_back(db, backup=backup)
             return None
     if backup:
         from . import backups
@@ -522,6 +533,24 @@ def migrate_settings(*, backup: bool = True) -> Provider | None:
         _changed(db)
         settings_service.save(db, {MIGRATED: True})
         return entry
+
+
+def take_over_way_back(db: Session, *, backup: bool = True) -> migrate.Resync:
+    """The rest of every start after the first one: what 0.1.1 changed in the old settings and the old column since
+    the way back was last written is taken over (``migrate.resync``; coupled, nothing, a line in the log), then the
+    way back is written again with the fingerprint of what stands there. A start that changed nothing changes
+    nothing. A backup goes first when there is something to take over."""
+    legacy, subjects = read_legacy(db)
+    previous = str(settings_service.get(db, FINGERPRINT) or "") or None
+    found = migrate.changes(previous, migrate.fingerprint(legacy, subjects))
+    if found.any and backup and not coupled_entry(db):
+        from . import backups
+
+        backups.create(kind=backups.UPDATE, note="before taking over what 0.1.1 changed")
+    done = migrate.resync(SqlStore(db), legacy, subjects, previous=previous, trusts_second_factor=TRUSTED_BEFORE)
+    keep_way_back(db)
+    db.commit()
+    return done
 
 
 #: Subjects of nexsuite a coupled migration could not give an account without the person's sign-in name:
@@ -641,6 +670,14 @@ def keep_way_back(db: Session) -> None:
             row.oidc_subject = subject
         if row.own_subject != aside.get(row.id, ""):
             row.own_subject = aside.get(row.id, "")
+    # What stands there now, for ``migrate.resync`` at the next start: the settings the way back keeps (nexsuite's
+    # while coupled) and the subjects of the accounts, read as the migration reads them.
+    stamp = migrate.fingerprint(
+        _legacy({**current, **legacy}),
+        [(row.id, row.oidc_subject) for row in db.scalars(select(Account).order_by(Account.id)) if row.oidc_subject],
+    )
+    if values.get(FINGERPRINT) != stamp:
+        changes[FINGERPRINT] = stamp
     if changes:
         settings_service.save(db, changes, commit=False)
     db.flush()
@@ -664,5 +701,7 @@ __all__ = [
     "follows_provider",
     "keep_way_back",
     "migrate_settings",
+    "read_legacy",
     "take_address",
+    "take_over_way_back",
 ]

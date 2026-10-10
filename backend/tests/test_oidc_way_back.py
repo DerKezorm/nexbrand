@@ -8,13 +8,15 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import delete, select, text
 
 from app.db import SessionLocal, engine
 from app.models import Account, OidcLink, OidcProvider
-from app.security import decrypt_secret
+from app.security import decrypt_secret, encrypt_secret
 from app.services import oidc_store, settings_service, suite
+from app.vendor.nexoidc import migrate
 
 from . import oidc_helpers, test_suite
 from .conftest import PASSWORD, make_account, sign_in
@@ -415,3 +417,108 @@ def test_an_account_made_without_the_new_column_gets_its_default(client: TestCli
         statement = f'INSERT INTO accounts ("name", {listed}) SELECT :name, {listed} FROM accounts WHERE id = :id'  # noqa: S608
         connection.execute(text(statement), {"name": "old-made", "id": operator.id})
     assert accounts_row("old-made").email_from_provider is False
+
+
+# --- Up again after the way back (module 1.0.9): what 0.1.1 changed is taken over, coupled nothing ------------------
+
+
+def _as_0_1_1_changed(idp: FakeProvider | None, **subjects: str) -> None:
+    """0.1.1 at work between two starts: its settings (empty without ``idp``) and the subjects named."""
+    with SessionLocal() as db:
+        settings_service.save(db, {
+            "oidc_issuer": idp.issuer if idp else "", "oidc_client_id": idp.client_id if idp else "",
+            "oidc_client_secret_enc": encrypt_secret(idp.client_secret) if idp else "",
+            "oidc_provider_name": "Changed" if idp else "", "oidc_auto_create": False}, commit=False)
+        for name, subject in subjects.items():
+            accounts_row_in(db, name).oidc_subject = subject
+        db.commit()
+
+
+def accounts_row_in(db: Any, name: str) -> Account:
+    row = db.scalar(select(Account).where(Account.name == name))
+    assert row is not None
+    return row
+
+
+def _list_state() -> tuple[list[tuple[str, str, str, bool]], list[tuple[str, str, str]]]:
+    """Every entry (slug, issuer, label, enabled) and every link (slug, subject, account), nothing else."""
+    with SessionLocal() as db:
+        entries = [(row.slug, row.issuer, row.label, row.enabled)
+                   for row in db.scalars(select(OidcProvider).order_by(OidcProvider.id))]
+    return entries, _links()
+
+
+def test_a_start_coupled_takes_over_nothing_and_writes_the_way_back_again(
+    client: TestClient, operator: Account, world: dict, fake: FakeSuite, provider: FakeProvider,
+    caplog: pytest.LogCaptureFixture
+) -> None:
+    _legacy(provider, label="Company", subjects={"anna": "ak-anna", "cleo": "ak-cleo"})
+    assert oidc_store.migrate_settings(backup=False) is not None
+    connect(client, world, operator)
+    before, coupled_old = _list_state(), _old_settings()
+    assert coupled_old["oidc_issuer"] == SUITE
+    other = provider.network.add(fakes.FakeProvider("https://other.example.com"))  # type: ignore[attr-defined]
+    # 0.1.1 started on the coupled database and changed what it could: the provider, a person, an own identity.
+    _as_0_1_1_changed(other, anna="elsewhere")
+    with SessionLocal() as db:
+        accounts_row_in(db, "cleo").own_subject = "changed-own"
+        db.commit()
+    with caplog.at_level("WARNING"):
+        assert oidc_store.migrate_settings(backup=False) is None
+    assert _list_state() == before, "neither entries nor links changed"
+    assert "while coupled; nothing taken over" in caplog.text and "took over what" not in caplog.text
+    # The way back is written again from the list, and the next start is quiet.
+    assert _old_settings() == coupled_old and _columns()["anna"][0] == _person("anna")
+    caplog.clear()
+    with caplog.at_level("WARNING"):
+        oidc_store.migrate_settings(backup=False)
+    assert _list_state() == before and "OIDC:" not in caplog.text
+
+
+def test_a_start_that_changed_nothing_changes_nothing_and_says_nothing(
+    client: TestClient, operator: Account, provider: FakeProvider, caplog: pytest.LogCaptureFixture
+) -> None:
+    _migrated(provider, anna="anna-1")
+    with SessionLocal() as db:
+        stamp = settings_service.get(db, oidc_store.FINGERPRINT)
+        assert stamp
+    before, old = _list_state(), _old_settings()
+    caplog.clear()
+    for _ in range(2):
+        with caplog.at_level("WARNING"):
+            oidc_store.migrate_settings(backup=False)
+    assert _list_state() == before and _old_settings() == old and "OIDC:" not in caplog.text
+    with SessionLocal() as db:
+        assert settings_service.get(db, oidc_store.FINGERPRINT) == stamp
+
+
+def test_the_fingerprint_follows_every_change_the_way_back_makes(
+    client: TestClient, operator: Account, provider: FakeProvider
+) -> None:
+    entry = _migrated(provider, anna="anna-1")
+    with SessionLocal() as db:
+        first = settings_service.get(db, oidc_store.FINGERPRINT)
+    _save(client, entry, enabled=False)
+    with SessionLocal() as db:
+        off = settings_service.get(db, oidc_store.FINGERPRINT)
+        legacy, subjects = oidc_store.read_legacy(db)
+        assert off == migrate.fingerprint(legacy, subjects) != first
+    # What the mirror wrote itself (an entry that is off) is no change of 0.1.1 at the next start.
+    before = _list_state()
+    oidc_store.migrate_settings(backup=False)
+    assert _list_state() == before
+
+
+def test_a_session_made_without_the_new_column_gets_its_default(client: TestClient, operator: Account) -> None:
+    # 0.1.1 names every column of auth_sessions it knows and none it does not.
+    with engine.begin() as connection:
+        known = [row[1] for row in connection.execute(text("PRAGMA table_info(auth_sessions)"))
+                 if row[1] not in ("id", "token_hash", "second_factor_by_provider")]
+        listed = ", ".join(f'"{name}"' for name in known)  # names of the table itself, nothing from outside
+        statement = (f'INSERT INTO auth_sessions ("token_hash", {listed}) '  # noqa: S608
+                     f'SELECT :hash, {listed} FROM auth_sessions LIMIT 1')
+        assert connection.execute(text("SELECT count(*) FROM auth_sessions")).scalar() == 1
+        connection.execute(text(statement), {"hash": "0" * 64})
+        assert connection.execute(
+            text('SELECT second_factor_by_provider FROM auth_sessions WHERE token_hash = :hash'), {"hash": "0" * 64}
+        ).scalar() == 0

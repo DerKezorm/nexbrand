@@ -6,7 +6,7 @@
  * to GitHub is the one call nexbrand makes by itself. Every account sees the answer; switching and asking now belong
  * to the operator, because the question goes out for the whole installation.
  */
-import { BookOpen, ListChecks, Mail, NotebookPen, RefreshCw, Shapes, Shield, Sparkles } from 'lucide-react'
+import { BookOpen, ListChecks, Mail, NotebookPen, RefreshCw, Shapes, Sparkles } from 'lucide-react'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -41,7 +41,6 @@ const PARTS = [
 
 /** The other apps of the family, each in its own colour. */
 const FAMILY = [
-  { name: 'nexsuite', Icon: Shield, color: '#f472b6' },
   { name: 'nexcanvas', Icon: Shapes, color: '#ff8a70' },
   { name: 'nexlore', Icon: NotebookPen, color: '#2dd4bf' },
   { name: 'nextasks', Icon: ListChecks, color: '#38a9c4' },
@@ -158,7 +157,7 @@ export function AboutPage() {
           </dl>
         )}
 
-        {/* The family, as the about pages of nexsuite and nextasks show it (G11). */}
+        {/* The family, as the about pages of the other apps show it (G11). */}
         <Card icon={Sparkles} title={t('about.family')} text={t('about.familyText')} id="about-family">
           <ul className="space-y-2">
             {FAMILY.map(({ name, Icon, color }) => (

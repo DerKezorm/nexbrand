@@ -633,8 +633,22 @@ describe('the family', () => {
     expect(page.querySelector('[data-testid="about-facts"] dt')?.textContent).toBe('Version')
     const family = page.querySelector('#about-family')
     expect(family?.querySelector('h2')?.textContent).toBe(i18n.t('about.family'))
-    expect([...family!.querySelectorAll('li')].map((li) => li.querySelector('.font-semibold')?.textContent)).toEqual(['nexsuite', 'nexcanvas', 'nexlore', 'nextasks', 'nexmail'])
+    expect([...family!.querySelectorAll('li')].map((li) => li.querySelector('.font-semibold')?.textContent)).toEqual(['nexcanvas', 'nexlore', 'nextasks', 'nexmail'])
     expect(document.title).toBe(`${i18n.t('about.menu')} · nexbrand`)
+  })
+
+  it('the about page does not name nexsuite, in either language: it is what everybody sees, coupled or not', async () => {
+    server.handler = (_m, path) => {
+      if (path === '/api/about') return { status: 200, body: { version: '0.1.0', license: 'AGPL-3.0', repo_url: 'https://github.com/example/nexbrand', releases_url: 'https://github.com/example/nexbrand/releases', project_url: '' } }
+    }
+    const { AboutPage } = await import('./AboutPage')
+    for (const language of ['de', 'en'] as const) {
+      const page = await mount(<AboutPage />, '/about', language)
+      expect(page.querySelector('#about-family')?.textContent).toContain(i18n.t('about.familyText'))
+      expect(page.textContent?.toLowerCase()).not.toContain('nexsuite')
+      await act(async () => root?.unmount())
+      host?.remove()
+    }
   })
 
   it('offers the languages in the order of their names (account menu and settings both ask languageOptions)', async () => {

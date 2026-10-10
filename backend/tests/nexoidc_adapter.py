@@ -166,7 +166,6 @@ class Adapter(StandardAdapter):
                 "oidc_client_id": client_id,
                 "oidc_client_secret_enc": encrypt_secret(client_secret),
                 "oidc_provider_name": label,
-                oidc_store.MIGRATED: False,
             })
             for name, subject in subjects.items():
                 row = accounts.by_name(db, name)
@@ -175,7 +174,20 @@ class Adapter(StandardAdapter):
             db.commit()
 
     def run_migration(self) -> None:
+        # The whole start: the migration once, after that what 0.1.1 changed since, then the way back again.
         oidc_store.migrate_settings(backup=False)
+
+    def legacy_read(self) -> dict[str, Any]:
+        with SessionLocal() as db:
+            legacy, subjects = oidc_store.read_legacy(db)
+            names = {row.id: row.name for row in db.scalars(select(Account))}
+        return {
+            "issuer": legacy.issuer,
+            "client_id": legacy.client_id,
+            "client_secret": legacy.client_secret,
+            "label": legacy.label,
+            "subjects": {names[account_id]: subject for account_id, subject in subjects},
+        }
 
     def trip_throttle(self, client: Any) -> None:
         # As many failed runs at the provider from this sender as the brake lets pass (every TestClient is the

@@ -635,9 +635,8 @@
       "whatGoesOut": "Hinaus geht nur die Frage: eine Anfrage an api.github.com nach der neuesten Veröffentlichung von nexbrand, ohne Namen, Kunden oder Einstellungen. Es ist der einzige Ruf, den nexbrand von sich aus macht."
     },
     "family": "Teil der nex-Familie",
-    "familyText": "nexbrand gehört mit diesen Apps zusammen. Mit nexsuite verbunden, teilen sie Personen, Teams und Anmeldung, und Kunden kommen von dort.",
+    "familyText": "nexbrand gehört mit diesen Apps zusammen. Ein angebundenes Verzeichnis kann Personen, Teams und Anmeldung für sie gemeinsam führen, und Kunden kommen von dort.",
     "apps": {
-      "nexsuite": "Personen, Teams, Kunden und Anmeldung für die ganze Familie",
       "nexcanvas": "Whiteboards, gemeinsam und live",
       "nexlore": "Notizen und Wissen eines Teams",
       "nextasks": "Aufgaben für Teams",

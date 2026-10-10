@@ -801,3 +801,49 @@ def test_a_known_person_coming_through_an_invitation_gets_its_rights_on_top_and_
         db.commit()
     assert location(come_back(again, provider, target)) == "/"
     assert again.get("/api/auth/me").json()["name"] == "anna"
+
+
+# --- "Require a second factor": the way in decides (10.10.2026) ------------------------------------------------------
+
+
+def _required_with_anna_linked(client: TestClient, provider: FakeProvider, **entry: Any) -> dict[str, Any]:
+    """The operator requires a second factor (and has one); anna has a password, none of her own, and is linked."""
+    from .test_totp import enrol
+
+    shown = add_provider(client, provider, **entry)
+    make_account("anna")
+    member = fresh_browser()
+    sign_in(member, accounts_row("anna"))
+    assert location(link(member, provider, PASSWORD, sub="anna-1")) == "/account?linked=sso"
+    enrol(client)
+    assert client.put("/api/settings", json={"two_factor_required": True}).status_code == 200
+    assert member.get("/api/auth/me").json()["second_factor_setup_required"] is True
+    return shown
+
+
+def test_a_provider_that_checks_the_second_factor_is_no_reason_to_set_one_up_the_password_still_is(
+    client: TestClient, operator: Account, provider: FakeProvider
+) -> None:
+    _required_with_anna_linked(client, provider)
+    by_provider = fresh_browser()
+    assert location(sign_in_via_oidc(by_provider, provider, sub="anna-1")) == "/"
+    me = by_provider.get("/api/auth/me")
+    assert me.status_code == 200 and me.json()["name"] == "anna" and me.json()["second_factor_setup_required"] is False
+    assert by_provider.get("/api/spaces").status_code == 200
+    # The same account with its password is asked as before, in a session next to the first.
+    by_password = fresh_browser()
+    sign_in(by_password, accounts_row("anna"))
+    assert by_password.get("/api/auth/me").json()["second_factor_setup_required"] is True
+    blocked = by_password.get("/api/spaces")
+    assert blocked.status_code == 403 and blocked.json()["detail"]["code"] == "second_factor_setup_required"
+    assert by_provider.get("/api/spaces").status_code == 200, "the other session is not touched"
+
+
+def test_a_provider_that_is_not_trusted_with_the_second_factor_does_not_free_the_account(
+    client: TestClient, operator: Account, provider: FakeProvider
+) -> None:
+    _required_with_anna_linked(client, provider, trusts_second_factor=False)
+    by_provider = fresh_browser()
+    assert location(sign_in_via_oidc(by_provider, provider, sub="anna-1")) == "/"
+    assert by_provider.get("/api/auth/me").json()["second_factor_setup_required"] is True
+    assert by_provider.get("/api/spaces").status_code == 403

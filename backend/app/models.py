@@ -167,6 +167,9 @@ class Account(Base):
     #: Not stored. True on the account a token acts as: a program never has the operator's powers over other
     #: people's spaces, even when its account is the operator's.
     via_key: ClassVar[bool] = False
+    #: Set by ``session_account`` on the account of a request whose session came in through a provider that the
+    #: entry trusts with the second factor: that sign-in is never asked to set one up (``totp.setup_required``).
+    second_factor_by_provider: ClassVar[bool] = False
 
 
 
@@ -252,6 +255,9 @@ class AuthSession(Base):
     last_seen_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utcnow)
     ip: Mapped[str] = mapped_column(String(64), default="")
     user_agent: Mapped[str] = mapped_column(String(255), default="")
+    #: The sign-in came through a provider that checks the second factor itself (the entry says so). A password
+    #: account that has none of its own is not made to set one up for this session. ``server_default`` for 0.1.1.
+    second_factor_by_provider: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
 
 
 class Membership(Base):

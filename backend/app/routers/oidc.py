@@ -331,7 +331,8 @@ async def _returned(slug: str, request: Request) -> RedirectResponse:
             return response
         response = _redirect(flow.arrived(arrival, page), request)
         _landing_cookie(response, request, None)
-        token = start_session(s.db, row, client_ip(request), request.headers.get("user-agent", ""))
+        token = start_session(s.db, row, client_ip(request), request.headers.get("user-agent", ""),
+                              second_factor_by_provider=arrival.provider.trusts_second_factor)
         _set_cookie(response, request, token)
         return response
 

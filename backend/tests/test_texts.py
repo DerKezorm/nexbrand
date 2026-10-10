@@ -235,3 +235,22 @@ def test_a_notice_about_the_reader_says_you_and_names_people_by_their_display_na
     with new_client(anna) as browser:
         [notice] = browser.get("/api/notices").json()
         assert (notice["subject"], notice["mine"]) == ("Ben Ott", False)
+
+
+def test_the_api_description_names_nexsuite_only_where_the_coupling_is() -> None:
+    """What every instance shows (the API description, with ``NEXBRAND_API_DOCS``) says "nexsuite" for the coupling
+    routes only: an instance that never couples has no reason to know the name (decided 10.10.2026)."""
+    from app.main import app
+
+    spec = app.openapi()
+    named = sorted(path for path, operations in spec["paths"].items()
+                   if "nexsuite" in json.dumps(operations).lower() and not path.startswith("/api/suite"))
+    assert named == []
+    assert any(path.startswith("/api/suite") and "nexsuite" in json.dumps(ops).lower()
+               for path, ops in spec["paths"].items()), "the test still looks at something"
+
+
+def test_the_readme_and_the_docs_do_not_name_nexsuite() -> None:
+    files = [ROOT / "README.md", ROOT / "SECURITY.md", *sorted((ROOT / "docs").glob("*.md"))]
+    assert len(files) >= 3
+    assert [path.name for path in files if "nexsuite" in path.read_text(encoding="utf-8").lower()] == []

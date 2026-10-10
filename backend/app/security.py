@@ -82,8 +82,11 @@ def new_token() -> str:
     return secrets.token_urlsafe(32)
 
 
-def start_session(db: Session, account: Account, ip: str, user_agent: str) -> str:
-    """Creates a browser session and returns the token for the cookie."""
+def start_session(
+    db: Session, account: Account, ip: str, user_agent: str, *, second_factor_by_provider: bool = False
+) -> str:
+    """Creates a browser session and returns the token for the cookie. ``second_factor_by_provider``: it came in
+    through a provider that the entry trusts with the second factor."""
     token = new_token()
     db.add(
         AuthSession(
@@ -92,6 +95,7 @@ def start_session(db: Session, account: Account, ip: str, user_agent: str) -> st
             expires_at=utcnow() + timedelta(days=get_settings().session_days),
             ip=ip[:64],
             user_agent=user_agent[:255],
+            second_factor_by_provider=second_factor_by_provider,
         )
     )
     account.last_seen_at = utcnow()
@@ -118,6 +122,8 @@ def session_account(db: Session, token: str | None) -> Account | None:
         session.last_seen_at = now
         account.last_seen_at = now
         db.commit()
+    # Only for this request's account object: whether this session needs a second factor of its own.
+    account.second_factor_by_provider = session.second_factor_by_provider
     return account
 
 

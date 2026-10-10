@@ -635,9 +635,8 @@
       "whatGoesOut": "Only the question goes out: a request to api.github.com for the newest release of nexbrand, with no names, clients or settings. It is the only call nexbrand makes on its own."
     },
     "family": "Part of the nex family",
-    "familyText": "nexbrand belongs together with these apps. Connected to nexsuite, they share people, teams and the sign-in, and clients come from there.",
+    "familyText": "nexbrand belongs together with these apps. A coupled directory can keep people, teams and the sign-in for them in one place, and clients come from there.",
     "apps": {
-      "nexsuite": "People, teams, clients and the sign-in for the whole family",
       "nexcanvas": "Whiteboards, together and live",
       "nexlore": "A team's notes and knowledge",
       "nextasks": "Tasks for teams",

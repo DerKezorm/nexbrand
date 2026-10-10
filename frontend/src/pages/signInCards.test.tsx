@@ -216,12 +216,12 @@ describe('the authentik steps', () => {
     await setUp(page)
     await settle()
     // Not a failure and not a result: the question, with the shared sentence, and nothing written.
-    expect(document.body.textContent).toContain(en.oidc.admin.issuerChangeConfirm.replace('{{count}}', '3'))
+    expect(document.body.textContent).toContain(en.oidc.admin.issuerChangeConfirm_other.replace('{{count}}', '3'))
     expect(rows(page)).toEqual([])
     expect(server.runs).toEqual([{ url: 'https://auth.example.com', token: 'token', confirm_issuer_change: false }])
     // No: the dialog goes, the token stays, no second run, no steps.
     await click(button(document.body, ownEn.common.cancel))
-    expect(document.body.textContent).not.toContain(en.oidc.admin.issuerChangeConfirm.replace('{{count}}', '3'))
+    expect(document.body.textContent).not.toContain(en.oidc.admin.issuerChangeConfirm_other.replace('{{count}}', '3'))
     expect(server.runs).toHaveLength(1)
     expect(rows(page)).toEqual([])
     expect((page.querySelector('#sign-in-authentik input[type="password"]') as HTMLInputElement).value).toBe('token')
@@ -231,7 +231,7 @@ describe('the authentik steps', () => {
     await click(document.body.querySelector('[role="dialog"] button[type="submit"]'))
     expect(server.runs.map((run) => run.confirm_issuer_change)).toEqual([false, false, true])
     expect(rows(page)).toHaveLength(STEP_KEYS.length)
-    expect(document.body.textContent).not.toContain(en.oidc.admin.issuerChangeConfirm.replace('{{count}}', '3'))
+    expect(document.body.textContent).not.toContain(en.oidc.admin.issuerChangeConfirm_other.replace('{{count}}', '3'))
   })
 
   it('asks in german with the shared sentence too', async () => {
@@ -239,7 +239,7 @@ describe('the authentik steps', () => {
     const page = await authentikCard('de')
     await setUp(page)
     await settle()
-    expect(document.body.textContent).toContain(de.oidc.admin.issuerChangeConfirm.replace('{{count}}', '1'))
+    expect(document.body.textContent).toContain(de.oidc.admin.issuerChangeConfirm_one.replace('{{count}}', '1'))
   })
 
   it('warns before the run without a public address', async () => {
@@ -291,7 +291,7 @@ describe('the three cards', () => {
     await type(form.querySelectorAll('input')[1], 'https://other.example.com')
     await act(async () => (form as HTMLFormElement).requestSubmit())
     await settle()
-    expect(document.body.textContent).toContain(en.oidc.admin.issuerChangeConfirm.replace('{{count}}', '3'))
+    expect(document.body.textContent).toContain(en.oidc.admin.issuerChangeConfirm_other.replace('{{count}}', '3'))
     expect(server.asked).toContain('GET /api/oidc/admin/providers/1/impact?issuer=https%3A%2F%2Fother.example.com')
     expect(server.asked.some((line) => line.startsWith('PUT '))).toBe(false)
   })
@@ -301,7 +301,7 @@ describe('the three cards', () => {
     const page = await cards('en')
     await click(button(page, en.oidc.admin.remove))
     expect(document.body.textContent).toContain(
-      en.oidc.admin.removeConfirm.replace('{{name}}', 'SSO').replace('{{count}}', '4').replace('{{only}}', '1'),
+      en.oidc.admin.removeConfirm_other.replace('{{name}}', 'SSO').replace('{{count}}', '4').replace('{{only}}', '1'),
     )
   })
 

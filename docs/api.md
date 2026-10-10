@@ -24,7 +24,7 @@ its own tokens under **My account → Connections**:
 - It is shown once, right after it was created. nexbrand keeps only a checksum.
 - The operator sees every token (never the token itself) and can block one for good.
 - A blocked or deleted account has no working token: a blocked one answers like none until the account is let in
-  again, a deleted one is gone with it. The same when nexsuite blocks or deletes the person. An account locked for a
+  again, a deleted one is gone with it. The same when a coupled directory blocks or deletes the person. An account locked for a
   while after wrong passwords keeps its tokens, so nobody switches a program off by guessing. Rights taken away at a
   client are gone for its tokens at once.
 

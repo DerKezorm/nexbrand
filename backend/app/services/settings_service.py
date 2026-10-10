@@ -93,6 +93,9 @@ DEFAULTS: dict[str, Any] = {
     "suite_unsettled": None,
     #: Set once the single provider of the settings was looked at for the provider list (``services/oidc_store.py``).
     "oidc_list_migrated": False,
+    #: What the old settings and the old column said when the way back was last written (``migrate.fingerprint``):
+    #: at the next start, what 0.1.1 changed since is taken over (``migrate.resync``).
+    "oidc_legacy_fingerprint": "",
 }
 
 

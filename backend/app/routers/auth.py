@@ -558,7 +558,7 @@ def sign_out_account(account_id: int, operator: OperatorAccount, db: DbSession) 
 def block_account(
     account_id: int, payload: OperatorConfirmIn, request: Request, operator: OperatorAccount, db: DbSession,
 ) -> None:
-    """On its own too, as in nexsuite (F5): blocked, the account gets in nowhere and its sessions end."""
+    """On its own too, as with a coupled directory (F5): blocked, the account gets in nowhere and its sessions end."""
     suite.refuse_if_managed(db)
     confirm_operator(request, db, operator, payload.current_password)
     if account_id == operator.id:
@@ -577,7 +577,7 @@ def withdraw_links(
 ) -> dict[str, int]:
     """Its links stay when an account is blocked or deleted, for the client's sake; the operator ends them all here,
     with the own password as for blocking (A15, decided 05.10.2026). Connected too: the links are nexbrand's, not
-    nexsuite's, and a person blocked there keeps them as well."""
+    the directory's, and a person blocked there keeps them as well."""
     confirm_operator(request, db, operator, payload.current_password)
     row = _row(db, account_id)
     count = links.withdraw_all(db, row.id)
@@ -589,8 +589,9 @@ def withdraw_links(
 def unblock_account(
     account_id: int, payload: OperatorConfirmIn, request: Request, operator: OperatorAccount, db: DbSession,
 ) -> None:
-    """Accounts blocked while nexbrand hung on nexsuite (blocked or deleted there, or left out when connecting)
-    stay blocked after a disconnect, until the operator lets them in here again (Prüfgang 04.10.2026, B4)."""
+    """Accounts blocked while nexbrand hung on a coupled directory (blocked or deleted there, or left out when
+    connecting) stay blocked after a disconnect, until the operator lets them in here again (Prüfgang 04.10.2026,
+    B4)."""
     suite.refuse_if_managed(db)
     confirm_operator(request, db, operator, payload.current_password)
     row = _row(db, account_id)
