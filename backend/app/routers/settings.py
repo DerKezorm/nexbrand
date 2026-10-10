@@ -20,6 +20,7 @@ from ..models import SIGN_IN_PASSWORD
 from ..models import Account as AccountRow
 from ..security import encrypt_secret
 from ..services import accounts, ai, mailer, oidc_store, settings_service, suite
+from ..vendor.nexoidc import authentik
 
 logger = logging.getLogger("nexbrand.settings")
 
@@ -79,6 +80,9 @@ class SettingsIn(BaseModel):
     upload_max_mb: int | None = Field(default=None, ge=1, le=100_000)
     strip_location: bool | None = None
     update_check: bool | None = None
+    #: The answer to the question that comes back as 409 ``public_url_change`` when a new public address leaves the
+    #: redirect address at authentik behind (module 1.0.10): sent again with ``true`` after the operator agreed.
+    confirm_address: bool = False
 
 
 class TestMailIn(BaseModel):
@@ -124,9 +128,10 @@ def read(request: Request, _operator: OperatorAccount, db: DbSession) -> Setting
 
 
 @router.put("", response_model=SettingsOut)
-def save(payload: SettingsIn, operator: OperatorAccount, db: DbSession) -> SettingsOut:
+def save(payload: SettingsIn, request: Request, operator: OperatorAccount, db: DbSession) -> SettingsOut:
     changes: dict[str, Any] = {}
-    sent = {key for key, value in payload.model_dump(exclude_unset=True).items() if value is not None}
+    sent = {key for key, value in payload.model_dump(exclude_unset=True, exclude={"confirm_address"}).items()
+            if value is not None}
     mail_managed = bool(settings_service.get(db, "suite_mail")) and any(k.startswith("smtp_") for k in sent)
     # The public address too: nexsuite knows the app by it, and the return address of the sign-in hangs on it (A9).
     # Who makes clients is nexsuite's too while it keeps them (B22): the switch counts again after a disconnect. The
@@ -134,7 +139,7 @@ def save(payload: SettingsIn, operator: OperatorAccount, db: DbSession) -> Setti
     kept_there = {"password_login", "two_factor_required", "public_url", "members_create_clients", "team_leads_edit"}
     if suite.connected(db) and (sent & kept_there or mail_managed):
         raise error("managed_by_suite", "This is kept in nexsuite now.", 409)
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    for key, value in payload.model_dump(exclude_unset=True, exclude={"confirm_address"}).items():
         if value is None:
             continue
         if key == "public_url":
@@ -142,6 +147,13 @@ def save(payload: SettingsIn, operator: OperatorAccount, db: DbSession) -> Setti
                 value = settings_service.normalize_public_url(value)
             except ValueError as exc:
                 raise error("invalid_url", "Enter an address starting with http:// or https://.", 422) from exc
+            # The redirect address at authentik (and at any provider made by hand) hangs on this address: ask before
+            # it changes (module 1.0.10); nothing is saved until the operator agreed.
+            question = authentik.public_url_guard(
+                oidc_store.SqlStore(db), value, str(request.base_url), confirm=payload.confirm_address
+            )
+            if question is not None:
+                raise error("public_url_change", "The redirect address at authentik changes.", 409, **question)
         elif key == "smtp_from":
             value = value.strip()
             if value and not accounts.EMAIL_PATTERN.match(value):

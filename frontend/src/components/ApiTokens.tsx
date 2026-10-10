@@ -18,6 +18,7 @@ import { ApiError, apiTokensApi, type ApiToken } from '../api/client'
 import { useBrands } from '../state/brands'
 import { errorText } from '../lib/errors'
 import { useAuth } from '../state/auth'
+import { KeysWait } from './KeysWait'
 import { copyText } from '../lib/copy'
 
 /** Days until a token runs out; null: never. A new one starts at 90 (F26). */
@@ -149,6 +150,7 @@ export function ApiTokens() {
               {copied === 'token' ? t('common.copied') : t('common.copy')}
             </button>
           </div>
+          <KeysWait className="mt-2" />
           <Line label={t('apiTokens.header')} text={header(shown.secret)} copied={copied === 'header'} onCopy={() => copy('header', header(shown.secret))} />
           <Line label={t('apiTokens.tryIt')} text={curl(shown.secret)} copied={copied === 'curl'} onCopy={() => copy('curl', curl(shown.secret))} />
           <button type="button" onClick={() => setShown(null)} className="mt-2 text-xs text-mist-400 underline">
@@ -194,6 +196,7 @@ export function ApiTokens() {
                   )}
                   <span>{token.last_used_at ? t('apiTokens.used', { when: at(token.last_used_at) }) : t('apiTokens.unused')}</span>
                 </div>
+                <KeysWait className="mt-0.5" />
               </li>
             )
           })}
@@ -284,6 +287,7 @@ export function ApiTokens() {
               ))}
             </div>
           </fieldset>
+          <KeysWait />
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => setMaking(false)} className="rounded-full px-3 py-1 text-sm text-mist-400">
               {t('common.cancel')}

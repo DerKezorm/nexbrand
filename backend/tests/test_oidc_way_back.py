@@ -522,3 +522,138 @@ def test_a_session_made_without_the_new_column_gets_its_default(client: TestClie
         assert connection.execute(
             text('SELECT second_factor_by_provider FROM auth_sessions WHERE token_hash = :hash'), {"hash": "0" * 64}
         ).scalar() == 0
+
+
+# --- Module 1.0.10 and 1.0.11: one rule, the anchor, the issuer as 0.1.1 wrote it ------------------------------------
+
+
+def _quiet_start(caplog: pytest.LogCaptureFixture) -> None:
+    """A start that must change nothing and say nothing."""
+    before, old, columns = _list_state(), _old_settings(), _columns()
+    caplog.clear()
+    with caplog.at_level("WARNING"):
+        oidc_store.migrate_settings(backup=False)
+    assert (_list_state(), _old_settings(), _columns()) == (before, old, columns) and "OIDC:" not in caplog.text
+
+
+def test_a_first_start_without_a_provider_stores_the_fingerprint_and_takes_over_one_set_up_later(
+    client: TestClient, operator: Account, provider: FakeProvider, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Prüfer nexbrand, Befund 1: without the fingerprint of "no provider" the next start took a provider that 0.1.1
+    set up in between for no change and wrote the old settings empty."""
+    make_account("anna")
+    # The test's own start (the fixture's lifespan was one already) is the first one: nothing looked at yet.
+    with SessionLocal() as db:
+        settings_service.save(db, {oidc_store.MIGRATED: False, oidc_store.FINGERPRINT: "", oidc_store.ANCHOR: ""})
+    assert oidc_store.migrate_settings(backup=False) is None
+    with SessionLocal() as db:
+        legacy, subjects = oidc_store.read_legacy(db)
+        stamp = settings_service.get(db, oidc_store.FINGERPRINT)
+        assert stamp and stamp == migrate.fingerprint(legacy, subjects), "the fingerprint of no provider"
+        assert settings_service.get(db, oidc_store.ANCHOR) == migrate.CLOSED
+    # 0.1.1 started on this database: its operator set a provider up and linked anna.
+    _as_0_1_1_changed(provider, anna="anna-1")
+    with caplog.at_level("WARNING"):
+        assert oidc_store.migrate_settings(backup=False) is None
+    entries, links = _list_state()
+    assert [(slug, issuer) for slug, issuer, _label, _on in entries] == [("oidc", provider.issuer)]
+    assert links == [("oidc", "anna-1", "anna")]
+    assert _old_settings()["oidc_client_id"] == provider.client_id and _columns()["anna"] == ("anna-1", "")
+    _quiet_start(caplog)
+
+
+def test_off_and_the_provider_removed_in_0_1_1_removes_the_entry_at_the_next_start(
+    client: TestClient, operator: Account, provider: FakeProvider, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Prüfer nexbrand, Befund 2: the issuer stays standing while the entry is off (rule 2), so "remove the provider"
+    in 0.1.1 is a change the next start sees; it removes the entry with its links, like removing does anywhere."""
+    entry = _migrated(provider, anna="anna-1")
+    _save(client, entry, enabled=False)
+    assert _old_settings() == _off(provider)
+    # 0.1.1: "Remove the provider" clears its settings (the subjects of the accounts stay in their column).
+    _as_0_1_1_changed(None)
+    with caplog.at_level("WARNING"):
+        oidc_store.migrate_settings(backup=False)
+    assert _list_state() == ([], [])
+    assert _old_settings() == EMPTY and _columns()["anna"] == ("", "")
+    with SessionLocal() as db:
+        assert settings_service.get(db, oidc_store.ANCHOR) == migrate.CLOSED
+    _quiet_start(caplog)
+
+
+def test_deleting_an_account_writes_the_way_back_and_the_fingerprint_too(
+    client: TestClient, operator: Account, provider: FakeProvider, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Without it the next start took the missing subject for a change of 0.1.1, made a backup for nothing and logged
+    it (the contract test "every commit" asks for the same through the adapter)."""
+    _migrated(provider, anna="anna-1", ben="ben-1")
+    gone = client.request("DELETE", f"/api/accounts/{accounts_row('anna').id}", json={"current_password": PASSWORD})
+    assert gone.status_code == 204, gone.text
+    assert _columns().get("anna") is None and _columns()["ben"] == ("ben-1", "")
+    with SessionLocal() as db:
+        legacy, subjects = oidc_store.read_legacy(db)
+        assert settings_service.get(db, oidc_store.FINGERPRINT) == migrate.fingerprint(legacy, subjects)
+    assert _links() == [("oidc", "ben-1", "ben")]
+    _quiet_start(caplog)
+
+
+def test_the_issuer_stays_as_0_1_1_wrote_it_through_the_whole_round(
+    client: TestClient, operator: Account, provider: FakeProvider, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Module 1.0.11: authentik hands out the issuer with a slash and six older versions compare it letter by letter
+    when a provider is saved; the way back writes the text they knew, never a form without the slash."""
+    written = provider.issuer.rstrip("/") + "/"
+    for name in ("anna",):
+        make_account(name)
+    _legacy(provider, label="Company", issuer=written, subjects={"anna": "anna-1"})
+    entry = oidc_store.migrate_settings(backup=False)
+    assert entry is not None and not entry.issuer.endswith("/"), "the entry holds the form without the slash"
+    assert _old_settings()["oidc_issuer"] == written
+    _save(client, entry.id, enabled=False)
+    assert _old_settings()["oidc_issuer"] == written and _old_settings()["oidc_client_id"] == ""
+    _save(client, entry.id, enabled=True)
+    assert _old_settings() == {**_own(provider), "oidc_issuer": written}
+    _quiet_start(caplog)
+    _save(client, entry.id, label="Renamed")
+    assert _old_settings()["oidc_issuer"] == written and _columns()["anna"] == ("anna-1", "")
+    _quiet_start(caplog)
+    # 0.1.1 sets the same provider up again with a new client, its issuer written with the slash as its button does.
+    with SessionLocal() as db:
+        settings_service.save(db, {"oidc_issuer": written, "oidc_client_id": "renewed-client"})
+    oidc_store.migrate_settings(backup=False)
+    assert _links() == [("oidc", "anna-1", "anna")], "no link was thrown away"
+    assert _old_settings()["oidc_issuer"] == written and _old_settings()["oidc_client_id"] == "renewed-client"
+    _quiet_start(caplog)
+
+
+def test_a_start_backs_up_only_when_0_1_1_changed_something(
+    client: TestClient, operator: Account, provider: FakeProvider, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.services import backups
+
+    made: list[str] = []
+    monkeypatch.setattr(backups, "create", lambda **kwargs: made.append(str(kwargs.get("note"))))
+    _migrated(provider, anna="anna-1")
+    oidc_store.migrate_settings(backup=True)
+    assert made == [], "nothing changed since the way back was written: no backup for nothing"
+    _as_0_1_1_changed(provider, anna="")
+    oidc_store.migrate_settings(backup=True)
+    assert len(made) == 1 and "0.1.1" in made[0]
+
+
+def test_a_provider_made_without_the_new_column_gets_its_default(
+    client: TestClient, operator: Account, provider: FakeProvider
+) -> None:
+    # The list before module 1.0.10 (a build of this version from before) names every column it knows and none it does
+    # not: the insert below is its insert.
+    _migrated(provider, anna="anna-1")
+    with engine.begin() as connection:
+        known = [row[1] for row in connection.execute(text("PRAGMA table_info(oidc_providers)"))
+                 if row[1] not in ("id", "slug", "registered_redirect")]
+        listed = ", ".join(f'"{name}"' for name in known)  # names of the table itself, nothing from outside
+        statement = (f'INSERT INTO oidc_providers ("slug", {listed}) '  # noqa: S608
+                     f'SELECT :slug, {listed} FROM oidc_providers LIMIT 1')
+        connection.execute(text(statement), {"slug": "made-before"})
+    with SessionLocal() as db:
+        row = db.scalar(select(OidcProvider).where(OidcProvider.slug == "made-before"))
+        assert row is not None and row.registered_redirect == ""

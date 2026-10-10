@@ -386,6 +386,9 @@
     "invalid_days": "Bitte eine der angebotenen Laufzeiten wählen.",
     "invalid_email": "Das ist keine Mailadresse.",
     "invalid_url": "Gib eine Adresse an, die mit http:// oder https:// beginnt.",
+    "public_url_change": "Die Rückleitadresse bei authentik ändert sich. Bestätige, um die neue Adresse zu speichern.",
+    "public_url_invalid": "Diese Adresse lässt sich nicht verwenden. Prüf, wie sie geschrieben ist.",
+    "public_url_needed": "nexbrand konnte die Adresse nicht behalten. Versuch es noch einmal oder trag sie unter Anmeldung ein.",
     "mail_off": "Es ist kein Mailserver eingetragen.",
     "mail_failed": "Der Mailserver hat die Mail nicht angenommen.",
     "cannot_delete_self": "Das eigene Konto kannst du nicht löschen.",
@@ -704,6 +707,8 @@
       "member": "Mitglied"
     },
     "setupFirst": "Der Betreiber verlangt einen zweiten Faktor. Richte ihn hier ein, dann geht es weiter.",
+    "keysWait": "Wirkt erst, wenn du einen zweiten Faktor einrichtest.",
+    "keysWaitLink": "Zweiten Faktor einrichten",
     "oidc": {
       "linkedTo": "Dein Konto ist mit {{name}} verknüpft.",
       "unlinkedFrom": "Die Verknüpfung mit {{name}} ist gelöst.",

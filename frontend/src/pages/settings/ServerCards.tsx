@@ -7,7 +7,7 @@ import { Box, Download, Files, Globe, History, Info, KeyRound, Mail, RotateCcw, 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { api, apiTokensApi, oidcApi, passwordHeader, type AnyApiToken, type LinkedProvider, type Me, type SpaceInfo } from '../../api/client'
+import { ApiError, api, apiTokensApi, oidcApi, passwordHeader, type AddressQuestion, type AnyApiToken, type LinkedProvider, type Me, type SpaceInfo } from '../../api/client'
 import { Avatar } from '../../components/Avatar'
 import { MembersDialog } from '../../components/MembersDialog'
 import { forgetAddedLanguages, templateFile } from '../../i18n'
@@ -51,9 +51,10 @@ type Server = ReturnType<typeof useServerSettings>
 export function useServerSettings() {
   const [settings, setSettings] = useState<ServerSettings | null>(null)
   const action = useAction()
+  const reload = useCallback(() => api<ServerSettings>('/api/settings').then(setSettings, () => undefined), [])
   useEffect(() => {
-    api<ServerSettings>('/api/settings').then(setSettings, () => undefined)
-  }, [])
+    void reload()
+  }, [reload])
   /** The switch moves at once; the server's answer confirms it, a refusal puts it back. */
   const save = async (change: Change, done?: string) => {
     const before = settings
@@ -61,7 +62,24 @@ export function useServerSettings() {
     const ok = await action.run(async () => setSettings(await api<ServerSettings>('/api/settings', { method: 'PUT', body: change })), done)
     if (!ok) setSettings(before)
   }
-  return { settings, save, ...action }
+  /**
+   * The public address, which the server asks about first when a provider knows a redirect address that would stay
+   * behind (409 `public_url_change`): then nothing is saved and the question comes back, to be answered with
+   * `confirm` (module 1.0.10). null: saved, or refused for another reason (`problem` says which).
+   */
+  const saveAddress = async (public_url: string, confirm = false): Promise<AddressQuestion | null> => {
+    const asked: { question: AddressQuestion | null } = { question: null }
+    const ok = await action.run(async () => {
+      try {
+        setSettings(await api<ServerSettings>('/api/settings', { method: 'PUT', body: { public_url, confirm_address: confirm } }))
+      } catch (error) {
+        if (!(error instanceof ApiError) || error.code !== 'public_url_change') throw error
+        asked.question = { count: Number(error.values.count ?? 0), address: String(error.values.address ?? ''), hand: Number(error.values.hand ?? 0) }
+      }
+    })
+    return ok ? asked.question : null
+  }
+  return { settings, save, saveAddress, reload, ...action }
 }
 
 /** `open_links`: public pages and reviews it made that are still open; they stay when it is blocked or deleted (A15). */

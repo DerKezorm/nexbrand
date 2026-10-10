@@ -12,6 +12,7 @@ import i18n from '../i18n'
 import de from '../vendor/nexoidc/oidc.de.json'
 import en from '../vendor/nexoidc/oidc.en.json'
 import ownEn from '../i18n/en.json'
+import type { AuthentikAddress } from '../vendor/nexoidc/oidc'
 import { useServerSettings } from './settings/ServerCards'
 import { SignInPart } from './settings/SignInCards'
 
@@ -44,6 +45,15 @@ function entry(change: Partial<OidcProvider> = {}): OidcProvider {
   }
 }
 
+/** The address view of a server that has a public address and sees what the browser uses. */
+function addressView(change: Partial<AuthentikAddress> = {}): AuthentikAddress {
+  return {
+    public_url: 'https://brand.example.com', seen: 'http://localhost:3000', forwarded_proto: '', forwarded_host: '',
+    proxy_ignored: false, callback_path: '/api/oidc/authentik/callback',
+    redirect_uri: 'https://brand.example.com/api/oidc/authentik/callback', registered_redirect_uri: '', stale: false, ...change,
+  }
+}
+
 /** What the stub answers; `steps` is the set-up run's answer, held back while `gate` is set. */
 const server: {
   steps: Step[]; gate: Promise<void> | null; pending: number; providers: OidcProvider[]; asked: string[]
@@ -51,17 +61,49 @@ const server: {
   ask: number | null
   /** The bodies of the set-up runs. */
   runs: Array<Record<string, unknown>>
+  /** Answers for the next set-up runs (first in, first out); without one, `steps` answers. */
+  answers: Array<Record<string, unknown>>
+  /** The address view and the public address of the settings; `askAddress` is the question a new address meets. */
+  address: AuthentikAddress
+  settings: Record<string, unknown>
+  askAddress: { count: number; address: string; hand: number } | null
+  /** The bodies of the saves: "Use it only" (`saved`) and card 1 (`settingsSaved`). */
+  saved: Array<Record<string, unknown>>
+  settingsSaved: Array<Record<string, unknown>>
 } = {
-  steps: [], gate: null, pending: 0, providers: [], asked: [], ask: null, runs: [],
+  steps: [], gate: null, pending: 0, providers: [], asked: [], ask: null, runs: [], answers: [], address: addressView(),
+  settings: {}, askAddress: null, saved: [], settingsSaved: [],
 }
+
+const SETTINGS = { password_login: true, two_factor_required: false, public_url: 'https://brand.example.com' }
+
+const asking = (question: NonNullable<typeof server.askAddress>) =>
+  new Response(JSON.stringify({ detail: { code: 'public_url_change', ...question } }), { status: 409, headers: { 'Content-Type': 'application/json' } })
 
 function answer(method: string, path: string, query: string, body: Record<string, unknown> = {}): unknown {
   server.asked.push(`${method} ${path}${query ? '?' + query : ''}`)
-  if (method === 'GET' && path === '/api/settings') return { password_login: true, two_factor_required: false, public_url: '' }
+  if (method === 'GET' && path === '/api/settings') return server.settings
+  if (method === 'PUT' && path === '/api/settings') {
+    server.settingsSaved.push(body)
+    if (server.askAddress && body.confirm_address !== true) return asking(server.askAddress)
+    server.settings = { ...server.settings, public_url: body.public_url }
+    return server.settings
+  }
+  if (method === 'GET' && path === '/api/oidc/authentik/address') return server.address
+  if (method === 'POST' && path === '/api/oidc/authentik/address') {
+    server.saved.push(body)
+    if (server.askAddress && body.confirm !== true) return asking(server.askAddress)
+    const url = String(body.public_url)
+    server.address = { ...server.address, public_url: url, redirect_uri: url + server.address.callback_path }
+    server.settings = { ...server.settings, public_url: url }
+    return server.address
+  }
   if (method === 'GET' && path === '/api/oidc/admin/providers') return server.providers
   if (method === 'GET' && path.endsWith('/impact')) return { issuer_change: 3, count: 4, only: 1, only_names: ['clara'] }
   if (method === 'POST' && path === '/api/oidc/authentik/setup') {
     server.runs.push(body)
+    const queued = server.answers.shift()
+    if (queued) return queued
     if (server.ask !== null && body.confirm_issuer_change !== true) {
       const stop = { key: 'reached', ok: false, detail: 'another issuer', reason: 'issuer_change', status: 0 }
       return { ok: false, steps: [stop], links_dropped: 0, count: server.ask }
@@ -132,7 +174,10 @@ async function setUp(page: HTMLElement): Promise<void> {
 const rows = (page: HTMLElement) => [...page.querySelectorAll('[data-testid="authentik-steps"] li')].map((row) => row.textContent)
 
 beforeEach(() => {
-  Object.assign(server, { steps: [], gate: null, pending: 0, providers: [], asked: [], ask: null, runs: [] })
+  Object.assign(server, {
+    steps: [], gate: null, pending: 0, providers: [], asked: [], ask: null, runs: [], answers: [], address: addressView(),
+    settings: { ...SETTINGS }, askAddress: null, saved: [], settingsSaved: [],
+  })
   vi.stubGlobal('fetch', async (url: string, init: RequestInit = {}) => {
     server.pending++
     try {
@@ -141,6 +186,7 @@ beforeEach(() => {
       if (path === '/api/oidc/authentik/setup' && server.gate) await server.gate
       await Promise.resolve()
       const body = answer(method, path, query, typeof init.body === 'string' ? JSON.parse(init.body) : {})
+      if (body instanceof Response) return body
       if (body === undefined) return new Response(JSON.stringify({ detail: { code: 'not_found' } }), { status: 404, headers: { 'Content-Type': 'application/json' } })
       return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })
     } finally {
@@ -242,9 +288,124 @@ describe('the authentik steps', () => {
     expect(document.body.textContent).toContain(de.oidc.admin.issuerChangeConfirm_one.replace('{{count}}', '1'))
   })
 
-  it('warns before the run without a public address', async () => {
+  it('proposes the address of the browser without a public address and sets up with it', async () => {
+    server.address = addressView({ public_url: '' })
+    server.settings = { ...SETTINGS, public_url: '' }
+    server.steps = STEP_KEYS.map((key) => ({ key, ok: true, detail: key }))
     const page = await cards('en')
-    expect(page.querySelector('[data-testid="authentik-no-address"]')?.textContent).toContain(en.oidc.authentik.noAddress)
+    const words = en.oidc.authentik
+    const note = page.querySelector('[data-testid="authentik-no-address"]')
+    expect(note?.textContent).toContain(words.noAddress.replace('{{app}}', 'nexbrand'))
+    // The suggestion is the browser's own address, and the redirect address the button would register behind it.
+    expect(page.querySelector('[data-testid="authentik-proposal"]')?.textContent).toBe(window.location.origin)
+    expect(note?.textContent).toContain(`${window.location.origin}/api/oidc/authentik/callback`)
+    expect(page.querySelector('[data-testid="authentik-proxy-warning"]')).toBeNull()
+    expect(page.querySelector('[data-testid="authentik-stale"]')).toBeNull()
+    // "Use it and set up" replaces "Set up" and sends the suggestion with the run.
+    expect(button(page, words.run)).toBeUndefined()
+    const card = page.querySelector('#sign-in-authentik')!
+    await type(card.querySelector('input[placeholder="https://auth.example.com"]'), 'https://auth.example.com')
+    await type(card.querySelector('input[type="password"]'), 'token')
+    await click(button(page, words.adopt))
+    expect(server.runs[0]).toMatchObject({ url: 'https://auth.example.com', confirm_issuer_change: false, public_url: window.location.origin })
+    expect(rows(page)).toHaveLength(STEP_KEYS.length)
+  })
+
+  it('does not send a suggestion once the server has an address', async () => {
+    server.steps = STEP_KEYS.map((key) => ({ key, ok: true, detail: key }))
+    const page = await authentikCard('en')
+    expect(page.querySelector('[data-testid="authentik-no-address"]')).toBeNull()
+    await setUp(page)
+    await settle()
+    expect(server.runs[0]).toEqual({ url: 'https://auth.example.com', token: 'token', confirm_issuer_change: false })
+  })
+
+  it('warns under the suggestion when the server sees another address than the browser uses', async () => {
+    server.address = addressView({ public_url: '', seen: 'http://brand-internal:8000' })
+    server.settings = { ...SETTINGS, public_url: '' }
+    const page = await cards('en')
+    expect(page.querySelector('[data-testid="authentik-proxy-warning"]')?.textContent).toBe(
+      en.oidc.authentik.proxyWarning.replaceAll('{{app}}', 'nexbrand').replace('{{address}}', 'http://brand-internal:8000'),
+    )
+  })
+
+  it('uses the suggestion only, and asks first when authentik knows another redirect address', async () => {
+    server.address = addressView({ public_url: '' })
+    server.settings = { ...SETTINGS, public_url: '' }
+    server.askAddress = { count: 1, address: 'http://old.example.com/api/oidc/authentik/callback', hand: 2 }
+    const page = await cards('en')
+    await click(button(page, en.oidc.authentik.adoptOnly))
+    // The question names the redirect address authentik keeps and the entries made by hand; nothing was saved yet.
+    const asked = document.querySelector('[role="dialog"]')?.textContent ?? ''
+    expect(asked).toContain(i18n.t('oidc.admin.addressChangeConfirm', { address: server.askAddress.address }))
+    expect(asked).toContain(i18n.t('oidc.admin.addressChangeHand', { count: 2 }))
+    expect(server.saved.map((body) => body.confirm)).toEqual([false])
+    expect(server.address.public_url).toBe('')
+    await click(button(document.querySelector('[role="dialog"]')!, en.oidc.authentik.adoptOnly))
+    expect(server.saved.map((body) => body.confirm)).toEqual([false, true])
+    expect(server.address.public_url).toBe(window.location.origin)
+    expect(document.querySelector('[role="dialog"]')).toBeNull()
+    // With an address the card has its ordinary button again, and no suggestion.
+    expect(page.querySelector('[data-testid="authentik-no-address"]')).toBeNull()
+    expect(button(page, en.oidc.authentik.run)).toBeTruthy()
+  })
+
+  it('says what authentik still knows after the address changed', async () => {
+    server.address = addressView({ stale: true, registered_redirect_uri: 'http://old.example.com/api/oidc/authentik/callback' })
+    const page = await cards('en')
+    expect(page.querySelector('[data-testid="authentik-stale"]')?.textContent).toBe(
+      en.oidc.authentik.stale.replace('{{address}}', 'http://old.example.com/api/oidc/authentik/callback'),
+    )
+  })
+
+  it('shows the address the server names when the run stopped for want of one', async () => {
+    server.address = addressView({ public_url: '', seen: 'http://brand-internal:8000' })
+    server.settings = { ...SETTINGS, public_url: '' }
+    server.answers = [
+      { ok: false, links_dropped: 0, steps: [{ key: STEP_KEYS[0], ok: false, detail: 'none', reason: 'public_url_needed', status: 0 }], address: server.address },
+    ]
+    const page = await cards('en')
+    const card = page.querySelector('#sign-in-authentik')!
+    await type(card.querySelector('input[placeholder="https://auth.example.com"]'), 'https://auth.example.com')
+    await type(card.querySelector('input[type="password"]'), 'token')
+    await click(button(page, en.oidc.authentik.adopt))
+    expect(rows(page)).toEqual([`✗${en.oidc.authentik.step.reached}${en.oidc.authentik.why.public_url_needed.replaceAll('{{app}}', 'nexbrand')}`])
+    expect(page.querySelector('[data-testid="authentik-proxy-warning"]')).not.toBeNull()
+  })
+
+  it('asks before the public address of card 1 changes what authentik knows, and saves on yes', async () => {
+    server.askAddress = { count: 2, address: 'https://brand.example.com/api/oidc/authentik/callback', hand: 0 }
+    const page = await cards('en')
+    const card = page.querySelector('#sign-in') as HTMLElement
+    await type(card.querySelector('input[placeholder="https://brand.example.com"]'), 'https://new.example.com')
+    await click(button(card, ownEn.common.save))
+    const asked = document.querySelector('[role="dialog"]')?.textContent ?? ''
+    expect(asked).toContain(i18n.t('oidc.admin.addressChangeConfirm', { address: server.askAddress.address }))
+    expect(asked).not.toContain(en.oidc.admin.addressChangeHand_other.slice(0, 20))
+    expect(server.settingsSaved.map((body) => body.confirm_address)).toEqual([false])
+    expect(server.settings.public_url).toBe('https://brand.example.com')
+    await click(button(document.querySelector('[role="dialog"]')!, ownEn.common.save))
+    expect(server.settingsSaved.map((body) => body.confirm_address)).toEqual([false, true])
+    expect(server.settings.public_url).toBe('https://new.example.com')
+    expect(document.querySelector('[role="dialog"]')).toBeNull()
+  })
+
+  it('names the count in the reason of a step too: a plural text without one would show its bare key', async () => {
+    // Two failed steps: the first is no question, so the run is a result and the second step's reason is read.
+    server.answers = [
+      {
+        ok: false, links_dropped: 0, count: 3,
+        steps: [
+          { key: STEP_KEYS[0], ok: false, detail: 'x', reason: 'unreachable', status: 0 },
+          { key: STEP_KEYS[1], ok: false, detail: 'y', reason: 'issuer_change', status: 0 },
+        ],
+      },
+    ]
+    const page = await authentikCard('en')
+    await setUp(page)
+    await settle()
+    expect(rows(page)[1]).toContain(en.oidc.authentik.why.issuer_change_other.replace('{{count}}', '3'))
+    expect(page.textContent).not.toContain('oidc.authentik.why.issuer_change')
   })
 })
 

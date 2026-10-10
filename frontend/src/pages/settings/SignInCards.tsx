@@ -13,13 +13,26 @@
  */
 import { Download, GripVertical, KeyRound, ShieldCheck, Sparkles } from 'lucide-react'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 
-import { ApiError, oidcApi, type AuthentikResult, type OidcProvider, type OidcProviderForm } from '../../api/client'
+import { ApiError, oidcApi, type AddressQuestion, type AuthentikResult, type OidcProvider, type OidcProviderForm } from '../../api/client'
 import { Dialog } from '../../components/Dialog'
 import { errorText } from '../../lib/errors'
 import { useAuth } from '../../state/auth'
-import { authentikIssuerChange, authentikReasonKey, authentikStepKey, oidcErrorKey, oidcFormErrorKey, slugFromLabel } from '../../vendor/nexoidc/oidc'
+import {
+  authentikIssuerChange,
+  authentikProposal,
+  authentikProxyWarning,
+  authentikReasonKey,
+  authentikRedirect,
+  authentikStale,
+  authentikStepKey,
+  oidcErrorKey,
+  oidcFormErrorKey,
+  slugFromLabel,
+  type AuthentikAddress,
+} from '../../vendor/nexoidc/oidc'
 import type { useServerSettings } from './ServerCards'
 import { Button, Card, Confirm, CopyLink, Feedback, Input, Toggle, useAction } from './ui'
 
@@ -38,7 +51,7 @@ export function SignInPart({ server, coupled }: { server: Server; coupled: boole
     <>
       <SignInCard server={server} anyActive={active} coupled={coupled} />
       <ProvidersCard providers={providers} reload={load} publicUrl={publicUrl} />
-      <AuthentikCard publicUrl={publicUrl} coupled={coupled || (providers ?? []).some((entry) => entry.managed === 'nexsuite')} reload={load} />
+      <AuthentikCard publicUrl={publicUrl} coupled={coupled || (providers ?? []).some((entry) => entry.managed === 'nexsuite')} reload={load} addressChanged={server.reload} />
     </>
   )
 }
@@ -49,6 +62,9 @@ function SignInCard({ server, anyActive, coupled }: { server: Server; anyActive:
   const { t } = useTranslation()
   const { me } = useAuth()
   const [address, setAddress] = useState<string | null>(null)
+  // The server stopped before saving the address: this much stays behind at authentik (module 1.0.10).
+  const [asking, setAsking] = useState<AddressQuestion | null>(null)
+  const [saved, setSaved] = useState<string | null>(null)
   const s = server.settings
   if (!s) return null
   // Without an own second factor the operator would be the first one sent away (a1-14): first the own one.
@@ -68,7 +84,11 @@ function SignInCard({ server, anyActive, coupled }: { server: Server; anyActive:
         className="flex flex-wrap items-end gap-2"
         onSubmit={(event) => {
           event.preventDefault()
-          void server.save({ public_url: (address ?? s.public_url).trim() }, t('settings.saved'))
+          setSaved(null)
+          void server.saveAddress((address ?? s.public_url).trim()).then((question) => {
+            setAsking(question)
+            if (!question) setSaved(t('settings.saved'))
+          })
         }}
       >
         <Input
@@ -90,9 +110,32 @@ function SignInCard({ server, anyActive, coupled }: { server: Server; anyActive:
         disabled={ownFirst}
         onChange={(two_factor_required) => void server.save({ two_factor_required })}
       />
-      <Feedback problem={server.problem} done={server.done} />
+      <Feedback problem={server.problem} done={server.done ?? saved} />
+      {asking && (
+        <Confirm
+          title={t('oidc.admin.address')}
+          text={addressQuestionText(t, asking)}
+          confirm={t('common.save')}
+          onCancel={() => setAsking(null)}
+          onConfirm={async () => {
+            await server.saveAddress((address ?? s.public_url).trim(), true)
+            setAsking(null)
+            setSaved(t('settings.saved'))
+          }}
+        />
+      )}
     </Card>
   )
+}
+
+/** The question before a new public address is saved: what stays behind at authentik, and at providers made by hand. */
+function addressQuestionText(t: TFunction, question: AddressQuestion): string {
+  return [
+    question.count > 0 ? t('oidc.admin.addressChangeConfirm', { address: question.address }) : '',
+    question.hand > 0 ? t('oidc.admin.addressChangeHand', { count: question.hand }) : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
 }
 
 // --- Card 2: the provider list ---------------------------------------------------------------------------------------
@@ -406,20 +449,51 @@ function FieldProblem({ text }: { text: string }) {
 
 // --- Card 3: authentik in one step ------------------------------------------------------------------------------------
 
-function AuthentikCard({ publicUrl, coupled, reload }: { publicUrl: string; coupled: boolean; reload: () => Promise<void> }) {
+function AuthentikCard({
+  publicUrl,
+  coupled,
+  reload,
+  addressChanged,
+}: {
+  publicUrl: string
+  coupled: boolean
+  reload: () => Promise<void>
+  /** The public address was set here: card 1 reads it again. */
+  addressChanged: () => Promise<unknown>
+}) {
   const { t } = useTranslation()
   const [authentik, setAuthentik] = useState({ url: '', token: '' })
   const [steps, setSteps] = useState<AuthentikResult | null>(null)
   // The button stopped before it wrote anything: another issuer, this many accounts would have to link again.
   const [asking, setAsking] = useState<number | null>(null)
+  // "Use it only" stopped before it saved: the new address leaves redirect addresses behind.
+  const [addressAsking, setAddressAsking] = useState<AddressQuestion | null>(null)
+  // What the card shows about the public address (module 1.0.10); null while it loads.
+  const [address, setAddress] = useState<AuthentikAddress | null>(null)
   const { busy, problem, run } = useAction()
+  // The address the browser uses, which the card proposes while nexbrand has none of its own.
+  const proposal = authentikProposal(window.location.origin, import.meta.env.BASE_URL)
+
+  const loadAddress = useCallback(async () => {
+    try {
+      setAddress(await oidcApi.address())
+    } catch {
+      setAddress(null)
+    }
+  }, [])
+  // The address of card 1 is read again here whenever it changed.
+  useEffect(() => {
+    void loadAddress()
+  }, [loadAddress, publicUrl])
+  const unset = address !== null && !address.public_url
+  const stale = authentikStale(address)
 
   const start = (confirm: boolean) => {
     // What the last attempt said goes first: an old failure stood above the new answer (Prüfgang C4).
     setSteps(null)
     setAsking(null)
     return run(async () => {
-      const answer = await oidcApi.authentik(authentik.url, authentik.token, confirm)
+      const answer = await oidcApi.authentik(authentik.url, authentik.token, confirm, unset ? proposal : '')
       // Not a failure: the button waits for the operator's yes (blueprint 04, card 3), nothing was changed.
       const count = authentikIssuerChange(answer)
       if (count !== null) {
@@ -427,9 +501,26 @@ function AuthentikCard({ publicUrl, coupled, reload }: { publicUrl: string; coup
         return
       }
       setSteps(answer)
+      if (answer.address) setAddress(answer.address)
       // The token goes only once everything worked; after a failure the operator corrects the address.
       if (answer.ok) setAuthentik((current) => ({ ...current, token: '' }))
-      await reload()
+      // The address may have been saved on the way, even when a later step failed.
+      await Promise.all([reload(), loadAddress(), answer.public_url ? addressChanged() : undefined])
+    })
+  }
+
+  /** "Use it only": the proposal becomes the public address, nothing is set up. */
+  const adoptOnly = (confirm: boolean) => {
+    setSteps(null)
+    return run(async () => {
+      try {
+        setAddress(await oidcApi.saveAddress(proposal, confirm))
+        setAddressAsking(null)
+        await addressChanged()
+      } catch (error) {
+        if (!(error instanceof ApiError) || error.code !== 'public_url_change') throw error
+        setAddressAsking({ count: Number(error.values.count ?? 0), address: String(error.values.address ?? ''), hand: Number(error.values.hand ?? 0) })
+      }
     })
   }
 
@@ -440,12 +531,23 @@ function AuthentikCard({ publicUrl, coupled, reload }: { publicUrl: string; coup
           {t('oidc.authentik.why.coupled')}
         </p>
       )}
-      {!publicUrl && !coupled && (
-        <p className="rounded-lg border border-warn-500/30 bg-warn-500/10 px-3 py-2 text-xs text-warn-500" data-testid="authentik-no-address">
-          {t('oidc.authentik.noAddress')}{' '}
-          <a href="#sign-in" className="underline">
-            {t('oidc.admin.address')}
-          </a>
+      {unset && !coupled && address && (
+        <div className="space-y-1 rounded-lg border border-warn-500/30 bg-warn-500/10 px-3 py-2 text-xs text-warn-500" data-testid="authentik-no-address">
+          <p>{t('oidc.authentik.noAddress')}</p>
+          <p className="font-mono text-sm break-all text-mist-100" data-testid="authentik-proposal">
+            {proposal}
+          </p>
+          <p>
+            {t('oidc.admin.redirect')}: <span className="font-mono break-all text-mist-200">{authentikRedirect(proposal, address)}</span>
+          </p>
+          {authentikProxyWarning(proposal, address) && (
+            <p data-testid="authentik-proxy-warning">{t('oidc.authentik.proxyWarning', { address: address.seen })}</p>
+          )}
+        </div>
+      )}
+      {stale && !coupled && (
+        <p className="rounded-lg border border-warn-500/30 bg-warn-500/10 px-3 py-2 text-xs text-warn-500" data-testid="authentik-stale">
+          {t('oidc.authentik.stale', { address: stale })}
         </p>
       )}
       <form
@@ -460,8 +562,13 @@ function AuthentikCard({ publicUrl, coupled, reload }: { publicUrl: string; coup
         <Input label={t('oidc.authentik.token')} value={authentik.token} onChange={(token) => setAuthentik({ ...authentik, token })} type="password" autoComplete="new-password" />
         <div className="flex flex-wrap items-center gap-2 sm:col-span-2">
           <Button type="submit" accent busy={busy} disabled={coupled || !authentik.url.trim() || !authentik.token.trim()}>
-            {t('oidc.authentik.run')}
+            {unset ? t('oidc.authentik.adopt') : t('oidc.authentik.run')}
           </Button>
+          {unset && !coupled && (
+            <Button type="button" busy={busy} onClick={() => void adoptOnly(false)}>
+              {t('oidc.authentik.adoptOnly')}
+            </Button>
+          )}
           {coupled ? (
             <span className="inline-flex items-center gap-1.5 text-sm text-mist-600">
               <Download className="h-4 w-4" strokeWidth={1.8} aria-hidden />
@@ -492,7 +599,7 @@ function AuthentikCard({ publicUrl, coupled, reload }: { publicUrl: string; coup
                 </span>
                 <span>
                   <span className={step.ok ? 'text-mist-200' : 'font-medium text-bad-500'}>{name ? t(name) : step.key}</span>
-                  {why && <span className="block text-xs text-mist-400">{t(why, { status: step.status ?? 0 })}</span>}
+                  {why && <span className="block text-xs text-mist-400">{t(why, { status: step.status ?? 0, count: steps.count ?? 0 })}</span>}
                 </span>
               </li>
             )
@@ -504,10 +611,21 @@ function AuthentikCard({ publicUrl, coupled, reload }: { publicUrl: string; coup
         <Confirm
           title={t('oidc.authentik.title')}
           text={t('oidc.admin.issuerChangeConfirm', { count: asking })}
-          confirm={t('oidc.authentik.run')}
+          confirm={unset ? t('oidc.authentik.adopt') : t('oidc.authentik.run')}
           onCancel={() => setAsking(null)}
           onConfirm={async () => {
             await start(true)
+          }}
+        />
+      )}
+      {addressAsking && (
+        <Confirm
+          title={t('oidc.admin.address')}
+          text={addressQuestionText(t, addressAsking)}
+          confirm={t('oidc.authentik.adoptOnly')}
+          onCancel={() => setAddressAsking(null)}
+          onConfirm={async () => {
+            await adoptOnly(true)
           }}
         />
       )}

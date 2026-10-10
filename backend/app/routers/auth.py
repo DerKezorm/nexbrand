@@ -353,6 +353,9 @@ def me(account: Account, db: DbSession) -> dict[str, Any]:
         # Mail with a link needs the public address (the request's own Host is never put into a mail).
         "public_url": bool(settings_service.public_url(db)),
         "second_factor_setup_required": totp.setup_required(db, account),
+        # This sign-in began at a provider that checks the second factor, so the browser is spared the setup; an API
+        # token (and an MCP key) has no provider behind it and still waits for it. The page says so beside the keys.
+        "keys_wait_for_second_factor": bool(account.second_factor_by_provider) and totp.keys_wait(db, account),
         "upload_max_mb": settings_service.upload_max_mb(db),
         "preferences": preferences_of(account.preferences),
         "suite": suite.state(db),
@@ -542,6 +545,9 @@ def delete_account(
     row = _row(db, account_id)
     name = row.name
     db.delete(row)
+    # Its links went with it: the way back and the fingerprint follow in the same commit, or the next start would take
+    # the missing subject for a change 0.1.1 made.
+    oidc_store.way_back_changed(db)
     db.commit()
     totp.forget_account(account_id)
     logger.warning("Account deleted name=%s by=%s", name, operator.name)

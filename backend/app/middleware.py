@@ -14,6 +14,7 @@ from typing import Any
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
+from .deps import is_trusted_proxy
 from .services import logs
 
 logger = logging.getLogger("nexbrand.api")
@@ -51,6 +52,27 @@ SECURITY_HEADERS: tuple[tuple[bytes, bytes], ...] = (
     # Nothing of nexbrand belongs in a search engine: not the app, not a client's public page or review (F13).
     (b"x-robots-tag", b"noindex, nofollow"),
 )
+
+
+class ForwardedProtoMiddleware:
+    """The scheme a proxy that ends TLS reports. uvicorn runs with ``--no-proxy-headers`` (it would believe any sender
+    that writes ``X-Forwarded-For``), so behind such a proxy every request looked like plain http: the return address
+    of a sign-in, links in mails and ``request.base_url`` said ``http://``. Only a peer in ``NEXBRAND_TRUSTED_PROXIES``
+    is believed, and only its ``X-Forwarded-Proto`` (the last value, which that proxy wrote; what stands left of it a
+    sender wrote itself), and only the scheme: host and address of the sender stay as they were. Without trusted
+    proxies nothing changes."""
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    async def __call__(self, scope: dict, receive: Callable, send: Callable) -> None:
+        if scope["type"] == "http" and scope.get("client") and is_trusted_proxy(str(scope["client"][0])):
+            values = [value for name, value in scope.get("headers", []) if name == b"x-forwarded-proto"]
+            if values:
+                proto = values[-1].decode("latin-1").split(",")[-1].strip().lower()
+                if proto in ("http", "https"):
+                    scope = {**scope, "scheme": proto}
+        await self.app(scope, receive, send)
 
 
 class RequestContextMiddleware:

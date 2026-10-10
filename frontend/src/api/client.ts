@@ -6,6 +6,7 @@
 
 import type { BrandColor, BrandLogo, BrandSet } from '../lib/brand'
 import type { Modes, OwnSet } from '../lib/inherit'
+import type { AuthentikAddress } from '../vendor/nexoidc/oidc'
 
 export class ApiError extends Error {
   constructor(
@@ -153,6 +154,9 @@ export type Me = {
   /** The public address is set: without it no mail carries a link. */
   public_url?: boolean
   second_factor_setup_required?: boolean
+  /** A password account without a second factor of its own, signed in at a provider that checks it: its API tokens (and
+   * MCP keys) wait until it sets one up, they come without that provider. */
+  keys_wait_for_second_factor?: boolean
   upload_max_mb?: number
   preferences?: Preferences
   /** Connected to nexsuite: accounts, teams, rights, sign-in (and mail) are kept there. */
@@ -419,7 +423,18 @@ export type OidcProviderForm = {
 export type ProviderImpact = { issuer_change: number; count: number; only: number; only_names: string[] }
 export type AuthentikStep = { key: string; ok: boolean; detail: string; reason?: string; status?: number }
 /** `count`: with the reason `issuer_change`, how many accounts would have to link again (nothing was changed). */
-export type AuthentikResult = { ok: boolean; steps: AuthentikStep[]; links_dropped: number; count?: number }
+export type AuthentikResult = {
+  ok: boolean
+  steps: AuthentikStep[]
+  links_dropped: number
+  count?: number
+  /** The public address the run stored (the card's suggestion, confirmed); it stays even when a later step failed. */
+  public_url?: string
+  /** With the reason `public_url_needed`: what the card shows about the address (the same as `oidcApi.address`). */
+  address?: AuthentikAddress
+}
+/** What the server asks before a new public address leaves redirect addresses behind (409 `public_url_change`). */
+export type AddressQuestion = { count: number; address: string; hand: number }
 /** An active provider under My account: linked or not, and the address it knows when it is not the account's. */
 export type MyProvider = { slug: string; label: string; linked: boolean; address: string | null }
 /** A provider an account is linked to, in the operator's account list. */
@@ -472,9 +487,20 @@ export const oidcApi = {
   providerImpact: (id: number, issuer = '') =>
     api<ProviderImpact>(`/api/oidc/admin/providers/${id}/impact`, { query: issuer ? { issuer } : {} }),
   orderProviders: (ids: number[]) => api<ProviderButton[]>('/api/oidc/admin/providers/order', { method: 'PUT', body: { ids } }),
-  /** `confirm_issuer_change`: the answer to the question the button stops at when another issuer takes the links. */
-  authentik: (url: string, token: string, confirm_issuer_change = false) =>
-    api<AuthentikResult>('/api/oidc/authentik/setup', { method: 'POST', body: { url, token, confirm_issuer_change } }),
+  /**
+   * `confirm_issuer_change`: the answer to the question the button stops at when another issuer takes the links.
+   * `public_url`: the suggested address ("Use it and set up"), only sent while nexbrand has none.
+   */
+  authentik: (url: string, token: string, confirm_issuer_change = false, public_url = '') =>
+    api<AuthentikResult>('/api/oidc/authentik/setup', {
+      method: 'POST',
+      body: { url, token, confirm_issuer_change, ...(public_url ? { public_url } : {}) },
+    }),
+  /** What the authentik card shows about the public address. */
+  address: () => api<AuthentikAddress>('/api/oidc/authentik/address'),
+  /** "Use it only": the address becomes the public one; 409 `public_url_change` asks first, `confirm` answers it. */
+  saveAddress: (public_url: string, confirm = false) =>
+    api<AuthentikAddress>('/api/oidc/authentik/address', { method: 'POST', body: { public_url, confirm } }),
   mine: () => api<MyProvider[]>('/api/oidc/me'),
   link: (slug: string, password: string) => api<{ url: string }>(`/api/oidc/${encodeURIComponent(slug)}/link`, { method: 'POST', body: { password } }),
   unlink: (slug: string) => api<void>(`/api/oidc/${encodeURIComponent(slug)}/link`, { method: 'DELETE' }),

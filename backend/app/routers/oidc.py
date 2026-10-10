@@ -25,8 +25,9 @@ Paths (all below ``/api/oidc``):
 | POST, DELETE | ``/{slug}/link`` | signed in: link (``{"password"}`` → ``{"url"}``), unlink |
 | POST | ``/{slug}/address`` | signed in: take the address the provider knows as the own one |
 | DELETE | ``/admin/accounts/{account}/links/{provider}`` | operator, with the own password |
-| POST | ``/authentik/setup`` | operator: ``{"url", "token", "confirm_issuer_change"}`` → always 200 with the steps |
-| GET | ``/authentik/blueprint`` | operator: ``nexbrand-authentik.yaml`` |
+| POST | ``/authentik/setup`` | operator: ``{"url", "token", "confirm_issuer_change", "public_url"}`` → 200, the steps |
+| GET, POST | ``/authentik/address`` | operator: what the card shows about the public address; "Use it only" |
+| GET | ``/authentik/blueprint`` | operator: ``nexbrand-authentik.yaml`` (409 without a public address) |
 """
 
 from __future__ import annotations
@@ -97,6 +98,15 @@ class SetupIn(BaseModel):
     #: The answer to the button's question "another issuer, {count} accounts link again" (module 1.0.8): the run stops
     #: at ``reached`` with the reason ``issuer_change`` until it comes with ``true``.
     confirm_issuer_change: bool = False
+    #: The address the card proposes (the browser's own) and the operator confirmed; used only while nexbrand has no
+    #: public address of its own (module 1.0.10). The module cleans it and refuses an address that is none.
+    public_url: str = Field(default="", max_length=500)
+
+
+class AddressIn(BaseModel):
+    public_url: str = Field(max_length=500)
+    #: The answer to the question "the redirect address at authentik changes" (409 ``public_url_change``).
+    confirm: bool = False
 
 
 class OrderIn(BaseModel):
@@ -244,6 +254,32 @@ def remove_provider(provider_id: Annotated[int, Path(ge=1)], operator: OperatorA
             raise _form_error(exc) from exc
     logger.info("OIDC provider %s removed by=%s", provider_id, operator.name)
     return asdict(impact)
+
+
+# Registered before ``/{slug}/address``: the path of the authentik card would otherwise be taken for a slug.
+@router.get("/authentik/address", summary="What the authentik card shows about the public address")
+def authentik_address(_operator: OperatorAccount, request: Request) -> dict[str, Any]:
+    with store() as s:
+        return authentik.address_view(s, _base(request), request.headers)
+
+
+@router.post("/authentik/address", summary="Use the address as nexbrand's public address, without setting up")
+def authentik_save_address(payload: AddressIn, operator: OperatorAccount, request: Request) -> dict[str, Any]:
+    # "Use it only" in the card. While connected, the address is nexsuite's to know (it knows the app by it): the same
+    # refusal as in the settings.
+    with store() as s:
+        suite.refuse_if_managed(s.db)
+        try:
+            saved = authentik.save_public_url(s, payload.public_url, _base(request), confirm=payload.confirm)
+        except ValueError as exc:
+            raise error("public_url_invalid", "This is not an address nexbrand can be reached at.", 422) from exc
+        except authentik.PublicUrlChange as asked:
+            raise error("public_url_change", "The redirect address at authentik changes.", 409,
+                        **asked.question) from asked
+        except authentik.PublicUrlNotKept as exc:
+            raise error("public_url_needed", "nexbrand could not keep the address.", 409) from exc
+    logger.info("Public address set from the authentik card by=%s", operator.name)
+    return saved
 
 
 # --- Start and return --------------------------------------------------------------------------------------------
@@ -477,13 +513,19 @@ async def authentik_setup(payload: SetupIn, operator: OperatorAccount, request: 
     logger.info("authentik setup started by=%s", operator.name)
     with store() as s:
         result = await authentik.setup(s, payload.url, payload.token, _base(request),
-                                       confirm_issuer_change=payload.confirm_issuer_change)
+                                       confirm_issuer_change=payload.confirm_issuer_change,
+                                       public_url=payload.public_url, headers=request.headers)
     return result.as_dict()
 
 
 @router.get("/authentik/blueprint", summary="Download a blueprint that creates the same objects in authentik")
 def authentik_blueprint(_operator: OperatorAccount, request: Request) -> Response:
     with store() as s:
-        text = authentik.blueprint(authentik.blueprint_redirect(s, _base(request)))
+        try:
+            redirect = authentik.blueprint_redirect(s, _base(request))
+        except authentik.PublicUrlNeeded as exc:
+            raise error("public_url_needed", "nexbrand has no public address yet; confirm one in the card.",
+                        409) from exc
+        text = authentik.blueprint(redirect)
     return Response(content=text, media_type="application/yaml",
                     headers={"Content-Disposition": f'attachment; filename="{authentik.blueprint_filename()}"'})

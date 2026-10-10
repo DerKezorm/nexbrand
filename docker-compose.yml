@@ -29,7 +29,8 @@ services:
       # also be set in the interface.
       # NEXBRAND_PUBLIC_URL: https://brand.example.com
 
-      # Behind a reverse proxy: its address, so that the brake against password guessing sees the real sender.
+      # Behind a reverse proxy: its address, so that the brake against password guessing sees the real sender and
+      # the sign-in knows the proxy ended TLS (X-Forwarded-Proto).
       # NEXBRAND_TRUSTED_PROXIES: 172.16.0.0/12
 
       # The code the first account needs. Without it nexbrand makes one at every start until it is set up and

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from ..config import get_settings
 from ..models import Setting
+from ..vendor.nexoidc import flow
 
 DEFAULTS: dict[str, Any] = {
     "log_mode": "normal",
@@ -96,6 +97,9 @@ DEFAULTS: dict[str, Any] = {
     #: What the old settings and the old column said when the way back was last written (``migrate.fingerprint``):
     #: at the next start, what 0.1.1 changed since is taken over (``migrate.resync``).
     "oidc_legacy_fingerprint": "",
+    #: The issuer the version before the list knows, or "-" for none (``oidc_store.ANCHOR``): the shared module decides
+    #: from it and the entry what the old settings show.
+    "oidc_legacy_anchor": "",
 }
 
 
@@ -130,7 +134,8 @@ def save(db: Session, changes: dict[str, Any], *, commit: bool = True) -> None:
 
 def normalize_public_url(value: str) -> str:
     """``scheme://host[:port]`` and nothing else, or empty. ``ValueError`` for anything people could not type into
-    a browser: no other schemes, no credentials, no path, no query."""
+    a browser: no other schemes, no credentials, no path, no query; and for anything the shared sign-in module would
+    not take as a public address (``flow.clean_public_url``: a clean host, at most 199 characters)."""
     text = value.strip()
     if not text:
         return ""
@@ -143,7 +148,7 @@ def normalize_public_url(value: str) -> str:
         parts.port  # noqa: B018 - raises ValueError when the port is not a number
     except ValueError as exc:
         raise ValueError("port") from exc
-    return f"{parts.scheme.lower()}://{parts.netloc}"
+    return flow.clean_public_url(f"{parts.scheme.lower()}://{parts.netloc}")
 
 
 def public_url(db: Session) -> str:

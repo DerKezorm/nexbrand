@@ -20,7 +20,7 @@ from . import __version__, private
 from .config import get_settings
 from .db import SessionLocal, init_db
 from .errors import detail
-from .middleware import GuardMiddleware, RequestContextMiddleware, unhandled_error
+from .middleware import ForwardedProtoMiddleware, GuardMiddleware, RequestContextMiddleware, unhandled_error
 from .routers import (
     about,
     ai,
@@ -157,6 +157,8 @@ app = FastAPI(
 # Added last, runs first: the request id and headers wrap everything, the guard sits inside it.
 app.add_middleware(GuardMiddleware)
 app.add_middleware(RequestContextMiddleware)
+# Outermost: everything below sees the scheme a trusted proxy reported (a proxy ending TLS in front).
+app.add_middleware(ForwardedProtoMiddleware)
 
 
 @app.exception_handler(RequestValidationError)

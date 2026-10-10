@@ -386,6 +386,9 @@
     "invalid_days": "Choose one of the offered durations.",
     "invalid_email": "This is not a mail address.",
     "invalid_url": "Enter an address starting with http:// or https://.",
+    "public_url_change": "The redirect address at authentik changes. Confirm to save the new address.",
+    "public_url_invalid": "This address cannot be used. Check how it is written.",
+    "public_url_needed": "nexbrand could not keep the address. Try again, or set it under Sign-in.",
     "mail_off": "No mail server is set up.",
     "mail_failed": "The mail server did not take the mail.",
     "cannot_delete_self": "You cannot delete your own account.",
@@ -704,6 +707,8 @@
       "member": "Member"
     },
     "setupFirst": "The operator requires a second factor. Set it up here, then you can go on.",
+    "keysWait": "Works only once you set up a second factor.",
+    "keysWaitLink": "Set up a second factor",
     "oidc": {
       "linkedTo": "Your account is linked to {{name}}.",
       "unlinkedFrom": "Unlinked from {{name}}.",

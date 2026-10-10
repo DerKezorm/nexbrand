@@ -670,6 +670,12 @@ def test_no_secret_and_no_invitation_leaves_a_trace_in_the_log(
             assert kept_out not in logs.redact(line)
 
 
+def _public_address(url: str) -> None:
+    """The public address set, as the operator does in card 1: the button registers nothing without one (1.0.10)."""
+    with SessionLocal() as db:
+        settings_service.save(db, {"public_url": url})
+
+
 def test_the_button_pressed_again_after_the_migration_keeps_the_old_address_the_entry_and_its_links(
     client: TestClient, operator: Account
 ) -> None:
@@ -683,6 +689,7 @@ def test_the_button_pressed_again_after_the_migration_keeps_the_old_address_the_
     nexoidc.use_transport(network.transport())
     try:
         make_account("anna")
+        _public_address("http://testserver")
         _legacy(signer, label="authentik", issuer=issuer, subjects={"anna": "anna-1"})
         oidc_store.migrate_settings(backup=False)
         result = client.post("/api/oidc/authentik/setup", json={"url": ak.base, "token": ak.token}).json()
@@ -709,6 +716,7 @@ def test_another_issuer_for_the_entry_oidc_is_asked_first_and_only_the_confirmat
 ) -> None:
     issuer = "https://auth.example.com/application/o/nexbrand/"
     make_account("anna")
+    _public_address("http://testserver")
     _legacy(FakeProvider(issuer), label="authentik", issuer=issuer, subjects={"anna": "anna-1"})
     assert oidc_store.migrate_settings(backup=False) is not None
     other = provider.network.add(fakes.FakeAuthentik(base="https://auth2.example.com"))  # type: ignore[attr-defined]
@@ -847,3 +855,74 @@ def test_a_provider_that_is_not_trusted_with_the_second_factor_does_not_free_the
     assert location(sign_in_via_oidc(by_provider, provider, sub="anna-1")) == "/"
     assert by_provider.get("/api/auth/me").json()["second_factor_setup_required"] is True
     assert by_provider.get("/api/spaces").status_code == 403
+
+
+# --- Module 1.0.10: keys that wait, and the scheme from a trusted proxy ---------------------------------------------
+
+
+def test_a_session_spared_the_second_factor_is_told_that_its_api_tokens_still_wait(
+    client: TestClient, operator: Account, provider: FakeProvider
+) -> None:
+    _required_with_anna_linked(client, provider)
+    assert client.put("/api/settings", json={"api_tokens_allowed": True}).status_code == 200
+    by_provider = fresh_browser()
+    assert location(sign_in_via_oidc(by_provider, provider, sub="anna-1")) == "/"
+    me = by_provider.get("/api/auth/me").json()
+    assert me["second_factor_setup_required"] is False and me["keys_wait_for_second_factor"] is True
+    # Making a token stays possible; it does not work yet (it has no provider behind it), and the note says so.
+    made = by_provider.post("/api/api-tokens", json={"name": "ci", "all_clients": True, "days": None})
+    assert made.status_code in (200, 201), made.text
+    program = TestClient(client.app, base_url="http://testserver")
+    refused = program.get("/api/v1/clients", headers={"Authorization": f"Bearer {made.json()['secret']}"})
+    assert refused.status_code in (401, 403), "the token waits for the account's own second factor"
+    # The same account with its password has no use for the note: it is asked to set up at once.
+    by_password = fresh_browser()
+    sign_in(by_password, accounts_row("anna"))
+    me = by_password.get("/api/auth/me").json()
+    assert me["second_factor_setup_required"] is True and me["keys_wait_for_second_factor"] is False
+
+
+def test_no_note_for_keys_where_nothing_waits(client: TestClient, operator: Account, provider: FakeProvider) -> None:
+    # A provider that is not trusted with the second factor does not spare the session, so there is no note, only the
+    # setup the account is sent to.
+    _required_with_anna_linked(client, provider, trusts_second_factor=False)
+    by_provider = fresh_browser()
+    assert location(sign_in_via_oidc(by_provider, provider, sub="anna-1")) == "/"
+    me = by_provider.get("/api/auth/me").json()
+    assert me["second_factor_setup_required"] is True and me["keys_wait_for_second_factor"] is False
+    # The operator requires nothing: nothing waits.
+    assert client.put("/api/settings", json={"two_factor_required": False}).status_code == 200
+    assert by_provider.get("/api/auth/me").json()["keys_wait_for_second_factor"] is False
+
+
+def _seen_by(peer: str, headers: dict[str, str]) -> str:
+    """The address of the request as the authentik card sees it (``seen``), from a sender at ``peer``."""
+    from app.main import app
+    from app.security import start_session
+
+    with SessionLocal() as db:
+        row = db.query(Account).filter_by(name="tester").one()
+        cookie = start_session(db, row, "127.0.0.1", "tests")
+    sender = TestClient(app, base_url="http://brand.example.com", client=(peer, 50000))
+    sender.cookies.set(SESSION_COOKIE, cookie)
+    answer = sender.get("/api/oidc/authentik/address", headers={"X-Nexbrand-Client": "tab-proxy0000", **headers})
+    assert answer.status_code == 200, answer.text
+    return str(answer.json()["seen"])
+
+
+def test_a_proxy_nexbrand_trusts_hands_on_the_scheme_and_nobody_else_does(
+    client: TestClient, operator: Account, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    https = {"X-Forwarded-Proto": "https"}
+    # Out of the box (no trusted proxy), nothing changes: the header is not believed from anybody.
+    assert _seen_by("10.9.0.5", https) == "http://brand.example.com"
+    monkeypatch.setattr(get_settings(), "trusted_proxies", "10.9.0.0/16")
+    assert _seen_by("10.9.0.5", https) == "https://brand.example.com", "the trusted proxy ends TLS"
+    assert _seen_by("203.0.113.7", https) == "http://brand.example.com", "any other sender writes what it likes"
+    assert _seen_by("10.9.0.5", {}) == "http://brand.example.com", "no header, no change"
+    assert _seen_by("10.9.0.5", {"X-Forwarded-Proto": "javascript"}) == "http://brand.example.com"
+    # What stands left of the proxy's own value a sender wrote itself.
+    assert _seen_by("10.9.0.5", {"X-Forwarded-Proto": "https, http"}) == "http://brand.example.com"
+    assert _seen_by("10.9.0.5", {"X-Forwarded-Proto": "http, https"}) == "https://brand.example.com"
+    # Only the scheme: the host stays the one of the request.
+    assert _seen_by("10.9.0.5", {**https, "X-Forwarded-Host": "evil.example.net"}) == "https://brand.example.com"

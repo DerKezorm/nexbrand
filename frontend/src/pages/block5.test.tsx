@@ -185,6 +185,48 @@ describe('F12, F26: API tokens', () => {
   })
 })
 
+describe('API tokens of an account let in by a provider (module 1.0.10)', () => {
+  const TOKEN = { id: 7, name: 'Pipeline', level: 'read', prefix: 'nxb_abcd', created_at: '2026-10-04T18:45:00Z', last_used_at: null, expires_at: null, blocked: false, clients: null }
+  const notes = (page: HTMLElement) => [...page.querySelectorAll('[data-testid=keys-wait]')]
+  const listed = () => {
+    server.handler = (method, path) => {
+      if (path === '/api/api-tokens' && method === 'GET') return { status: 200, body: { allowed: true, tokens: [TOKEN] } }
+      if (path === '/api/api-tokens' && method === 'POST') return { status: 201, body: { token: { ...TOKEN, id: 8 }, secret: 'nxb_secret' } }
+      return undefined
+    }
+  }
+  afterEach(() => {
+    delete (ME as { keys_wait_for_second_factor?: boolean }).keys_wait_for_second_factor
+  })
+
+  it.each([
+    ['en', 'Works only once you set up a second factor.', 'Set up a second factor'],
+    ['de', 'Wirkt erst, wenn du einen zweiten Faktor einrichtest.', 'Zweiten Faktor einrichten'],
+  ])('says in %s beside each token, the form and the new token that they wait for a second factor', async (language, sentence, link) => {
+    ME.keys_wait_for_second_factor = true
+    listed()
+    const page = await mount(<ApiTokens />, language)
+    expect(notes(page)).toHaveLength(1)
+    expect(notes(page)[0].textContent).toBe(`${sentence} ${link}`)
+    expect(notes(page)[0].querySelector('a')!.getAttribute('href')).toBe('/account?tab=security')
+    // Making one stays possible: the form carries the note too, and so does the token shown once.
+    await click([...page.querySelectorAll('button')].find((b) => b.textContent?.includes(i18n.t('apiTokens.new'))))
+    expect(notes(page)).toHaveLength(2)
+    await type(page.querySelector('form input:not([type])') ?? page.querySelector('form input'), 'ci')
+    await click([...page.querySelectorAll<HTMLInputElement>('input[type=checkbox]')][0])
+    await click(page.querySelector<HTMLButtonElement>('form button[type=submit]'))
+    expect(server.calls.some((c) => c.method === 'POST')).toBe(true)
+    expect(page.querySelector('[data-testid=api-token-shown] [data-testid=keys-wait]')).not.toBeNull()
+  })
+
+  it('says nothing to an account whose keys work', async () => {
+    listed()
+    const page = await mount(<ApiTokens />)
+    await click([...page.querySelectorAll('button')].find((b) => b.textContent?.includes(i18n.t('apiTokens.new'))))
+    expect(notes(page)).toHaveLength(0)
+  })
+})
+
 describe('F11: where a refused value sits', () => {
   const set: BrandSet = { ...emptySet(), colors: [{ name: 'Primary', hex: '#123456', role: 'primary' }, { name: 'Accent', hex: 'xyz', role: 'accent' }] }
   it('names the colour and the field', () => {

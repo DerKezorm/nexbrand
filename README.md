@@ -165,7 +165,10 @@ nexbrand is made to be reachable from outside, for yourself on the road or for a
    (the proxy's address or network; without it every sign-in seems to come from the proxy and the brake against
    guessing cannot tell people apart: a browser that signed in as that name before still gets in, also while
    somebody guesses that very name (until a new password, a block or signing out everywhere), any other waits;
-   Settings, Server says so while it is missing), and `NEXBRAND_COOKIE_SECURE: "on"`.
+   Settings, Server says so while it is missing), and `NEXBRAND_COOKIE_SECURE: "on"`. A proxy named in
+   `NEXBRAND_TRUSTED_PROXIES` is also believed about the scheme (`X-Forwarded-Proto`: that it ended TLS), which the
+   return address of the sign-in and the links in mails are built from; nobody else is. The authentik card in
+   Settings, Sign-in warns while nexbrand sees `http` where your browser uses `https`.
 4. **A second factor**: set up your own under My account, Security. Or sign in through your OpenID Connect provider
    (and leave "The provider checks the second factor itself" on only for one that does).
 5. **Leave the switches closed you do not need**: public pages, API tokens, collecting from websites and AI are

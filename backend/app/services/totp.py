@@ -161,11 +161,17 @@ def setup_required(db: Session, account: Account) -> bool:
     own account page and nothing else until it enrols. Accounts from OIDC bring their provider's, and so does a
     password account in a session that came in through a provider the entry trusts with the second factor (the same
     account with its password is asked as before)."""
+    return keys_wait(db, account) and not account.second_factor_by_provider
+
+
+def keys_wait(db: Session, account: Account) -> bool:
+    """The operator requires a second factor, and this password account has none of its own yet, whatever the sign-in
+    it is in now. An API token (and so an MCP key) has no provider behind it: it works only once the account has one,
+    also for a session a provider spared (the page says so beside the keys)."""
     return (
         bool(settings_service.get(db, "two_factor_required"))
         and account.sign_in == SIGN_IN_PASSWORD
         and not account.totp_secret_enc
-        and not account.second_factor_by_provider
     )
 
 

@@ -69,6 +69,13 @@ def _public_url() -> str:
         return settings_service.public_url(db)
 
 
+def _save_public_url(address: str) -> None:
+    """The address the operator confirmed in the authentik card becomes the setting ``public_url``, at once and in a
+    transaction of its own (module 1.0.10)."""
+    with SessionLocal() as db:
+        settings_service.save(db, {"public_url": address})
+
+
 def _server_secret() -> str:
     return get_settings().resolved_secret_key()
 
@@ -80,6 +87,7 @@ def configure() -> None:
             app_name=APP_NAME,
             server_secret=_server_secret,
             public_url=_public_url,
+            save_public_url=_save_public_url,
             login_page=LOGIN_PAGE,
             account_page=ACCOUNT_PAGE,
             home=HOME,
@@ -158,6 +166,7 @@ class SqlStore:
             position=row.position,
             redirect_path=row.redirect_path,
             created_at=row.created_at,
+            registered_redirect=row.registered_redirect or "",
         )
 
     def list_providers(self) -> list[Provider]:
@@ -180,6 +189,9 @@ class SqlStore:
             values.position,
         )
         row.redirect_path = values.redirect_path
+        # None keeps what the authentik button registered last; only the button writes it.
+        if values.registered_redirect is not None:
+            row.registered_redirect = values.registered_redirect
 
     def insert_provider(self, values: ProviderValues) -> Provider:
         row = OidcProvider()
@@ -375,6 +387,9 @@ LEGACY_KEYS = ("oidc_issuer", "oidc_client_id", "oidc_client_secret_enc", "oidc_
 MIGRATED = "oidc_list_migrated"
 #: What the old settings and the old column said when the way back was last written (``migrate.fingerprint``).
 FINGERPRINT = "oidc_legacy_fingerprint"
+#: The issuer 0.1.1 knows, as it wrote it, or ``migrate.CLOSED`` (``migrate.way_back``, module 1.0.10): the module
+#: decides what the old settings show from the entry and this anchor; nexbrand only stores it.
+ANCHOR = "oidc_legacy_anchor"
 #: nexbrand asked no code after the provider before the list: the migrated entries keep that (blueprint 06).
 TRUSTED_BEFORE = True
 
@@ -485,6 +500,8 @@ def _migrate_coupled(db: Session) -> Provider | None:
         if row is not None and row.id != keeper and row.blocked_at is None:
             row.blocked_at = utcnow()
     store = OneTransaction(db)
+    # The anchor of the own provider (it waits in ``suite_saved``): stored before the coupling commits.
+    settings_service.save(db, {ANCHOR: migrate.anchor_of(own)}, commit=False)
     joined = migrate.apply_coupled(
         store,
         nexsuite=_legacy(values),
@@ -515,7 +532,14 @@ def migrate_settings(*, backup: bool = True) -> Provider | None:
     with SessionLocal() as db:
         if not migration_due(db):
             if not settings_service.get(db, MIGRATED):
-                settings_service.save(db, {MIGRATED: True})
+                # Nothing to move. The way back is written all the same, with the fingerprint "no provider": a provider
+                # 0.1.1 sets up later is taken over at the next start, not thrown away. The anchor is closed (or the
+                # old settings' issuer) first.
+                settings_service.save(
+                    db, {MIGRATED: True, ANCHOR: migrate.anchor_of(read_legacy(db)[0])}, commit=False
+                )
+                keep_way_back(db)
+                db.commit()
             else:
                 take_over_way_back(db, backup=backup)
             return None
@@ -528,6 +552,8 @@ def migrate_settings(*, backup: bool = True) -> Provider | None:
             return None
         if _coupled_at_migration(db):
             return _migrate_coupled(db)
+        # The anchor first: ``apply`` commits, and the way back written in that commit must see it.
+        settings_service.save(db, {ANCHOR: migrate.anchor_of(read_legacy(db)[0])}, commit=False)
         entry = migrate.apply(SqlStore(db), legacy_plan(db))
         # The way back follows the list from now on: a subject the plan left out goes from the old column too.
         _changed(db)
@@ -538,16 +564,23 @@ def migrate_settings(*, backup: bool = True) -> Provider | None:
 def take_over_way_back(db: Session, *, backup: bool = True) -> migrate.Resync:
     """The rest of every start after the first one: what 0.1.1 changed in the old settings and the old column since
     the way back was last written is taken over (``migrate.resync``; coupled, nothing, a line in the log), then the
-    way back is written again with the fingerprint of what stands there. A start that changed nothing changes
-    nothing. A backup goes first when there is something to take over."""
+    way back is written again with the fingerprint of what stands there, always, also with no provider at all. A start
+    that changed nothing changes nothing. A backup goes first when there is something to take over."""
     legacy, subjects = read_legacy(db)
     previous = str(settings_service.get(db, FINGERPRINT) or "") or None
-    found = migrate.changes(previous, migrate.fingerprint(legacy, subjects))
-    if found.any and backup and not coupled_entry(db):
+    if backup and not coupled_entry(db) and migrate.changes_since(previous, legacy, subjects).any:
         from . import backups
 
         backups.create(kind=backups.UPDATE, note="before taking over what 0.1.1 changed")
-    done = migrate.resync(SqlStore(db), legacy, subjects, previous=previous, trusts_second_factor=TRUSTED_BEFORE)
+    done = migrate.resync(
+        SqlStore(db),
+        legacy,
+        subjects,
+        previous=previous,
+        trusts_second_factor=TRUSTED_BEFORE,
+        anchor=str(settings_service.get(db, ANCHOR) or "") or None,
+        keep_anchor=lambda value: settings_service.save(db, {ANCHOR: value}, commit=False),
+    )
     keep_way_back(db)
     db.commit()
     return done
@@ -571,6 +604,13 @@ def _changed(db: Session) -> None:
     db.info[_WAY_BACK] = True
 
 
+def way_back_changed(db: Session) -> None:
+    """For a way that changes accounts or links around the store (deleting an account): the way back and the
+    fingerprint follow in the same commit, or the next start would take the missing subject for a change 0.1.1 made."""
+    db.flush()
+    keep_way_back(db)
+
+
 @event.listens_for(Session, "before_commit")
 def _write_way_back(session: Session) -> None:
     if session.info.pop(_WAY_BACK, False):
@@ -582,26 +622,29 @@ def _forget_way_back(session: Session) -> None:
     session.info.pop(_WAY_BACK, None)
 
 
-def _as_legacy(entry: Provider, issuer: str, old: dict[str, object]) -> dict[str, object]:
+def _sealed(secret: str, old: dict[str, object]) -> str:
+    """The secret for the old settings, sealed without a context as 0.1.1 reads it; a secret that did not change keeps
+    its sealing (sealing again would change the settings on every write)."""
     sealed = str(old.get("oidc_client_secret_enc") or "")
-    secret = entry.client_secret or ""
     if decrypt_secret(sealed) != secret or (secret and not sealed):
-        # Sealed without a context, as 0.1.1 reads it; a secret that did not change keeps its sealing.
         sealed = encrypt_secret(secret) if secret else ""
-    return {"oidc_issuer": issuer, "oidc_client_id": entry.client_id, "oidc_client_secret_enc": sealed,
+    return sealed
+
+
+def _as_legacy(entry: Provider, issuer: str, old: dict[str, object]) -> dict[str, object]:
+    return {"oidc_issuer": issuer, "oidc_client_id": entry.client_id,
+            "oidc_client_secret_enc": _sealed(entry.client_secret or "", old),
             "oidc_provider_name": entry.label, "oidc_auto_create": bool(entry.auto_create)}
 
 
 def _own_legacy(old: dict[str, object], entry: Provider | None, on: bool) -> dict[str, object]:
-    """The old settings of the own provider: the entry the old settings became, while it keeps the issuer 0.1.1
-    knew. Removed or given another issuer, the old settings are empty for good: 0.1.1 then signs in with passwords
-    only, never through a provider the operator took away, and never matches a subject of one issuer against another.
+    """Only while coupled to nexsuite (nexbrand's own rule for that time; on its own ``migrate.way_back`` decides): the
+    old settings of the own provider waiting in ``suite_saved``, while it keeps the issuer 0.1.1 knew. Removed or
+    given another issuer, they are empty for good.
 
     Switched off, or while the provider does not check the second factor itself (``trusts_second_factor`` off), the
-    entry is off for 0.1.1: no client and no secret, no new people, so that it lets nobody in, not even a person
-    linked before (0.1.1 has no "off" and no such switch: it would ask no code after the provider). The issuer, the
-    name and the subjects stay, they only wait: switched on again, in either direction of either switch, everything
-    is there again (rule of 10.10.2026)."""
+    entry is off for 0.1.1: no client and no secret, no new people. The issuer, the name and the subjects stay, they
+    only wait: switched on again, everything is there again (rule of 10.10.2026)."""
     issuer = str(old.get("oidc_issuer") or "")
     if entry is None or not issuer or not protocol.same_issuer(issuer, entry.issuer):
         return dict(NO_LEGACY)
@@ -612,14 +655,16 @@ def _own_legacy(old: dict[str, object], entry: Provider | None, on: bool) -> dic
 
 def keep_way_back(db: Session) -> None:
     """Writes the settings and columns 0.1.1 reads from the list, so that starting 0.1.1 on this database (the way
-    back, for one version) finds exactly what the list holds, never more: the old settings name one issuer, and the
-    accounts' ``oidc_subject`` and ``own_subject`` are subjects of exactly that issuer, the links that are left.
+    back, for one version) finds what the list holds, never more: the old settings name one issuer, and the accounts'
+    ``oidc_subject`` and ``own_subject`` are subjects of exactly that issuer, the links that are left.
 
-    Coupled, as 0.1.1 kept it: the old settings are nexsuite's, ``oidc_subject`` the person of each account linked at
-    nexsuite's entry (``suite_person`` says the same, written by the coupling and every sync), the own provider waits
-    in ``suite_saved`` and its links in ``own_subject``. On its own: the old settings and ``oidc_subject`` are the
-    entry ``oidc`` and its links, or empty.
-    Runs when a transaction that changed an entry or a link commits (``_changed``), and after the migration."""
+    On its own this is ``migrate.way_back`` (the entry ``oidc`` and the stored anchor decide, one rule for every app;
+    nexbrand writes it in the form of 0.1.1 and stores the anchor that comes back). Coupled, as 0.1.1 kept it: the old
+    settings are nexsuite's, ``oidc_subject`` the person of each account linked at nexsuite's entry (``suite_person``
+    says the same, written by the coupling and every sync), the own provider waits in ``suite_saved`` and its links in
+    ``own_subject``; that stays nexbrand's own rule, and the anchor is left as it was.
+    Runs when a transaction that changed an entry, a link or an account commits (``_changed``), at every start, and
+    after the migration; then it stores the fingerprint of what stands there."""
     db.flush()
     values = settings_service.get_all(db)
     if not values.get(MIGRATED):
@@ -654,11 +699,19 @@ def keep_way_back(db: Session) -> None:
             untouched = {int(account_id) for ids in waiting.values() for account_id in ids}
     else:
         entry = store.provider_by_slug(LEGACY_SLUG)
-        legacy = _own_legacy(own_before, entry, bool(entry and entry.enabled))
+        links = [(link.account_id, link.subject) for link in store.links_of_provider(entry.id)] if entry else []
+        mirror = migrate.way_back(entry, links, str(values.get(ANCHOR) or "") or None)
+        shown = mirror.legacy
+        legacy = {
+            "oidc_issuer": shown.issuer, "oidc_client_id": shown.client_id,
+            "oidc_client_secret_enc": _sealed(shown.client_secret, current),
+            "oidc_provider_name": shown.label, "oidc_auto_create": bool(shown.auto_create),
+        }
+        persons = mirror.subjects
+        if values.get(ANCHOR) != mirror.anchor:
+            changes[ANCHOR] = mirror.anchor
         if "oidc_issuer" in saved:
             changes["suite_saved"] = {key: value for key, value in saved.items() if key not in LEGACY_KEYS}
-        if entry is not None and legacy["oidc_issuer"]:
-            persons = {link.account_id: link.subject for link in store.links_of_provider(entry.id)}
     if changes.get("suite_saved") == raw:
         changes.pop("suite_saved", None)
     changes.update({key: value for key, value in legacy.items() if current.get(key) != value})
@@ -704,4 +757,5 @@ __all__ = [
     "read_legacy",
     "take_address",
     "take_over_way_back",
+    "way_back_changed",
 ]

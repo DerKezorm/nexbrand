@@ -84,7 +84,8 @@ def test_settings_are_the_operators_and_the_password_is_never_shown(client: Test
 @pytest.mark.parametrize(
     ("value", "expected"),
     [
-        ("https://Notes.example.com/", "https://Notes.example.com"),
+        # The host in small letters, as the shared sign-in module compares addresses.
+        ("https://Notes.example.com/", "https://notes.example.com"),
         ("http://10.0.0.5:8470", "http://10.0.0.5:8470"),
         ("", ""),
     ],
@@ -94,7 +95,12 @@ def test_the_public_address(client: TestClient, operator: Account, value: str, e
 
 
 @pytest.mark.parametrize(
-    "value", ["notes.example.com", "javascript:alert(1)", "https://a@b.example.com", "https://x.example.com/path"]
+    "value",
+    [
+        "notes.example.com", "javascript:alert(1)", "https://a@b.example.com", "https://x.example.com/path",
+        # Nothing the shared sign-in module would refuse as a public address (``flow.clean_public_url``).
+        "https://a_b.example.com", "https://exa mple.com", "https://" + "a" * 190 + ".example.com",
+    ],
 )
 def test_a_public_address_that_is_not_one_is_refused(client: TestClient, operator: Account, value: str) -> None:
     refused = client.put("/api/settings", json={"public_url": value})

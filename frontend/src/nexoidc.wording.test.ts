@@ -28,7 +28,7 @@ function leaves(tree: Tree, prefix = ''): [string, string][] {
   })
 }
 
-const values = { name: 'N', count: 2, only: 1, status: 403 }
+const values = { name: 'N', count: 2, only: 1, status: 403, address: 'https://app.example.com' }
 
 describe('the oidc texts', () => {
   for (const [language, tree] of [['de', de], ['en', en]] as const) {

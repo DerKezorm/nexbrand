@@ -11,6 +11,8 @@ const TAB = { 'X-Nexbrand-Client': 'tab-e2e-oidc00' }
 const PROVIDER = process.env.NEXBRAND_E2E_PROVIDER ?? 'http://127.0.0.1:8547'
 const ISSUER = `${PROVIDER}/oidc`
 const PASSWORD = 'e2e provider test password'
+/** The card's button: "Use it and set up" while the app has no public address of its own, else "Set up". */
+const SET_UP = /^(Set up|Use it and set up)$/
 
 type Entry = { id: number; slug: string; label: string }
 
@@ -143,7 +145,7 @@ test('34: add, edit and remove a provider; the authentik card lists its steps', 
   const card = page.locator('#sign-in-authentik')
   await card.getByLabel('Address of authentik').fill('http://127.0.0.1:9')
   await card.getByLabel('API token').fill(`e2e-${Date.now()}`)
-  await card.getByRole('button', { name: 'Set up', exact: true }).click()
+  await card.getByRole('button', { name: SET_UP }).click()
   const steps = page.getByTestId('authentik-steps')
   await expect(steps).toContainText('Connection to authentik')
   await expect(steps).toContainText('authentik cannot be reached at this address')
@@ -166,7 +168,7 @@ test('35: another issuer asks first in the authentik card; No changes nothing, Y
   const card = page.locator('#sign-in-authentik')
   await card.getByLabel('Address of authentik').fill('http://127.0.0.1:9')
   await card.getByLabel('API token').fill(`e2e-${Date.now()}`)
-  await card.getByRole('button', { name: 'Set up', exact: true }).click()
+  await card.getByRole('button', { name: SET_UP }).click()
   const dialog = page.getByRole('dialog')
   await expect(dialog).toContainText('Another issuer is another provider. 2 accounts will have to link again afterwards.')
   // No failure on the page behind it: the button waits for the answer.
@@ -176,9 +178,9 @@ test('35: another issuer asks first in the authentik card; No changes nothing, Y
   await expect(dialog).toHaveCount(0)
   expect(bodies.map((body) => body.confirm_issuer_change)).toEqual([false])
   await expect(page.getByTestId('authentik-steps')).toHaveCount(0)
-  await card.getByRole('button', { name: 'Set up', exact: true }).click()
+  await card.getByRole('button', { name: SET_UP }).click()
   await expect(dialog).toBeVisible()
-  await dialog.getByRole('button', { name: 'Set up', exact: true }).click()
+  await dialog.getByRole('button', { name: SET_UP }).click()
   await expect(dialog).toHaveCount(0)
   expect(bodies.map((body) => body.confirm_issuer_change)).toEqual([false, false, true])
   await expect(page.getByTestId('authentik-steps')).toContainText('Connection to authentik')
