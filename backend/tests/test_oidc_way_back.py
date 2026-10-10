@@ -279,6 +279,44 @@ def test_a_waiting_subject_nobody_may_claim_goes_from_the_old_column_too(
     assert "77" not in [subject for _, subject, _ in _links()]
 
 
+def test_the_emergency_account_is_never_blocked_for_losing_a_waiting_person(
+    client: TestClient, operator: Account, world: dict, fake: FakeSuite
+) -> None:
+    # The operator (the emergency account) and anna, both unmarked, wait for person 2; the sync gives it to anna by
+    # her sign-in name. The emergency account loses the subject but stays the way in.
+    connect(client, world, operator)
+
+    def change(db: Any, rows: dict[str, Account]) -> None:
+        rows["tester"].oidc_subject = "2"
+        for row in rows.values():
+            row.suite_person = ""
+
+    _as_0_1_1_left_it(change)
+    assert oidc_store.migrate_settings(backup=False) is not None
+    with SessionLocal() as db:
+        assert settings_service.get(db, "suite_emergency_account") == operator.id
+        assert sorted(settings_service.get(db, oidc_store.WAITING)["2"]) == sorted([operator.id, world["anna"].id])
+    assert client.post("/api/suite/sync").status_code in (200, 204)
+    assert _person("anna") == "2"
+    assert accounts_row("tester").oidc_subject != "2" and accounts_row("tester").blocked_at is None
+
+
+def test_the_emergency_account_is_never_blocked_for_losing_a_person_in_the_migration(
+    client: TestClient, operator: Account, world: dict, fake: FakeSuite
+) -> None:
+    # anna is marked for person 2, the operator holds "2" too: the migration gives it to anna at once; the
+    # emergency account loses it without being blocked.
+    connect(client, world, operator)
+
+    def change(db: Any, rows: dict[str, Account]) -> None:
+        rows["tester"].oidc_subject, rows["tester"].suite_person = "2", ""
+
+    _as_0_1_1_left_it(change)
+    assert oidc_store.migrate_settings(backup=False) is not None
+    assert _person("anna") == "2" and _person("tester") == ""
+    assert accounts_row("tester").blocked_at is None
+
+
 def test_waiting_persons_get_no_link_when_disconnected_before_a_sync(
     client: TestClient, operator: Account, world: dict, fake: FakeSuite
 ) -> None:
