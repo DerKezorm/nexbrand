@@ -127,9 +127,6 @@
     "accounts": "Konten",
     "accountsHint": "Konten kommen nur per Einladung.",
     "member": "Mitglied",
-    "signin": "Anmeldung",
-    "oidc": "OpenID Connect",
-    "oidcIssuer": "Aussteller (Issuer)",
     "twoFactor": "Zweiter Faktor",
     "twoFactorRequired": "Zweiten Faktor verlangen",
     "public": "Öffentliche Seiten",
@@ -176,18 +173,7 @@
     "mailTest": "Testmail an",
     "send": "Senden",
     "mailSent": "Die Testmail ist raus.",
-    "secretKept": "Bleibt; nur zum Ändern tippen.",
-    "passwordLogin": "Anmeldung mit Passwort",
-    "passwordLoginHint": "Aus: Mitglieder kommen nur über den Anbieter herein. Du als Betreiber kannst dein Passwort immer nutzen.",
     "twoFactorRequiredHint": "Jedes Konto, das sich mit Passwort anmeldet, muss ihn einrichten, bevor es weiterkommt. Konten vom Anbieter bringen dessen eigenen mit. Erst den eigenen einschalten.",
-    "oidcName": "Name auf dem Knopf",
-    "redirect": "Weiterleitungsadresse für den Anbieter",
-    "redirectHint": "Beim Anbieter eintragen.",
-    "oidcAutoCreate": "Neue Personen bekommen ein Konto",
-    "oidcAutoCreateHint": "Aus: nur eingeladene oder verknüpfte Konten kommen hinein.",
-    "oidcRemove": "Anbieter entfernen",
-    "publicUrl": "Öffentliche Adresse",
-    "publicUrlHint": "Für Links in Einladungen und öffentlichen Seiten, und den OIDC-Rücksprung.",
     "inSpaces_one": "Zugriff auf einen Kunden",
     "inSpaces_other": "Zugriff auf {{count}} Kunden",
     "withTwoFactor": "zweiter Faktor",
@@ -286,7 +272,6 @@
     "logClear": "Log leeren",
     "logClearText": "Jede Zeile geht. Neue kommen wie bisher.",
     "logUntil": "Um {{time}} zurück auf normal.",
-    "signinText": "Wie man hereinkommt.",
     "signInBy": {
       "password": "Passwort",
       "oidc": "Anbieter"
@@ -305,26 +290,6 @@
       "view": "Ansehen",
       "membersNoManager_one": "eine Person mit Zugriff, niemand verwaltet den Kunden",
       "membersNoManager_other": "{{count}} Personen mit Zugriff, niemand verwaltet den Kunden"
-    },
-    "oidcOn": "Eingerichtet mit {{issuer}}.",
-    "oidcOff": "Nicht eingerichtet.",
-    "clientId": "Client-ID",
-    "clientSecret": "Client-Geheimnis",
-    "authentik": {
-      "title": "authentik in einem Schritt",
-      "text": "Mit einem API-Token, das Anwendungen anlegen darf, richtet nexbrand Anbieter und Anwendung in authentik selbst ein. Das Token wird nur dafür benutzt und nicht gespeichert.",
-      "url": "Adresse von authentik",
-      "token": "API-Token",
-      "run": "Einrichten",
-      "blueprint": "Stattdessen Blueprint herunterladen",
-      "asking": "Einen Moment, authentik wird gefragt. Das kann bis zu 20 Sekunden dauern.",
-      "why": {
-        "unreachable": "authentik ist unter dieser Adresse nicht erreichbar. Prüf die Adresse und ob nexbrand dieses Netz erreicht.",
-        "unusable": "Diese Adresse lässt sich nicht verwenden. Prüf, wie sie geschrieben ist.",
-        "token": "authentik hat das Token nicht angenommen (Antwort {{status}}). Prüf, ob es gilt und die nötigen Rechte hat.",
-        "answered": "Unter dieser Adresse antwortet etwas, aber nicht authentik wie erwartet (Antwort {{status}}). Prüf die Adresse; die ganze Antwort steht im Log.",
-        "slug": "In authentik gehören alle Slugs, die nexbrand seiner Anwendung geben würde, schon anderen Anwendungen. Benenne den Anbieter von nexbrand dort um und versuch es noch einmal."
-      }
     },
     "publicAllowedHint": "Wer bei einem Kunden schreibt, darf dann Leseseiten und Abstimmungen anlegen. Abgeschaltet antwortet jeder Link, als hätte es ihn nie gegeben.",
     "files": "Dateien",
@@ -387,17 +352,15 @@
     "backupClients_one": "ein Kunde",
     "backupClients_other": "{{count}} Kunden",
     "backupFiles_one": "eine Datei",
-    "backupFiles_other": "{{count}} Dateien"
-  },
-  "authentik": {
-    "step": {
-      "reached": "Verbindung zu authentik",
-      "signingKey": "Schlüssel zum Signieren",
-      "mapping": "Zuordnung für die Adresse",
-      "provider": "Anbieter",
-      "application": "Anwendung",
-      "filled": "Einstellungen hier"
-    }
+    "backupFiles_other": "{{count}} Dateien",
+    "providers": {
+      "coupled": "über die Kopplung",
+      "order": "{{name}} verschieben (Pfeiltasten)",
+      "more": "Mehr"
+    },
+    "unlinkProvider": "Verknüpfung mit {{name}} lösen",
+    "unlinkConfirm": "Die Verknüpfung von {{account}} mit {{name}} lösen? Das Konto bekommt einen Hinweis.",
+    "secretKept": "Bleibt; nur zum Ändern tippen."
   },
   "errors": {
     "avatar_not_a_picture": "Das ist kein Bild, das nexbrand annimmt (JPEG, PNG, WebP, GIF, HEIC oder AVIF).",
@@ -408,14 +371,12 @@
     "client_required": "Die Anfrage sagte nicht, aus welchem Tab sie kam. Lade die Seite neu.",
     "wrong_credentials": "Anmeldename oder Passwort stimmt nicht.",
     "account_locked": "Zu viele falsche Passwörter. Das Konto wartet eine Viertelstunde.",
-    "too_many_attempts": "Zu viele Versuche. Kurz warten und noch einmal.",
     "password_login_off": "Die Anmeldung mit Passwort ist abgeschaltet.",
     "password_too_short": "Das Passwort ist zu kurz.",
     "current_password_missing": "Gib dein jetziges Passwort ein.",
     "name_taken": "Dieser Name ist vergeben.",
     "already_set_up": "nexbrand ist schon eingerichtet.",
     "unknown_language": "Diese Sprache hat nexbrand nicht.",
-    "invite_invalid": "Diese Einladung gilt nicht mehr.",
     "already_member": "Du hast schon ein Konto.",
     "operator_only": "Das darf nur der Betreiber.",
     "last_manager": "Der Kunde braucht erst einen anderen Verwalter.",
@@ -430,21 +391,6 @@
     "cannot_delete_self": "Das eigene Konto kannst du nicht löschen.",
     "cannot_demote_self": "Die Betreiberrolle kannst du dir nicht selbst nehmen.",
     "oidc_account": "Dieses Konto meldet sich über den Anbieter an.",
-    "oidc_only_account": "Dieses Konto meldet sich nur über den Anbieter an.",
-    "oidc_not_configured": "Es ist kein Anmeldeanbieter eingerichtet.",
-    "oidc_no_account": "Für dich gibt es hier kein Konto. Bitte um eine Einladung.",
-    "oidc_email_unverified": "Der Anbieter hat deine Mailadresse nicht bestätigt.",
-    "oidc_email_taken": "Deine Mailadresse gehört zu einem anderen Konto.",
-    "oidc_state_mismatch": "Die Anmeldung ist abgelaufen oder kam von woanders. Noch einmal versuchen.",
-    "oidc_token_invalid": "Die Antwort des Anbieters war ungültig.",
-    "oidc_denied": "Der Anbieter hat dich nicht hereingelassen.",
-    "oidc_link_mismatch": "Diese Verknüpfung gehört zu einem anderen Konto.",
-    "oidc_subject_taken": "Diese Identität ist schon mit einem anderen Konto verknüpft.",
-    "oidc_provider_unreachable": "Der Anbieter ist nicht erreichbar.",
-    "issuer_invalid": "Das ist kein OpenID-Connect-Anbieter.",
-    "issuer_unreachable": "Unter dieser Adresse ist der Anbieter nicht erreichbar.",
-    "secret_required": "Bitte das Client-Geheimnis eintragen.",
-    "url_invalid": "Die Adresse muss mit http:// oder https:// beginnen.",
     "backup_invalid": "Das ist keine nexbrand-Sicherung.",
     "backup_damaged": "Die Sicherung ist beschädigt. Nichts wurde geändert.",
     "busy": "nexbrand ist gerade beschäftigt. Versuch es gleich noch einmal.",
@@ -493,7 +439,6 @@
     "backups_emergency_only": "Im Verbund lädt und löscht nur das Notkonto Sicherungen.",
     "not_connected": "nexbrand ist nicht mit nexsuite verbunden.",
     "emergency_code_wrong": "Dieser Notfallcode gilt nicht.",
-    "account_blocked": "Dieses Konto ist gesperrt. Bitte den Betreiber, es freizugeben.",
     "disconnect_in_suite": "Trennen geht in nexsuite unter Apps, oder mit dem Notkonto dieser App.",
     "person_twice": "Jede Person in nexsuite lässt sich nur einmal zuordnen.",
     "team_twice": "Jedes Team in nexsuite lässt sich nur einmal zuordnen.",
@@ -576,22 +521,19 @@
     "log_level_from_environment": "Die Stufe des Logs ist mit NEXBRAND_LOG_LEVEL fest eingestellt.",
     "no_base": "Ein Projekt steht auf einer Fassung seines Kunden, und dieser Kunde hat noch keine. Veröffentliche zuerst eine Fassung des Kunden.",
     "notice_refused": "Das ist keine Nachricht von nexsuite.",
-    "oidc_exchange_failed": "Der Anmeldeanbieter hat die Anmeldung nicht angenommen. Versuch es noch einmal.",
-    "oidc_issuer_mismatch": "Der Anmeldeanbieter meldet eine andere Adresse als eingetragen. Prüf die Adresse unter Einstellungen, Server, Anmeldung.",
-    "oidc_provider_invalid": "Die Antwort des Anmeldeanbieters ist nicht zu verstehen.",
     "origin_refused": "Die API ist für Programme, nicht für Webseiten.",
     "protocol_version": "Diese Version des MCP-Protokolls spricht nexbrand nicht.",
     "slow_down": "Zu viele Anfragen mit diesem Token. Warte eine Minute.",
     "token_invalid": "Kein gültiges API-Token.",
     "too_many": "Zu viel auf einmal gewählt.",
     "invalid_note": "Die Notiz ist zu lang.",
-    "connection_sent": "Die Verbindung ist schon an nexsuite geschickt. Es gilt die Auswahl von damals; für eine andere Auswahl brich ab und verbinde neu."
+    "connection_sent": "Die Verbindung ist schon an nexsuite geschickt. Es gilt die Auswahl von damals; für eine andere Auswahl brich ab und verbinde neu.",
+    "email_taken": "Ein anderes Konto hat diese Adresse schon."
   },
   "auth": {
     "name": "Anmeldename",
     "password": "Passwort",
     "passwordHint": "Mindestens 12 Zeichen.",
-    "or": "oder",
     "setup": {
       "title": "nexbrand einrichten",
       "text": "Das erste Konto betreibt diesen Server: Es lädt andere ein und darf jede Einstellung ändern.",
@@ -603,8 +545,6 @@
       "title": "Anmelden",
       "text": "Willkommen zurück bei deinen Kunden.",
       "submit": "Anmelden",
-      "passwordOff": "Anmelden mit Passwort ist für Mitglieder abgeschaltet.",
-      "oidc": "Mit {{name}} anmelden",
       "ended": "Deine Sitzung wurde beendet, zum Beispiel weil dein Konto gesperrt oder überall abgemeldet wurde. Melde dich neu an.",
       "endedSuite": "Deine Sitzung wurde beendet, zum Beispiel weil dein Konto gesperrt oder überall abgemeldet oder dein Passwort in nexsuite geändert wurde. Melde dich neu an."
     },
@@ -623,7 +563,6 @@
       "join": "Als {{name}} beitreten",
       "invalidTitle": "Einladung nicht gültig",
       "invalidText": "Diese Einladung gilt nicht mehr: Sie ist benutzt, abgelaufen oder zurückgezogen. Frag nach einer neuen.",
-      "withProvider": "Mit {{name}} annehmen",
       "noWay": "Die Anmeldung mit Passwort ist abgeschaltet und kein Anmeldeanbieter eingerichtet. Frag den Betreiber.",
       "expiredTitle": "Einladung abgelaufen",
       "expiredText": "Diese Einladung ist abgelaufen. Frag nach einer neuen.",
@@ -719,7 +658,9 @@
     "section_other": "Neu für dich ({{count}})",
     "operator_added_self": "Der Betreiber {{actor}} hat dir Zugriff auf „{{space}}“ gegeben ({{role}}).",
     "operator_role_self": "Der Betreiber {{actor}} hat dein Recht bei „{{space}}“ geändert ({{role}}).",
-    "operator_removed_self": "Der Betreiber {{actor}} hat dir den Zugriff auf „{{space}}“ genommen."
+    "operator_removed_self": "Der Betreiber {{actor}} hat dir den Zugriff auf „{{space}}“ genommen.",
+    "operator_unlinked": "Der Betreiber {{actor}} hat die Verknüpfung von {{subject}} mit „{{space}}“ gelöst",
+    "operator_unlinked_self": "Der Betreiber {{actor}} hat die Verknüpfung deines Kontos mit „{{space}}“ gelöst."
   },
   "me": {
     "title": "Mein Konto",
@@ -753,15 +694,6 @@
       "again": "Passwort noch einmal",
       "mismatch": "Die beiden Passwörter sind nicht gleich."
     },
-    "oidc": {
-      "title": "Anmeldeanbieter",
-      "only": "Dieses Konto meldet sich über den Anbieter an.",
-      "linked": "Verknüpft: Du kannst dich über den Anbieter und mit deinem Passwort anmelden.",
-      "unlink": "Verknüpfung lösen",
-      "unlinked": "Nicht mehr verknüpft.",
-      "text": "Verknüpfe dein Konto mit dem Anbieter, dann geht beides. Dein Passwort bestätigt, dass du es bist.",
-      "link": "Mit dem Anbieter verknüpfen"
-    },
     "sessions": {
       "title": "Andere Browser",
       "text": "Meldet dich überall ab außer hier, etwa nach einem verlorenen Handy.",
@@ -772,8 +704,14 @@
       "operator": "Betreiber",
       "member": "Mitglied"
     },
-    "linked": "Dein Konto ist mit dem Anbieter verknüpft.",
-    "setupFirst": "Der Betreiber verlangt einen zweiten Faktor. Richte ihn hier ein, dann geht es weiter."
+    "setupFirst": "Der Betreiber verlangt einen zweiten Faktor. Richte ihn hier ein, dann geht es weiter.",
+    "oidc": {
+      "linkedTo": "Dein Konto ist mit {{name}} verknüpft.",
+      "unlinkedFrom": "Die Verknüpfung mit {{name}} ist gelöst.",
+      "addressOffer": "{{provider}} kennt dich als {{address}}. Soll nexbrand diese Adresse nehmen?",
+      "takeAddress": "Übernehmen",
+      "addressTaken": "Die Adresse gilt jetzt für dein Konto."
+    }
   },
   "twofactor": {
     "title": "Zweiter Faktor",

@@ -35,7 +35,8 @@ import { changeLanguage, languageOptions, templateFile, type LanguageOption } fr
 import { applyMode, storedMode, type Mode } from '../lib/theme'
 import { useTitle } from '../lib/title'
 import { useAuth } from '../state/auth'
-import { AccountsCard, AllSpacesCard, ProxyHint, ApiTokensCard, BackupsCard, FilesCard, LanguagesCard, LogCard, MailCard, OutsideCard, SharesCard, SignInCard, useServerSettings } from './settings/ServerCards'
+import { AccountsCard, AllSpacesCard, ProxyHint, ApiTokensCard, BackupsCard, FilesCard, LanguagesCard, LogCard, MailCard, OutsideCard, SharesCard, useServerSettings } from './settings/ServerCards'
+import { SignInPart } from './settings/SignInCards'
 import { Button, Card, Feedback, saveAsFile, TabRow, useAction, type Tab } from './settings/ui'
 
 type Top = 'general' | 'looks' | 'access' | 'teams' | 'server'
@@ -95,7 +96,13 @@ function ServerPart({ part }: { part: Part }) {
         </>
       )
     case 'signin':
-      return connected ? <ManagedCard title={t('settings.parts.signin')} text={t('suite.managedSignIn')} /> : <SignInCard server={server} />
+      // Coupled, the sign-in comes through the coupling: the cards stay visible, read only (blueprint 06).
+      return (
+        <>
+          {connected && <ManagedCard title={t('settings.parts.signin')} text={t('suite.managedSignIn')} />}
+          <SignInPart server={server} coupled={connected} />
+        </>
+      )
     case 'suite':
       return <SuiteCard />
     case 'shares':

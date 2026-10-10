@@ -1,18 +1,34 @@
 /**
  * The pages before signing in, as in nexlore: the first account (with the setup code from the server's log),
- * signing in (password, then the second factor; or the provider's button), and accepting an invitation.
+ * signing in, and accepting an invitation.
+ *
+ * Signing in (blueprint 04): name and password, and below the line "or" a button per active sign-in provider, in the
+ * order of the operator's list. With the password sign-in turned off only the buttons show, and small at the bottom
+ * the operator's way in with the password. The code step of the second factor comes after a provider too, when that
+ * provider is not trusted with it (`?step=code`, the server parked the sign-in). An error from the address
+ * (`?error=`) is shown only as one of the known sign-in codes, never as it stands there.
  */
 import { useEffect, useId, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
-import { ApiError, api, authApi, type Me, type Methods } from '../api/client'
+import { ApiError, api, authApi, providerStart, type Me, type Methods } from '../api/client'
 import { Logo } from '../components/Logo'
+import { ProviderButtons } from '../components/ProviderButtons'
 import { ThemeSwitcher } from '../components/ThemeSwitcher'
 import i18n from '../i18n'
 import { errorText } from '../lib/errors'
 import { useTitle } from '../lib/title'
 import { safeNext, useAuth } from '../state/auth'
+import { oidcErrorKey } from '../vendor/nexoidc/oidc'
+
+/** The codes a provider's way back may name on the sign-in page: the fixed ones of the sign-in module, and while
+ * coupled the one for a person nexbrand does not know (yet). Anything else in the address is not shown. */
+function fromAddress(code: string | null): string | null {
+  return code && (oidcErrorKey(code) || code === 'suite_no_account') ? code : null
+}
+
+const NO_PROVIDERS: Methods = { password: true, providers: [] }
 
 function AuthFrame({ title, text, children }: { title: string; text?: string; children: ReactNode }) {
   useTitle(title)
@@ -131,16 +147,18 @@ export function LoginPage({ emergency = false }: { emergency?: boolean }) {
   const [methods, setMethods] = useState<Methods | null>(null)
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
-  const [step, setStep] = useState<'password' | 'code'>('password')
+  const [step, setStep] = useState<'password' | 'code'>(params.get('step') === 'code' ? 'code' : 'password')
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
-  const [problem, setProblem] = useState<string | null>(params.get('error'))
+  const [problem, setProblem] = useState<string | null>(fromAddress(params.get('error')))
+  // Password sign-in off: the form waits behind "Sign in as the operator with a password".
+  const [operatorWay, setOperatorWay] = useState(false)
   const next = safeNext(params.get('next'))
   /** Sent here from the open app whose session ended (blocked, signed out everywhere, A8). */
   const ended = params.get('ended') === '1'
 
   useEffect(() => {
-    void authApi.methods().then(setMethods, () => setMethods({ password: true, oidc: false, oidc_name: '' }))
+    void authApi.methods().then(setMethods, () => setMethods(NO_PROVIDERS))
   }, [])
 
   if (status === 'loading') return null
@@ -214,7 +232,7 @@ export function LoginPage({ emergency = false }: { emergency?: boolean }) {
         {/* Connected, a new password in nexsuite ends the sessions here too (B12). */}
         {ended && <p className="mb-3 rounded-xl border border-warn-500/30 bg-warn-500/10 px-3 py-2 text-xs text-mist-200" role="status">{t('auth.login.endedSuite')}</p>}
         <Problem code={problem} />
-        <a href={`/api/oidc/start?next=${encodeURIComponent(next)}`} className="nc-btn nc-btn-accent flex h-10 w-full items-center justify-center">
+        <a href={providerStart(methods.providers[0]?.slug ?? 'oidc', { next })} className="nc-btn nc-btn-accent flex h-10 w-full items-center justify-center">
           {t('suite.loginButton')}
         </a>
         {/* Signing out here leaves nexsuite signed in, and the button would bring the same person back (B11). Who is
@@ -242,22 +260,36 @@ export function LoginPage({ emergency = false }: { emergency?: boolean }) {
 
   // The emergency page speaks of nexsuite only while connected; alone it is the usual sign-in (G4).
   const emergencyNow = emergency && !!methods?.suite
+  const providers = emergencyNow ? [] : methods.providers
+  // Password sign-in off: only the buttons, the form behind the operator's way in (blueprint 04).
+  const passwordShown = methods.password || providers.length === 0 || operatorWay || emergencyNow
+  const endedNote = ended && (
+    <p className="rounded-xl border border-warn-500/30 bg-warn-500/10 px-3 py-2 text-xs text-mist-200" role="status">
+      {t(methods.suite ? 'auth.login.endedSuite' : 'auth.login.ended')}
+    </p>
+  )
   return (
     <AuthFrame title={emergencyNow ? t('suite.emergencyTitle') : t('auth.login.title')} text={emergencyNow ? t('suite.emergencyLoginText') : t('auth.login.text')}>
-      <form
-        className="space-y-4"
-        onSubmit={(event) => {
-          event.preventDefault()
-          void submit()
-        }}
-      >
-        {ended && <p className="rounded-xl border border-warn-500/30 bg-warn-500/10 px-3 py-2 text-xs text-mist-200" role="status">{t(methods?.suite ? 'auth.login.endedSuite' : 'auth.login.ended')}</p>}
-        <Problem code={problem} />
-        <Field label={t('auth.name')} value={name} onChange={setName} autoComplete="username" autoFocus />
-        <Field label={t('auth.password')} value={password} onChange={setPassword} type="password" autoComplete="current-password" />
-        <Primary busy={busy}>{t('auth.login.submit')}</Primary>
-        {methods && !methods.password && !emergencyNow && <p className="text-xs text-mist-500">{t('auth.login.passwordOff')}</p>}
-      </form>
+      {passwordShown ? (
+        <form
+          className="space-y-4"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void submit()
+          }}
+        >
+          {endedNote}
+          <Problem code={problem} />
+          <Field label={t('auth.name')} value={name} onChange={setName} autoComplete="username" autoFocus />
+          <Field label={t('auth.password')} value={password} onChange={setPassword} type="password" autoComplete="current-password" />
+          <Primary busy={busy}>{t('auth.login.submit')}</Primary>
+        </form>
+      ) : (
+        <div className="space-y-4">
+          {endedNote}
+          <Problem code={problem} />
+        </div>
+      )}
       {emergencyNow && (
         <p className="mt-4 text-center text-xs text-mist-600">
           <Link to="/login" className="hover:text-mist-300">
@@ -265,17 +297,11 @@ export function LoginPage({ emergency = false }: { emergency?: boolean }) {
           </Link>
         </p>
       )}
-      {methods?.oidc && !emergencyNow && (
-        <>
-          <div className="my-4 flex items-center gap-3 text-xs text-mist-600">
-            <span className="h-px flex-1 bg-ink-700" />
-            {t('auth.or')}
-            <span className="h-px flex-1 bg-ink-700" />
-          </div>
-          <a href={`/api/oidc/start?next=${encodeURIComponent(next)}`} className="flex h-10 w-full items-center justify-center rounded-full border border-ink-700 text-sm font-medium hover:bg-ink-850">
-            {t('auth.login.oidc', { name: methods.oidc_name || 'OpenID Connect' })}
-          </a>
-        </>
+      <ProviderButtons providers={providers} next={next} withOr={passwordShown} />
+      {!passwordShown && (
+        <button type="button" className="mt-4 w-full text-center text-xs text-mist-500 hover:text-mist-300" onClick={() => setOperatorWay(true)}>
+          {t('oidc.login.operator')}
+        </button>
       )}
     </AuthFrame>
   )
@@ -304,7 +330,7 @@ export function InvitePage() {
       setInvalid(code === 'invite_expired' ? 'expired' : code === 'invite_suite' ? 'suite' : 'invalid')
     })
     // Without an answer the password stays, the way that needs nothing else.
-    authApi.methods().then(setMethods, () => setMethods({ password: true, oidc: false, oidc_name: '' }))
+    authApi.methods().then(setMethods, () => setMethods(NO_PROVIDERS))
   }, [token])
 
   if (invalid) {
@@ -365,13 +391,7 @@ export function InvitePage() {
 
   return (
     <AuthFrame title={t('auth.invite.title')} text={text}>
-      {/* Through the sign-in provider (a1-9, C9): the invitation is the permission for the new account. */}
-      {methods.oidc && (
-        <a href={`/api/oidc/start?invite=${encodeURIComponent(token)}`} className="mb-4 flex h-10 w-full items-center justify-center rounded-full bg-accent-500 text-sm font-semibold text-on-accent hover:bg-accent-400">
-          {t('auth.invite.withProvider', { name: methods.oidc_name || 'OpenID Connect' })}
-        </a>
-      )}
-      {!methods.password && !methods.oidc && <p className="text-sm text-mist-400">{t('auth.invite.noWay')}</p>}
+      {!methods.password && methods.providers.length === 0 && <p className="text-sm text-mist-400">{t('auth.invite.noWay')}</p>}
       {methods.password && (
         <>
         <form
@@ -397,6 +417,9 @@ export function InvitePage() {
         </form>
         </>
       )}
+      {/* Below "or" (blueprint 04): through a sign-in provider, the invitation travels along and is the permission for
+          the new account (a1-9, C9). */}
+      <ProviderButtons providers={methods.providers} invite={token} withOr={methods.password} />
     </AuthFrame>
   )
 }

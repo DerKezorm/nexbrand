@@ -206,7 +206,7 @@ describe('an open page whose session ends', () => {
     const { AuthProvider } = await import('../state/auth')
     server.handler = (_method, path) => {
       if (path === '/api/setup') return { status: 200, body: { needs_setup: false, signed_in: false } }
-      if (path === '/api/auth/methods') return { status: 200, body: { password: true, oidc: false, oidc_name: '' } }
+      if (path === '/api/auth/methods') return { status: 200, body: { password: true, providers: [] } }
     }
     const page = await mount(
       <AuthProvider>
@@ -339,7 +339,7 @@ describe('a link that does not hold', () => {
       auth.me = null
       server.handler = (_m, path) => {
         if (path.startsWith('/api/invite/')) return { status: 404, body: { detail: { code } } }
-        if (path === '/api/auth/methods') return { status: 200, body: { password: true, oidc: false, oidc_name: '' } }
+        if (path === '/api/auth/methods') return { status: 200, body: { password: true, providers: [] } }
       }
       const { InvitePage } = await import('./AuthPages')
       const { AuthProvider } = await import('../state/auth')
@@ -361,7 +361,7 @@ describe('a link that does not hold', () => {
     auth.me = null
     server.handler = (_m, path) => {
       if (path === '/api/setup') return { status: 200, body: { needs_setup: false, signed_in: false } }
-      if (path === '/api/auth/methods') return { status: 200, body: { password: false, oidc: true, oidc_name: 'nexsuite', suite: true } }
+      if (path === '/api/auth/methods') return { status: 200, body: { password: false, providers: [{ slug: 'oidc', label: 'nexsuite' }], suite: true } }
     }
     const { LoginPage } = await import('./AuthPages')
     const { AuthProvider } = await import('../state/auth')

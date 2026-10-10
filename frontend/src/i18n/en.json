@@ -127,9 +127,6 @@
     "accounts": "Accounts",
     "accountsHint": "Accounts come by invitation only.",
     "member": "Member",
-    "signin": "Sign-in",
-    "oidc": "OpenID Connect",
-    "oidcIssuer": "Issuer",
     "twoFactor": "Second factor",
     "twoFactorRequired": "Require a second factor",
     "public": "Public pages",
@@ -176,18 +173,7 @@
     "mailTest": "Test mail to",
     "send": "Send",
     "mailSent": "The test mail went out.",
-    "secretKept": "Kept; type only to change it.",
-    "passwordLogin": "Sign-in with password",
-    "passwordLoginHint": "Off: members get in through the provider only. You as the operator can always use your password.",
     "twoFactorRequiredHint": "Every account that signs in with a password must set one up before it gets further. Accounts from the provider bring its own. Switch on your own first.",
-    "oidcName": "Name on the button",
-    "redirect": "Redirect address for the provider",
-    "redirectHint": "Enter it at the provider.",
-    "oidcAutoCreate": "New people get an account",
-    "oidcAutoCreateHint": "Off: only invited or linked accounts get in.",
-    "oidcRemove": "Remove provider",
-    "publicUrl": "Public address",
-    "publicUrlHint": "For links in invitations and public pages, and the OIDC return.",
     "inSpaces_one": "access to one client",
     "inSpaces_other": "access to {{count}} clients",
     "withTwoFactor": "second factor",
@@ -286,7 +272,6 @@
     "logClear": "Clear log",
     "logClearText": "Every line goes. New ones come as before.",
     "logUntil": "Back to normal at {{time}}.",
-    "signinText": "How people get in.",
     "signInBy": {
       "password": "password",
       "oidc": "provider"
@@ -305,26 +290,6 @@
       "view": "View",
       "membersNoManager_one": "one person with access, nobody manages the client",
       "membersNoManager_other": "{{count}} people with access, nobody manages the client"
-    },
-    "oidcOn": "Set up with {{issuer}}.",
-    "oidcOff": "Not set up.",
-    "clientId": "Client ID",
-    "clientSecret": "Client secret",
-    "authentik": {
-      "title": "authentik in one step",
-      "text": "With an API token that may create applications, nexbrand sets up provider and application in authentik itself. The token is used for that only and never stored.",
-      "url": "Address of authentik",
-      "token": "API token",
-      "run": "Set up",
-      "blueprint": "Download blueprint instead",
-      "asking": "One moment, authentik is being asked. This can take up to 20 seconds.",
-      "why": {
-        "unreachable": "authentik cannot be reached at this address. Check the address and whether nexbrand reaches that network.",
-        "unusable": "This address cannot be used. Check how it is written.",
-        "token": "authentik did not accept the token (answer {{status}}). Check that it is valid and has the rights it needs.",
-        "answered": "Something answers at this address, but not authentik as expected (answer {{status}}). Check the address; the whole answer is in the log.",
-        "slug": "Every slug nexbrand would give its application already belongs to another application in authentik. Rename the nexbrand provider there and try again."
-      }
     },
     "publicAllowedHint": "Those who may write for a client may then create read-only pages and reviews. Switched off, every link answers as if it had never existed.",
     "files": "Files",
@@ -387,17 +352,15 @@
     "backupClients_one": "one client",
     "backupClients_other": "{{count}} clients",
     "backupFiles_one": "one file",
-    "backupFiles_other": "{{count}} files"
-  },
-  "authentik": {
-    "step": {
-      "reached": "Connection to authentik",
-      "signingKey": "Signing key",
-      "mapping": "Mapping for the address",
-      "provider": "Provider",
-      "application": "Application",
-      "filled": "Settings here"
-    }
+    "backupFiles_other": "{{count}} files",
+    "providers": {
+      "coupled": "through the coupling",
+      "order": "Move {{name}} (arrow keys)",
+      "more": "More"
+    },
+    "unlinkProvider": "Unlink from {{name}}",
+    "unlinkConfirm": "Unlink {{account}} from {{name}}? The account gets a notice.",
+    "secretKept": "Kept; type only to change it."
   },
   "errors": {
     "avatar_not_a_picture": "That is not a picture nexbrand takes (JPEG, PNG, WebP, GIF, HEIC or AVIF).",
@@ -408,14 +371,12 @@
     "client_required": "The request did not say which tab sent it. Reload the page.",
     "wrong_credentials": "Sign-in name or password is wrong.",
     "account_locked": "Too many wrong passwords. The account waits a quarter of an hour.",
-    "too_many_attempts": "Too many attempts. Wait a moment and try again.",
     "password_login_off": "Signing in with a password is turned off.",
     "password_too_short": "The password is too short.",
     "current_password_missing": "Enter your current password.",
     "name_taken": "This name is taken.",
     "already_set_up": "nexbrand is set up already.",
     "unknown_language": "nexbrand does not have this language.",
-    "invite_invalid": "This invitation is not valid any more.",
     "already_member": "You have an account already.",
     "operator_only": "Only the operator may do this.",
     "last_manager": "The client needs another manager first.",
@@ -430,21 +391,6 @@
     "cannot_delete_self": "You cannot delete your own account.",
     "cannot_demote_self": "You cannot take the operator role from yourself.",
     "oidc_account": "This account signs in through the provider.",
-    "oidc_only_account": "This account signs in through the provider only.",
-    "oidc_not_configured": "No sign-in provider is set up.",
-    "oidc_no_account": "There is no account for you here. Ask for an invitation.",
-    "oidc_email_unverified": "The provider did not confirm your mail address.",
-    "oidc_email_taken": "Your mail address belongs to another account.",
-    "oidc_state_mismatch": "The sign-in ran out or came from elsewhere. Try again.",
-    "oidc_token_invalid": "The provider's answer was not valid.",
-    "oidc_denied": "The provider did not let you in.",
-    "oidc_link_mismatch": "This link belongs to another account.",
-    "oidc_subject_taken": "This identity is linked to another account already.",
-    "oidc_provider_unreachable": "The provider cannot be reached.",
-    "issuer_invalid": "This is not an OpenID Connect provider.",
-    "issuer_unreachable": "The provider cannot be reached at this address.",
-    "secret_required": "Enter the client secret.",
-    "url_invalid": "The address must start with http:// or https://.",
     "backup_invalid": "This is not a nexbrand backup.",
     "backup_damaged": "The backup is damaged. Nothing was changed.",
     "busy": "nexbrand is busy. Try again in a moment.",
@@ -493,7 +439,6 @@
     "backups_emergency_only": "While connected, only the emergency account downloads and deletes backups.",
     "not_connected": "nexbrand is not connected to nexsuite.",
     "emergency_code_wrong": "This emergency code is not valid.",
-    "account_blocked": "This account is blocked. Ask the operator to unblock it.",
     "disconnect_in_suite": "Disconnect in nexsuite under Apps, or with the emergency account of this app.",
     "person_twice": "Each person in nexsuite can be matched once only.",
     "team_twice": "Each team in nexsuite can be matched once only.",
@@ -576,22 +521,19 @@
     "log_level_from_environment": "The log level is fixed by NEXBRAND_LOG_LEVEL.",
     "no_base": "A project stands on a version of its client, and this client has none yet. Publish a version of the client first.",
     "notice_refused": "This is not a notice from nexsuite.",
-    "oidc_exchange_failed": "The sign-in provider did not accept the sign-in. Try again.",
-    "oidc_issuer_mismatch": "The sign-in provider reports a different address than the one entered. Check the address under Settings, Server, Sign-in.",
-    "oidc_provider_invalid": "The sign-in provider's answer cannot be understood.",
     "origin_refused": "The API is for programs, not for web pages.",
     "protocol_version": "nexbrand does not speak this version of the MCP protocol.",
     "slow_down": "Too many requests with this token. Wait a minute.",
     "token_invalid": "No valid API token.",
     "too_many": "Too many chosen at once.",
     "invalid_note": "The note is too long.",
-    "connection_sent": "The connection has been sent to nexsuite already. The choices from then apply; for other choices, cancel and connect again."
+    "connection_sent": "The connection has been sent to nexsuite already. The choices from then apply; for other choices, cancel and connect again.",
+    "email_taken": "Another account has this address already."
   },
   "auth": {
     "name": "Sign-in name",
     "password": "Password",
     "passwordHint": "At least 12 characters.",
-    "or": "or",
     "setup": {
       "title": "Set up nexbrand",
       "text": "The first account runs this server: it may invite others and change every setting.",
@@ -603,8 +545,6 @@
       "title": "Sign in",
       "text": "Welcome back to your clients.",
       "submit": "Sign in",
-      "passwordOff": "Sign-in with a password is turned off for members.",
-      "oidc": "Sign in with {{name}}",
       "ended": "Your session was ended, for example because your account was blocked or signed out everywhere. Sign in again.",
       "endedSuite": "Your session was ended, for example because your account was blocked or signed out everywhere, or your password was changed in nexsuite. Sign in again."
     },
@@ -623,7 +563,6 @@
       "join": "Join as {{name}}",
       "invalidTitle": "Invitation not valid",
       "invalidText": "This invitation is not valid any more: it was used, ran out or was withdrawn. Ask for a new one.",
-      "withProvider": "Accept with {{name}}",
       "noWay": "Sign-in with a password is off and no sign-in provider is set up. Ask the operator.",
       "expiredTitle": "Invitation ran out",
       "expiredText": "This invitation has run out. Ask for a new one.",
@@ -719,7 +658,9 @@
     "section_other": "New for you ({{count}})",
     "operator_added_self": "The operator {{actor}} gave you access to “{{space}}” ({{role}}).",
     "operator_role_self": "The operator {{actor}} changed your right at “{{space}}” ({{role}}).",
-    "operator_removed_self": "The operator {{actor}} took away your access to “{{space}}”."
+    "operator_removed_self": "The operator {{actor}} took away your access to “{{space}}”.",
+    "operator_unlinked": "The operator {{actor}} unlinked {{subject}} from “{{space}}”",
+    "operator_unlinked_self": "The operator {{actor}} unlinked your account from “{{space}}”."
   },
   "me": {
     "title": "My account",
@@ -753,15 +694,6 @@
       "again": "Password again",
       "mismatch": "The two passwords are not the same."
     },
-    "oidc": {
-      "title": "Sign-in provider",
-      "only": "This account signs in through the provider.",
-      "linked": "Linked: you can sign in with the provider as well as with your password.",
-      "unlink": "Unlink",
-      "unlinked": "No longer linked.",
-      "text": "Link your account to the provider, then you can sign in with either. Your password confirms it is you.",
-      "link": "Link with the provider"
-    },
     "sessions": {
       "title": "Other browsers",
       "text": "Signs you out everywhere except here, for example after losing a phone.",
@@ -772,8 +704,14 @@
       "operator": "Operator",
       "member": "Member"
     },
-    "linked": "Your account is linked to the provider.",
-    "setupFirst": "The operator requires a second factor. Set it up here, then you can go on."
+    "setupFirst": "The operator requires a second factor. Set it up here, then you can go on.",
+    "oidc": {
+      "linkedTo": "Your account is linked to {{name}}.",
+      "unlinkedFrom": "Unlinked from {{name}}.",
+      "addressOffer": "{{provider}} knows you as {{address}}. Should nexbrand take this address?",
+      "takeAddress": "Take it",
+      "addressTaken": "The address is your account's now."
+    }
   },
   "twofactor": {
     "title": "Second factor",

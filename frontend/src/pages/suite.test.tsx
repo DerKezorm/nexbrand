@@ -489,7 +489,7 @@ describe('the pages before signing in', () => {
     auth.me = null
     server.handler = (_m, path) => {
       if (path === '/api/setup') return { status: 200, body: { needs_setup: false, signed_in: false } }
-      if (path === '/api/auth/methods') return { status: 200, body: { password: false, oidc: true, oidc_name: 'nexsuite', suite: true } }
+      if (path === '/api/auth/methods') return { status: 200, body: { password: false, providers: [{ slug: 'oidc', label: 'nexsuite' }], suite: true } }
     }
     const { LoginPage } = await import('./AuthPages')
     const { AuthProvider } = await import('../state/auth')
@@ -500,14 +500,14 @@ describe('the pages before signing in', () => {
       '/login?next=%2Fc%2Fabc&ended=1',
     )
     expect(page.textContent).toContain(i18n.t('auth.login.endedSuite'))
-    expect(page.querySelector('a[href^="/api/oidc/start"]')?.getAttribute('href')).toBe('/api/oidc/start?next=%2Fc%2Fabc')
+    expect(page.querySelector('a[href^="/api/oidc/oidc/start"]')?.getAttribute('href')).toBe('/api/oidc/oidc/start?next=%2Fc%2Fabc')
   })
 
   it('say at once that an invitation from before the connection does not hold', async () => {
     auth.me = null
     server.handler = (_m, path) => {
       if (path.startsWith('/api/invite/')) return { status: 404, body: { detail: { code: 'invite_suite' } } }
-      if (path === '/api/auth/methods') return { status: 200, body: { password: false, oidc: true, oidc_name: 'nexsuite', suite: true } }
+      if (path === '/api/auth/methods') return { status: 200, body: { password: false, providers: [{ slug: 'oidc', label: 'nexsuite' }], suite: true } }
     }
     const { InvitePage } = await import('./AuthPages')
     const { AuthProvider } = await import('../state/auth')
@@ -528,7 +528,7 @@ describe('the pages before signing in', () => {
     auth.me = null
     server.handler = (_m, path) => {
       if (path.startsWith('/api/invite/')) return { status: 200, body: { space: 'Example Bakery', role: 'write', min_password: 12, signed_in_as: null, by: 'Robin Example' } }
-      if (path === '/api/auth/methods') return { status: 200, body: { password: true, oidc: false, oidc_name: '' } }
+      if (path === '/api/auth/methods') return { status: 200, body: { password: true, providers: [] } }
     }
     const { InvitePage } = await import('./AuthPages')
     const { AuthProvider } = await import('../state/auth')
@@ -551,7 +551,7 @@ describe('while connected', () => {
   it('the own account leads to nexsuite for password and second factor', async () => {
     auth.me = { ...ME, role: 'member', sign_in: 'oidc', suite: 'connected', suite_url: 'https://suite.example.com' } as Me
     server.handler = (_m, path) => {
-      if (path === '/api/auth/methods') return { status: 200, body: { password: false, oidc: true, oidc_name: 'nexsuite', suite: true } }
+      if (path === '/api/auth/methods') return { status: 200, body: { password: false, providers: [{ slug: 'oidc', label: 'nexsuite' }], suite: true } }
     }
     const { AccountPage } = await import('./AccountPage')
     const page = await mount(<AccountPage />, '/account?tab=security')
@@ -561,7 +561,7 @@ describe('while connected', () => {
 
   it('the second factor names the emergency codes from nexsuite only while connected', async () => {
     server.handler = (_m, path) => {
-      if (path === '/api/auth/methods') return { status: 200, body: { password: true, oidc: false, oidc_name: '' } }
+      if (path === '/api/auth/methods') return { status: 200, body: { password: true, providers: [] } }
     }
     const { AccountPage } = await import('./AccountPage')
     const alone = await mount(<AccountPage />, '/account?tab=security')

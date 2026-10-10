@@ -4,11 +4,12 @@
  * (API tokens for programs and AI tools). The tab stands in the address (`?tab=`).
  */
 import { KeyRound, Lock, Plug, Shield, ShieldCheck, Sparkles, UserRound } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 
-import { api, ApiError, authApi, type Me, type Methods } from '../api/client'
+import { api, ApiError, authApi, type Me } from '../api/client'
+import { MyProviders } from '../components/MyProviders'
 import { AiAccess } from '../components/AiAccess'
 import { ApiTokens } from '../components/ApiTokens'
 import { Avatar } from '../components/Avatar'
@@ -37,11 +38,6 @@ export function AccountPage() {
   useTitle(t('me.title'))
   const { me, setMe, refresh } = useAuth()
   const [shownAs, setShownAs] = useState(me?.display_name ?? '')
-  // Whether a sign-in provider is set up at all: without one there is nothing to link.
-  const [methods, setMethods] = useState<Methods | null>(null)
-  useEffect(() => {
-    authApi.methods().then(setMethods, () => setMethods(null))
-  }, [])
   const [params, setParams] = useSearchParams()
   const asked = params.get('tab') as Part | null
   // Back from the provider (linking the account): its answer stands on the security tab.
@@ -49,8 +45,7 @@ export function AccountPage() {
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
   const [again, setAgain] = useState('')
-  const [linkPassword, setLinkPassword] = useState('')
-  const [done, setDone] = useState<string | null>(params.get('linked') ? t('me.linked') : null)
+  const [done, setDone] = useState<string | null>(null)
   const [problem, setProblem] = useState<string | null>(params.get('error') ? errorText(params.get('error')!) : null)
   const [busy, setBusy] = useState(false)
   const picker = useRef<HTMLInputElement>(null)
@@ -222,42 +217,8 @@ export function AccountPage() {
               {me.suite === 'connected' && me.sign_in !== 'password' ? <Managed text={t('suite.managedTwoFactor')} /> : <SecondFactor me={me} />}
             </Section>
 
-            {me.suite !== 'connected' && (methods?.oidc || me.sign_in === 'oidc' || me.oidc_linked) && (
-              <Section icon={Shield} title={t('me.oidc.title')}>
-                {me.sign_in === 'oidc' ? (
-                  <p className="text-sm text-mist-400">{t('me.oidc.only')}</p>
-                ) : me.oidc_linked ? (
-                  <div className="flex flex-wrap items-center gap-3 text-sm">
-                    <span className="text-mist-400">{t('me.oidc.linked')}</span>
-                    <button type="button" disabled={busy} onClick={() => void run(() => api('/api/oidc/link', { method: 'DELETE' }), t('me.oidc.unlinked'))} className={QUIET}>
-                      {t('me.oidc.unlink')}
-                    </button>
-                  </div>
-                ) : (
-                  <form
-                    className="space-y-3"
-                    onSubmit={(event) => {
-                      event.preventDefault()
-                      setBusy(true)
-                      setProblem(null)
-                      api<{ url: string }>('/api/oidc/link/start', { method: 'POST', body: { password: linkPassword } }).then(
-                        ({ url }) => window.location.assign(url),
-                        (error) => {
-                          setProblem(errorText(code(error)))
-                          setBusy(false)
-                        },
-                      )
-                    }}
-                  >
-                    <p className="text-sm text-mist-400">{t('me.oidc.text')}</p>
-                    <Field label={t('auth.password')} value={linkPassword} onChange={setLinkPassword} type="password" autoComplete="current-password" />
-                    <button type="submit" disabled={busy} className={PLAIN}>
-                      {t('me.oidc.link')}
-                    </button>
-                  </form>
-                )}
-              </Section>
-            )}
+            {/* Connected, the sign-in is nexsuite's: nothing to link or unlink here. */}
+            {me.suite !== 'connected' && <MyProviders me={me} linked={params.get('linked')} />}
 
             <Section icon={Lock} title={t('me.sessions.title')}>
               <p className="mb-3 text-sm text-mist-400">{t('me.sessions.text')}</p>

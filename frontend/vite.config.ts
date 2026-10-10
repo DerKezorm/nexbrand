@@ -37,7 +37,8 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     css: false,
-    exclude: ['node_modules/**', 'dist/**'],
+    // The end-to-end tests run in Playwright (`npm run e2e`), not here.
+    exclude: ['node_modules/**', 'dist/**', 'e2e/**'],
     // A cold run (CI, no cache) translates each page on its first dynamic import inside a test, and a busy machine
     // stretches that past vitest's 5 s: 25 tests timed out on a fresh copy (05.10.2026). Waiting is no clock here,
     // the tests wait for answers; this only gives the first translation room.

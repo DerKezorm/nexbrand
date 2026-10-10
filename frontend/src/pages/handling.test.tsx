@@ -189,22 +189,22 @@ describe('the pages before signing in', () => {
   }
 
   it('show no password form while connected, not even before the ways in are known', async () => {
-    const { page, release } = await signIn('/login', { password: false, oidc: true, oidc_name: 'nexsuite', suite: true, suite_url: 'https://suite.example.com' })
+    const { page, release } = await signIn('/login', { password: false, providers: [{ slug: 'oidc', label: 'nexsuite' }], suite: true, suite_url: 'https://suite.example.com' })
     expect(page.querySelector('input[type=password]')).toBeNull()
     expect(page.querySelector('h1')).toBeNull()
     await release()
     expect(page.querySelector('input[type=password]')).toBeNull()
-    expect(page.querySelector('a[href^="/api/oidc/start"]')?.textContent).toBe(i18n.t('suite.loginButton'))
+    expect(page.querySelector('a[href^="/api/oidc/oidc/start"]')?.textContent).toBe(i18n.t('suite.loginButton'))
   })
 
   it('show the emergency page as such from the start while connected, and the usual sign-in alone (F20)', async () => {
-    const connected = await signIn('/notzugang', { password: false, oidc: true, oidc_name: 'nexsuite', suite: true })
+    const connected = await signIn('/notzugang', { password: false, providers: [{ slug: 'oidc', label: 'nexsuite' }], suite: true })
     expect(connected.page.querySelector('h1')).toBeNull()
     await connected.release()
     expect(connected.page.querySelector('h1')?.textContent).toBe(i18n.t('suite.emergencyTitle'))
     await act(async () => root?.unmount())
     host?.remove()
-    const alone = await signIn('/notzugang', { password: true, oidc: false, oidc_name: '' })
+    const alone = await signIn('/notzugang', { password: true, providers: [] })
     await alone.release()
     expect(alone.page.querySelector('h1')?.textContent).toBe(i18n.t('auth.login.title'))
     expect(alone.page.textContent).not.toContain('nexsuite')
@@ -217,7 +217,7 @@ describe('the pages before signing in', () => {
     server.handler = (_m, p) => {
       if (p === '/api/setup') return { status: 200, body: { needs_setup: false, signed_in: false } }
       if (p.startsWith('/api/invite/')) return { status: 200, body: { space: null, role: null, min_password: 12, signed_in_as: null, by: 'Robin Example' } }
-      if (p === '/api/auth/methods') return new Promise<Answer>((done) => (release = () => done({ status: 200, body: { password: false, oidc: true, oidc_name: 'authentik' } })))
+      if (p === '/api/auth/methods') return new Promise<Answer>((done) => (release = () => done({ status: 200, body: { password: false, providers: [{ slug: 'oidc', label: 'authentik' }] } })))
     }
     const { InvitePage } = await import('./AuthPages')
     const { AuthProvider } = await import('../state/auth')
@@ -235,7 +235,9 @@ describe('the pages before signing in', () => {
     release()
     await settle()
     expect(page.querySelector('input[type=password]')).toBeNull()
-    expect(page.querySelector('a[href^="/api/oidc/start?invite="]')).not.toBeNull()
+    // One button per provider, "Continue with …" (blueprint 04): it takes the invitation along to the provider.
+    const button = [...page.querySelectorAll('[data-testid="provider-buttons"] button')]
+    expect(button.map((b) => b.textContent)).toEqual([i18n.t('oidc.invite.button', { name: 'authentik' })])
   })
 })
 

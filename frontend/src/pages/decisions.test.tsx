@@ -232,7 +232,7 @@ describe('the sign-in page', () => {
     auth.me = null
     server.handler = (_m, path) => {
       if (path === '/api/setup') return { status: 200, body: { needs_setup: false, signed_in: false } }
-      if (path === '/api/auth/methods') return { status: 200, body: { password: false, oidc: true, oidc_name: 'nexsuite', suite: true, suite_url: 'https://suite.example.com' } }
+      if (path === '/api/auth/methods') return { status: 200, body: { password: false, providers: [{ slug: 'oidc', label: 'nexsuite' }], suite: true, suite_url: 'https://suite.example.com' } }
     }
     const { LoginPage } = await import('./AuthPages')
     const { AuthProvider } = await import('../state/auth')
@@ -255,7 +255,7 @@ describe('the sign-in page', () => {
     auth.me = null
     server.handler = (_m, path) => {
       if (path === '/api/setup') return { status: 200, body: { needs_setup: false, signed_in: false } }
-      if (path === '/api/auth/methods') return { status: 200, body: { password: true, oidc: false, oidc_name: '', suite: false, suite_url: '' } }
+      if (path === '/api/auth/methods') return { status: 200, body: { password: true, providers: [], suite: false, suite_url: '' } }
     }
     const { LoginPage } = await import('./AuthPages')
     const { AuthProvider } = await import('../state/auth')
