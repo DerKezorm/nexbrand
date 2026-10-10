@@ -25,7 +25,7 @@ Paths (all below ``/api/oidc``):
 | POST, DELETE | ``/{slug}/link`` | signed in: link (``{"password"}`` → ``{"url"}``), unlink |
 | POST | ``/{slug}/address`` | signed in: take the address the provider knows as the own one |
 | DELETE | ``/admin/accounts/{account}/links/{provider}`` | operator, with the own password |
-| POST | ``/authentik/setup`` | operator: ``{"url", "token"}`` → always 200 with the steps |
+| POST | ``/authentik/setup`` | operator: ``{"url", "token", "confirm_issuer_change"}`` → always 200 with the steps |
 | GET | ``/authentik/blueprint`` | operator: ``nexbrand-authentik.yaml`` |
 """
 
@@ -94,6 +94,9 @@ class PasswordIn(BaseModel):
 class SetupIn(BaseModel):
     url: str = Field(min_length=1, max_length=500)
     token: str = Field(min_length=1, max_length=2000)
+    #: The answer to the button's question "another issuer, {count} accounts link again" (module 1.0.8): the run stops
+    #: at ``reached`` with the reason ``issuer_change`` until it comes with ``true``.
+    confirm_issuer_change: bool = False
 
 
 class OrderIn(BaseModel):
@@ -472,7 +475,8 @@ async def authentik_setup(payload: SetupIn, operator: OperatorAccount, request: 
     # Always 200 with the steps that ran, a failed one included: the page says why in the operator's language.
     logger.info("authentik setup started by=%s", operator.name)
     with store() as s:
-        result = await authentik.setup(s, payload.url, payload.token, _base(request))
+        result = await authentik.setup(s, payload.url, payload.token, _base(request),
+                                       confirm_issuer_change=payload.confirm_issuer_change)
     return result.as_dict()
 
 

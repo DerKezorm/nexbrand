@@ -418,7 +418,8 @@ export type OidcProviderForm = {
 }
 export type ProviderImpact = { issuer_change: number; count: number; only: number; only_names: string[] }
 export type AuthentikStep = { key: string; ok: boolean; detail: string; reason?: string; status?: number }
-export type AuthentikResult = { ok: boolean; steps: AuthentikStep[]; links_dropped: number }
+/** `count`: with the reason `issuer_change`, how many accounts would have to link again (nothing was changed). */
+export type AuthentikResult = { ok: boolean; steps: AuthentikStep[]; links_dropped: number; count?: number }
 /** An active provider under My account: linked or not, and the address it knows when it is not the account's. */
 export type MyProvider = { slug: string; label: string; linked: boolean; address: string | null }
 /** A provider an account is linked to, in the operator's account list. */
@@ -471,7 +472,9 @@ export const oidcApi = {
   providerImpact: (id: number, issuer = '') =>
     api<ProviderImpact>(`/api/oidc/admin/providers/${id}/impact`, { query: issuer ? { issuer } : {} }),
   orderProviders: (ids: number[]) => api<ProviderButton[]>('/api/oidc/admin/providers/order', { method: 'PUT', body: { ids } }),
-  authentik: (url: string, token: string) => api<AuthentikResult>('/api/oidc/authentik/setup', { method: 'POST', body: { url, token } }),
+  /** `confirm_issuer_change`: the answer to the question the button stops at when another issuer takes the links. */
+  authentik: (url: string, token: string, confirm_issuer_change = false) =>
+    api<AuthentikResult>('/api/oidc/authentik/setup', { method: 'POST', body: { url, token, confirm_issuer_change } }),
   mine: () => api<MyProvider[]>('/api/oidc/me'),
   link: (slug: string, password: string) => api<{ url: string }>(`/api/oidc/${encodeURIComponent(slug)}/link`, { method: 'POST', body: { password } }),
   unlink: (slug: string) => api<void>(`/api/oidc/${encodeURIComponent(slug)}/link`, { method: 'DELETE' }),

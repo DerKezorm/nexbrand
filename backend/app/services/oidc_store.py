@@ -335,6 +335,14 @@ class SqlStore:
         row = invite.rights
         return isinstance(row, InviteRow) and accounts.consume(self.db, row)
 
+    def accept_invite(self, account_id: int, invite: Invite) -> None:
+        # A known identity came through an invitation (module 1.0.8): the rights of the invitation come on top of the
+        # account's own, never fewer (``accounts.grant`` only raises). The address it was made for is not taken over:
+        # the account has its own.
+        row = self.db.get(Account, account_id)
+        if row is not None and isinstance(invite.rights, InviteRow):
+            accounts.redeem(self.db, invite.rights, row, consumed=True, commit=False)
+
     # --- Transaction -----------------------------------------------------------------------------------------------
 
     def commit(self) -> None:
@@ -556,13 +564,20 @@ def _as_legacy(entry: Provider, issuer: str, old: dict[str, object]) -> dict[str
 
 
 def _own_legacy(old: dict[str, object], entry: Provider | None, on: bool) -> dict[str, object]:
-    """The old settings of the own provider: the entry the old settings became, while it is on and keeps the issuer
-    0.1.1 knew. Removed, switched off or given another issuer, the old settings are empty for good: 0.1.1 then signs
-    in with passwords only, never through a provider the operator took away, and never matches a subject of one
-    issuer against another."""
+    """The old settings of the own provider: the entry the old settings became, while it keeps the issuer 0.1.1
+    knew. Removed or given another issuer, the old settings are empty for good: 0.1.1 then signs in with passwords
+    only, never through a provider the operator took away, and never matches a subject of one issuer against another.
+
+    Switched off, or while the provider does not check the second factor itself (``trusts_second_factor`` off), the
+    entry is off for 0.1.1: no client and no secret, no new people, so that it lets nobody in, not even a person
+    linked before (0.1.1 has no "off" and no such switch: it would ask no code after the provider). The issuer, the
+    name and the subjects stay, they only wait: switched on again, in either direction of either switch, everything
+    is there again (rule of 10.10.2026)."""
     issuer = str(old.get("oidc_issuer") or "")
-    if entry is None or not on or not issuer or not protocol.same_issuer(issuer, entry.issuer):
+    if entry is None or not issuer or not protocol.same_issuer(issuer, entry.issuer):
         return dict(NO_LEGACY)
+    if not on or not entry.trusts_second_factor:
+        return {**NO_LEGACY, "oidc_issuer": issuer, "oidc_provider_name": entry.label}
     return _as_legacy(entry, issuer, old)
 
 

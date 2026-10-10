@@ -502,7 +502,7 @@
     "person_unknown": "Eine gewählte Person gibt es in nexsuite nicht (mehr). Die Liste ist neu geladen, sieh die Auswahl noch einmal an.",
     "client_unknown": "Einen gewählten Kunden gibt es in nexsuite nicht (mehr). Die Liste ist neu geladen, sieh die Auswahl noch einmal an.",
     "team_unknown": "Ein gewähltes Team gibt es in nexsuite nicht (mehr). Die Liste ist neu geladen, sieh die Auswahl noch einmal an.",
-    "suite_no_account": "nexbrand kennt dich noch nicht. Versuch es in ein paar Sekunden noch einmal; klappt es dann nicht, frag den Betreiber von nexsuite.",
+    "suite_no_account": "nexbrand kennt dich noch nicht. Versuch es in ein paar Sekunden noch einmal; klappt es dann nicht, frag deinen Betreiber.",
     "invite_suite": "Diese Einladung gilt nicht mehr: nexbrand ist jetzt mit nexsuite verbunden, und du meldest dich über nexsuite an.",
     "not_a_font": "Das ist keine Schriftdatei (WOFF2, WOFF, OTF oder TTF).",
     "choose_clients": "Wähle die Kunden, die das Token sehen darf, oder ausdrücklich alle.",

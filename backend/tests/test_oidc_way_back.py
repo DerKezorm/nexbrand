@@ -29,6 +29,12 @@ world = test_suite.world
 EMPTY = {"oidc_issuer": "", "oidc_client_id": "", "oidc_client_secret": "", "oidc_provider_name": "",
          "oidc_auto_create": False}
 
+def _off(idp: FakeProvider) -> dict[str, Any]:
+    """An entry that is off for 0.1.1 (switched off, or without the second factor of its own): no client, no secret,
+    no new people; the issuer and the name wait."""
+    return {"oidc_issuer": idp.issuer, "oidc_client_id": "", "oidc_client_secret": "",
+            "oidc_provider_name": "Company", "oidc_auto_create": False}
+
 
 def _old_settings(values: dict[str, Any] | None = None) -> dict[str, Any]:
     """The old settings as 0.1.1 reads them, the secret opened as 0.1.1 opens it (no context)."""
@@ -123,12 +129,54 @@ def test_the_same_issuer_with_a_new_client_is_followed_and_a_switched_off_entry_
     # "New people" off again: 0.1.1 makes nobody new through it either.
     _save(client, entry, auto_create=False)
     assert _old_settings()["oidc_auto_create"] is False and _old_settings()["oidc_issuer"] == provider.issuer
-    # Switched off: 0.1.1 lets nobody in through it, new or known (it has no "off", only no provider).
+    # Switched off: 0.1.1 lets nobody in through it, new or known (it has no "off", only no provider: no client).
     _save(client, entry, auto_create=True)
     _save(client, entry, enabled=False)
-    assert _old_settings() == EMPTY and _columns()["anna"] == ("", "")
+    assert _old_settings() == _off(provider), "no client, no new people; issuer and name wait"
+    assert _columns()["anna"] == ("anna-1", ""), "the known person waits too, and cannot come in without a client"
+    # Switched on again, everything is there again (rule of 10.10.2026, both directions of the switch).
     _save(client, entry, enabled=True)
-    assert _old_settings() == EMPTY, "switched off once, 0.1.1 gets it back never"
+    assert _old_settings() == {**_own(provider), "oidc_client_id": "renewed-client",
+                               "oidc_client_secret": "renewed-" + provider.client_secret[:6],
+                               "oidc_auto_create": True}
+    assert _columns()["anna"] == ("anna-1", "")
+
+
+def test_a_provider_that_does_not_check_the_second_factor_is_off_for_0_1_1_and_comes_back_with_the_switch(
+    client: TestClient, operator: Account, provider: FakeProvider
+) -> None:
+    """0.1.1 knows no such switch and would ask no code after the provider, so for it the entry is off, the same
+    way as a switched-off entry, at once in both directions (rule of 10.10.2026)."""
+    entry = _migrated(provider, anna="anna-1")
+    _save(client, entry, auto_create=True)
+    on = _old_settings()
+    assert on == {**_own(provider), "oidc_auto_create": True}
+    _save(client, entry, trusts_second_factor=False)
+    assert _old_settings() == _off(provider) and _columns()["anna"] == ("anna-1", "")
+    # A link made or taken meanwhile still follows the list while the entry waits.
+    make_account("ben")
+    member = fresh_browser()
+    sign_in(member, accounts_row("ben"))
+    link(member, provider, PASSWORD, slug="oidc", sub="ben-1")
+    assert _columns()["ben"] == ("ben-1", "") and _old_settings() == _off(provider)
+    _save(client, entry, trusts_second_factor=True)
+    assert _old_settings() == on
+    # Off by either reason is off; the entry is back only when both allow it.
+    _save(client, entry, trusts_second_factor=False, enabled=False)
+    assert _old_settings() == _off(provider)
+    _save(client, entry, trusts_second_factor=True)
+    assert _old_settings() == _off(provider), "still switched off itself"
+    _save(client, entry, enabled=True)
+    assert _old_settings() == on
+    _save(client, entry, enabled=False)
+    _save(client, entry, trusts_second_factor=False)
+    _save(client, entry, enabled=True)
+    assert _old_settings() == _off(provider), "still without the second factor of its own"
+    # Another issuer while it waits is another provider: empty for good, as ever.
+    other = provider.network.add(fakes.FakeProvider("https://other.example.com"))  # type: ignore[attr-defined]
+    _save(client, entry, trusts_second_factor=True, issuer=other.issuer, client_id=other.client_id,
+          client_secret=other.client_secret)
+    assert _old_settings() == EMPTY and {subjects for subjects in _columns().values()} == {("", "")}
 
 
 def test_unlinking_takes_the_subject_from_the_old_column_and_a_new_link_comes_into_it(
@@ -185,6 +233,26 @@ def test_coupling_writes_the_old_settings_as_0_1_1_did_and_uncoupling_gives_the_
     assert not {key for key in values["suite_saved"] or {} if key.startswith("oidc_")}
     assert _columns() == {"tester": ("", ""), "anna": ("ak-anna", ""), "ben": ("", ""), "cleo": ("ak-cleo", ""),
                           "erik": ("", ""), "fritz": ("", "")}
+
+
+def test_an_own_entry_without_the_second_factor_waits_off_beside_nexsuite_and_off_after_disconnecting(
+    client: TestClient, operator: Account, world: dict, fake: FakeSuite, provider: FakeProvider
+) -> None:
+    _legacy(provider, label="Company", subjects={"anna": "ak-anna"})
+    own = oidc_store.migrate_settings(backup=False)
+    assert own is not None
+    entry = own.id
+    _save(client, entry, trusts_second_factor=False)
+    assert _old_settings() == _off(provider)
+    connect(client, world, operator)
+    with SessionLocal() as db:
+        values = settings_service.get_all(db)
+    assert _old_settings(values["suite_saved"]) == _off(provider), "waits aside, off for the version before"
+    assert _columns()["anna"][1] == "ak-anna", "its link waits aside"
+    assert client.post("/api/suite/disconnect", json={"current_password": PASSWORD}).status_code == 200
+    assert _old_settings() == _off(provider) and _columns()["anna"] == ("ak-anna", "")
+    _save(client, entry, trusts_second_factor=True)
+    assert _old_settings() == _own(provider)
 
 
 def test_coupling_without_an_own_provider_leaves_nothing_to_give_back(

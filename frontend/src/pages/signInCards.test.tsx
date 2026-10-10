@@ -45,16 +45,29 @@ function entry(change: Partial<OidcProvider> = {}): OidcProvider {
 }
 
 /** What the stub answers; `steps` is the set-up run's answer, held back while `gate` is set. */
-const server: { steps: Step[]; gate: Promise<void> | null; pending: number; providers: OidcProvider[]; asked: string[] } = {
-  steps: [], gate: null, pending: 0, providers: [], asked: [],
+const server: {
+  steps: Step[]; gate: Promise<void> | null; pending: number; providers: OidcProvider[]; asked: string[]
+  /** With a number: the button stops at `issuer_change` with this count until the run comes with the confirmation. */
+  ask: number | null
+  /** The bodies of the set-up runs. */
+  runs: Array<Record<string, unknown>>
+} = {
+  steps: [], gate: null, pending: 0, providers: [], asked: [], ask: null, runs: [],
 }
 
-function answer(method: string, path: string, query: string): unknown {
+function answer(method: string, path: string, query: string, body: Record<string, unknown> = {}): unknown {
   server.asked.push(`${method} ${path}${query ? '?' + query : ''}`)
   if (method === 'GET' && path === '/api/settings') return { password_login: true, two_factor_required: false, public_url: '' }
   if (method === 'GET' && path === '/api/oidc/admin/providers') return server.providers
   if (method === 'GET' && path.endsWith('/impact')) return { issuer_change: 3, count: 4, only: 1, only_names: ['clara'] }
-  if (method === 'POST' && path === '/api/oidc/authentik/setup') return { ok: server.steps.every((step) => step.ok), steps: server.steps, links_dropped: 0 }
+  if (method === 'POST' && path === '/api/oidc/authentik/setup') {
+    server.runs.push(body)
+    if (server.ask !== null && body.confirm_issuer_change !== true) {
+      const stop = { key: 'reached', ok: false, detail: 'another issuer', reason: 'issuer_change', status: 0 }
+      return { ok: false, steps: [stop], links_dropped: 0, count: server.ask }
+    }
+    return { ok: server.steps.every((step) => step.ok), steps: server.steps, links_dropped: 0 }
+  }
   return undefined
 }
 
@@ -119,7 +132,7 @@ async function setUp(page: HTMLElement): Promise<void> {
 const rows = (page: HTMLElement) => [...page.querySelectorAll('[data-testid="authentik-steps"] li')].map((row) => row.textContent)
 
 beforeEach(() => {
-  Object.assign(server, { steps: [], gate: null, pending: 0, providers: [], asked: [] })
+  Object.assign(server, { steps: [], gate: null, pending: 0, providers: [], asked: [], ask: null, runs: [] })
   vi.stubGlobal('fetch', async (url: string, init: RequestInit = {}) => {
     server.pending++
     try {
@@ -127,7 +140,7 @@ beforeEach(() => {
       const [path, query = ''] = url.split('?')
       if (path === '/api/oidc/authentik/setup' && server.gate) await server.gate
       await Promise.resolve()
-      const body = answer(method, path, query)
+      const body = answer(method, path, query, typeof init.body === 'string' ? JSON.parse(init.body) : {})
       if (body === undefined) return new Response(JSON.stringify({ detail: { code: 'not_found' } }), { status: 404, headers: { 'Content-Type': 'application/json' } })
       return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })
     } finally {
@@ -194,6 +207,39 @@ describe('the authentik steps', () => {
     await settle()
     expect(page.querySelector('#sign-in-authentik [role="status"]')).toBeNull()
     expect(rows(page)).toEqual([`✗${en.oidc.authentik.step.reached}${en.oidc.authentik.why.unreachable.replace('{{app}}', 'nexbrand')}`])
+  })
+
+  it('ask with the number of accounts before another issuer takes the links: yes runs again with the confirmation, no changes nothing', async () => {
+    server.ask = 3
+    server.steps = STEP_KEYS.map((key) => ({ key, ok: true, detail: `found ${key}` }))
+    const page = await authentikCard('en')
+    await setUp(page)
+    await settle()
+    // Not a failure and not a result: the question, with the shared sentence, and nothing written.
+    expect(document.body.textContent).toContain(en.oidc.admin.issuerChangeConfirm.replace('{{count}}', '3'))
+    expect(rows(page)).toEqual([])
+    expect(server.runs).toEqual([{ url: 'https://auth.example.com', token: 'token', confirm_issuer_change: false }])
+    // No: the dialog goes, the token stays, no second run, no steps.
+    await click(button(document.body, ownEn.common.cancel))
+    expect(document.body.textContent).not.toContain(en.oidc.admin.issuerChangeConfirm.replace('{{count}}', '3'))
+    expect(server.runs).toHaveLength(1)
+    expect(rows(page)).toEqual([])
+    expect((page.querySelector('#sign-in-authentik input[type="password"]') as HTMLInputElement).value).toBe('token')
+    // Yes: the run goes again, with the confirmation, and the steps show.
+    await setUp(page)
+    await settle()
+    await click(document.body.querySelector('[role="dialog"] button[type="submit"]'))
+    expect(server.runs.map((run) => run.confirm_issuer_change)).toEqual([false, false, true])
+    expect(rows(page)).toHaveLength(STEP_KEYS.length)
+    expect(document.body.textContent).not.toContain(en.oidc.admin.issuerChangeConfirm.replace('{{count}}', '3'))
+  })
+
+  it('asks in german with the shared sentence too', async () => {
+    server.ask = 1
+    const page = await authentikCard('de')
+    await setUp(page)
+    await settle()
+    expect(document.body.textContent).toContain(de.oidc.admin.issuerChangeConfirm.replace('{{count}}', '1'))
   })
 
   it('warns before the run without a public address', async () => {

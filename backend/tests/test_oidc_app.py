@@ -17,7 +17,7 @@ from sqlalchemy import select
 
 from app.config import get_settings
 from app.db import SessionLocal
-from app.models import OPERATOR, SIGN_IN_OIDC, WRITE, Account, Membership, OidcLink, OidcProvider, Space
+from app.models import MANAGE, OPERATOR, SIGN_IN_OIDC, WRITE, Account, Membership, OidcLink, OidcProvider, Space
 from app.routers.auth import PENDING_COOKIE
 from app.security import SESSION_COOKIE, encrypt_secret, hash_password
 from app.services import accounts, backups, landing, logs, oidc_store, settings_service, suite, totp
@@ -699,3 +699,105 @@ def test_the_button_pressed_again_after_the_migration_keeps_the_old_address_the_
     finally:
         nexoidc.use_transport(None)
 
+
+
+# --- Module 1.0.8: the button asks before another issuer takes the links ---------------------------------------------
+
+
+def test_another_issuer_for_the_entry_oidc_is_asked_first_and_only_the_confirmation_drops_the_links(
+    client: TestClient, operator: Account, provider: FakeProvider
+) -> None:
+    issuer = "https://auth.example.com/application/o/nexbrand/"
+    make_account("anna")
+    _legacy(FakeProvider(issuer), label="authentik", issuer=issuer, subjects={"anna": "anna-1"})
+    assert oidc_store.migrate_settings(backup=False) is not None
+    other = provider.network.add(fakes.FakeAuthentik(base="https://auth2.example.com"))  # type: ignore[attr-defined]
+    asked = client.post("/api/oidc/authentik/setup", json={"url": other.base, "token": other.token})
+    assert asked.status_code == 200 and asked.json()["ok"] is False, asked.text
+    assert [(step["key"], step["reason"]) for step in asked.json()["steps"]] == [("reached", "issuer_change")]
+    assert asked.json()["count"] == 1 and asked.json()["links_dropped"] == 0
+    assert len(_links()) == 1 and not other.providers, "the question changes nothing, nothing made in authentik"
+    # Said no with the explicit false: the same.
+    no = client.post("/api/oidc/authentik/setup", json={"url": other.base, "token": other.token,
+                                                         "confirm_issuer_change": False})
+    assert no.json()["steps"][0]["reason"] == "issuer_change" and len(_links()) == 1
+    yes = client.post("/api/oidc/authentik/setup", json={"url": other.base, "token": other.token,
+                                                          "confirm_issuer_change": True})
+    assert yes.status_code == 200 and yes.json()["ok"], yes.text
+    assert yes.json()["links_dropped"] == 1 and _links() == []
+
+
+def test_while_coupled_the_button_stays_shut_whatever_the_confirmation_says(
+    client: TestClient, operator: Account, provider: FakeProvider
+) -> None:
+    suite_fake = provider.network.add(fakes.FakeProvider("https://suite.example.com"))  # type: ignore[attr-defined]
+    other = provider.network.add(fakes.FakeAuthentik(base="https://auth2.example.com"))  # type: ignore[attr-defined]
+    with SessionLocal() as db:
+        joined = coupling.couple(oidc_store.couple_store(db), issuer=suite_fake.issuer, client_id=suite_fake.client_id,
+                                 client_secret=suite_fake.client_secret, label="nexsuite",
+                                 people=[(operator.id, "1")])
+        settings_service.save(db, {"suite_state": "connected", oidc_store.COUPLING: joined.as_dict()})
+    before = _links()
+    for confirm in (False, True):
+        answer = client.post("/api/oidc/authentik/setup", json={"url": other.base, "token": other.token,
+                                                                 "confirm_issuer_change": confirm})
+        assert answer.status_code == 200 and answer.json()["ok"] is False, answer.text
+        assert [(step["key"], step["reason"]) for step in answer.json()["steps"]] == [("reached", "coupled")]
+    assert _links() == before and not other.providers and not other.calls
+
+
+# --- Module 1.0.8: an invitation at a known link --------------------------------------------------------------------
+
+
+def test_a_known_person_coming_through_an_invitation_gets_its_rights_on_top_and_never_fewer(
+    client: TestClient, operator: Account, provider: FakeProvider
+) -> None:
+    add_provider(client, provider, slug="authentik", label="authentik")
+    with SessionLocal() as db:
+        space = Space(name="Team")
+        db.add(space)
+        db.commit()
+        space_id = space.id
+    for name in ("anna", "ben"):
+        make_account(name)
+        member = fresh_browser()
+        sign_in(member, accounts_row(name))
+        link(member, provider, PASSWORD, slug="authentik", sub=f"{name}-1")
+
+    def role(name: str) -> str | None:
+        with SessionLocal() as db:
+            return db.scalar(select(Membership.role).where(Membership.space_id == space_id,
+                                                          Membership.account_id == accounts_row(name).id))
+
+    def invite(email: str = "") -> str:
+        with SessionLocal() as db:
+            boss = accounts.by_name(db, "tester")
+            assert boss is not None
+            return accounts.create_invite(db, boss, space_id=space_id, space_role=WRITE, days=7, email=email)[1]
+
+    # anna has no right in the space: the invitation gives her write access and is used up; her own address stays.
+    assert role("anna") is None
+    token = invite("someone-else@example.com")
+    browser = fresh_browser()
+    assert location(sign_in_via_oidc(browser, provider, slug="authentik", invite=token, sub="anna-1")) == "/"
+    assert browser.get("/api/auth/me").json()["name"] == "anna"
+    assert role("anna") == WRITE and accounts_row("anna").email != "someone-else@example.com"
+    with SessionLocal() as db:
+        assert accounts.find_invite(db, token) is None, "used up"
+    # ben manages the space already: the invitation gives nothing less.
+    with SessionLocal() as db:
+        db.add(Membership(space_id=space_id, account_id=accounts_row("ben").id, role=MANAGE))
+        db.commit()
+    sign_in_via_oidc(fresh_browser(), provider, slug="authentik", invite=invite(), sub="ben-1")
+    assert role("ben") == MANAGE
+    # An invitation used between the start and the return does not keep a known person out.
+    gone = invite()
+    again = fresh_browser()
+    provider.person = {"sub": "anna-1"}
+    target = location(again.get("/api/oidc/authentik/start", params={"invite": gone}))
+    with SessionLocal() as db:
+        found = accounts.find_invite(db, gone)
+        assert found is not None and accounts.consume(db, found)
+        db.commit()
+    assert location(come_back(again, provider, target)) == "/"
+    assert again.get("/api/auth/me").json()["name"] == "anna"
