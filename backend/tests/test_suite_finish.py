@@ -15,11 +15,11 @@ from fastapi.testclient import TestClient
 
 from app.db import SessionLocal
 from app.models import OPERATOR, Account, Space, Team
-from app.services import settings_service, suite
+from app.services import oidc_store, settings_service, suite
 
 from . import test_suite
 from .conftest import PASSWORD, client_of, make_account, new_client
-from .test_suite import SUITE, FakeSuite, _row, _setting, connect
+from .test_suite import SUITE, FakeSuite, _own_links, _person, _row, _setting, connect, own_link, own_provider
 
 fake = test_suite.fake
 world = test_suite.world
@@ -30,10 +30,15 @@ def _code(answer: Any) -> str:
 
 
 def _snapshot() -> tuple[dict[str, tuple[Any, ...]], dict[int, tuple[str, str]], dict[int, str]]:
-    """What connecting changes here: each account's subjects, mark, block and way in; teams; the clients' groups."""
+    """What connecting changes here: each account's links, mark, block and way in; teams; the clients' groups; the
+    provider list."""
     with SessionLocal() as db:
-        return ({row.name: (row.oidc_subject, row.own_subject, row.suite_person, row.blocked_at is None,
-                            row.sign_in) for row in db.query(Account)},
+        names = [row.name for row in db.query(Account)]
+        entries = [(item.slug, item.enabled, item.managed) for item in oidc_store.SqlStore(db).list_providers()]
+    with SessionLocal() as db:
+        return ({name: (_person(name), tuple(_own_links(name)), row.suite_person, row.blocked_at is None, row.sign_in,
+                        tuple(entries))
+                 for name in names for row in [db.query(Account).filter_by(name=name).one()]},
                 {team.id: (team.source, team.external_id) for team in db.query(Team)},
                 {space.id: space.external_id for space in db.query(Space)})
 
@@ -70,7 +75,7 @@ def _lose_finish_once(fake: FakeSuite, monkeypatch: pytest.MonkeyPatch) -> None:
 
 def _connected_here(world: dict) -> None:
     assert _setting("suite_state") == "connected" and _setting("suite_pending") is None
-    assert _row("anna").oidc_subject == "2" and _row("cleo").blocked_at is not None
+    assert _person("anna") == "2" and _row("cleo").blocked_at is not None
     with SessionLocal() as db:
         team = db.get(Team, world["team"])
         studio = db.get(Space, world["studio"])
@@ -85,9 +90,8 @@ def _connected_here(world: dict) -> None:
 
 def test_finish_failing_at_its_last_step_changes_nothing_here_and_abort_leaves_it_so(
         client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
-    with SessionLocal() as db:  # cleo signed in through authentik before
-        db.get(Account, world["cleo"].id).oidc_subject = "authentik-hash-of-cleo"  # type: ignore[union-attr]
-        db.commit()
+    # cleo signed in through authentik before
+    own_link("cleo", "authentik-hash-of-cleo", own_provider())
     before = _snapshot()
     chosen = _choices(client, world)
     fake.fail_on = "/finish"
@@ -98,8 +102,7 @@ def test_finish_failing_at_its_last_step_changes_nothing_here_and_abort_leaves_i
     assert client.post("/api/suite/abort").status_code == 204
     assert _setting("suite_state") == ""
     assert _snapshot() == before, "given up, everything is as before connecting"
-    cleo = _row("cleo")
-    assert (cleo.oidc_subject, cleo.own_subject, cleo.blocked_at) == ("authentik-hash-of-cleo", "", None)
+    assert _own_links("cleo") == [("oidc", "authentik-hash-of-cleo", True)] and _row("cleo").blocked_at is None
 
 
 def test_finish_again_after_a_failed_last_step_connects_once(client: TestClient, operator: Account, world: dict,
@@ -184,17 +187,18 @@ def test_finish_whose_local_commit_failed_finishes_with_the_next_try(client: Tes
     real = settings_service.save
     broken = {"once": True}
 
-    def failing(db: Any, changes: dict[str, Any]) -> None:
+    def failing(db: Any, changes: dict[str, Any], **kwargs: Any) -> None:
         if changes.get("suite_state") == "connected" and broken.pop("once", False):
             raise RuntimeError("the disk is full")
-        real(db, changes)
+        real(db, changes, **kwargs)
 
     monkeypatch.setattr(settings_service, "save", failing)
     with TestClient(client.app, base_url="http://testserver", headers=dict(client.headers),
                     raise_server_exceptions=False, cookies=client.cookies) as same:
         assert same.post("/api/suite/finish", json=chosen).status_code == 500
     assert fake.connected and _setting("suite_state") == "connecting"
-    assert _row("anna").oidc_subject == "" and _row("cleo").blocked_at is None, "nothing written here"
+    assert _person("anna") == "" and _row("cleo").blocked_at is None, "nothing written here"
+    assert client.get("/api/oidc/admin/providers").json() == [], "nexsuite is no entry yet either"
     with SessionLocal() as db:
         assert db.get(Space, world["studio"]).external_id == ""  # type: ignore[union-attr]
     done = client.post("/api/suite/finish", json=chosen)
@@ -217,7 +221,7 @@ def test_finish_sent_and_given_up_tells_nexsuite_to_forget(client: TestClient, o
     assert client.post("/api/suite/finish", json=chosen).status_code in (409, 502)
     assert client.post("/api/suite/abort").status_code == 204
     assert ("POST", "/leave") in fake.calls and not fake.connected
-    assert _setting("suite_state") == "" and _row("anna").oidc_subject == ""
+    assert _setting("suite_state") == "" and _person("anna") == ""
     with SessionLocal() as db:
         assert db.get(Space, world["studio"]).external_id == ""  # type: ignore[union-attr]
 
@@ -249,10 +253,10 @@ def test_after_finish_went_out_other_choices_are_refused_not_ignored(client: Tes
     assert kept.status_code == 409 and _code(kept) == "connection_sent"
     team_only = client.put("/api/suite/choices", json={**chosen, "teams": {str(world["team"]): "70"}, "step": 3})
     assert team_only.status_code == 409 and _code(team_only) == "connection_sent"
-    assert _setting("suite_state") == "connecting" and _row("anna").oidc_subject == ""
+    assert _setting("suite_state") == "connecting" and _person("anna") == ""
     done = client.post("/api/suite/finish", json=other)
     assert done.status_code == 200, done.text
-    assert _row("anna").oidc_subject == "2" and _row("anna").blocked_at is None, "the choices of then"
+    assert _person("anna") == "2" and _row("anna").blocked_at is None, "the choices of then"
 
 
 def _sent_and_lost(client: TestClient, world: dict, fake: FakeSuite, monkeypatch: pytest.MonkeyPatch) -> dict:
@@ -298,7 +302,7 @@ def test_an_account_made_after_sending_is_not_in_the_list_and_stops_nothing(
     done = client.post("/api/suite/finish", json=body)
     assert done.status_code == 200, done.text
     assert len(fake.people) == people
-    assert _row("spaet").oidc_subject == ""
+    assert _person("spaet") == ""
 
 
 def test_giving_up_after_finish_went_out_says_when_nexsuite_may_still_list_the_app(
@@ -341,7 +345,7 @@ def test_an_account_without_a_place_in_the_plan_is_blocked_like_one_left_out(
     done = client.post("/api/suite/finish", json=chosen)
     assert done.status_code == 200, done.text
     late = _row("neuchef")
-    assert late.blocked_at is not None and late.oidc_subject == "" and late.suite_person == ""
+    assert late.blocked_at is not None and _person("neuchef") == "" and late.suite_person == ""
     with new_client() as browser:
         refused = browser.post("/api/auth/login", json={"name": "neuchef", "password": PASSWORD})
         assert refused.status_code != 200
@@ -374,51 +378,47 @@ def test_after_sending_a_chosen_person_deleted_in_nexsuite_still_shows_by_its_na
     assert found["chosen"]["step"] == 3, "the assistant opens at the last step"
 
 
-# --- settling a connection from before: a deleted person's id is no link of its own --------------------------------
+# --- a deleted person's id is no link of its own ------------------------------------------------------------------
 
 
-def test_settled_a_person_deleted_before_the_update_leaves_no_link_behind(
+def test_a_person_deleted_in_nexsuite_leaves_no_link_behind(
         client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
-    """Connected before ``suite_person`` was kept, anna's person was deleted in nexsuite and her account blocked. Her
-    subject was nexsuite's, not a link of her own: after a disconnect she has no link and signs in with her password
-    again, and connecting again says that her person is gone."""
+    """anna's person was deleted in nexsuite and her account blocked. Her link was nexsuite's, not one of her own:
+    after a disconnect she has no link and signs in with her password again, and connecting again says that her
+    person is gone."""
     connect(client, world, operator)
     del fake.people["2"]
     assert client.post("/api/suite/sync").status_code == 200
-    with SessionLocal() as db:  # as connected before the mark was kept
-        db.query(Account).update({"suite_person": ""})
-        db.commit()
-    assert client.post("/api/suite/sync").status_code == 200
     anna = _row("anna")
-    assert anna.own_subject == "" and anna.blocked_at is not None
+    assert _own_links("anna") == [] and anna.blocked_at is not None
     assert client.post("/api/suite/disconnect", json={"current_password": PASSWORD}).status_code == 200
     anna = _row("anna")
-    assert (anna.oidc_subject, anna.own_subject, anna.sign_in) == ("", "", "password")
+    assert (_person("anna"), _own_links("anna"), anna.sign_in) == ("", [], "password")
     rows = _again(client)
     assert rows["anna"]["gone"] is True and rows["anna"]["suggest"] == "skip"
 
 
-def test_settled_an_oidc_account_without_a_password_keeps_its_own_link(client: TestClient, operator: Account,
-                                                                     world: dict, fake: FakeSuite) -> None:
-    """Connected before the mark was kept: dora came through authentik (no password of her own) and was left out,
-    keeping her link. Her subject is no person of nexsuite's: she keeps it apart and gets it back on disconnecting."""
-    from app.services import accounts
-
+def test_an_oidc_account_without_a_password_left_out_keeps_its_own_link(client: TestClient, operator: Account,
+                                                                       world: dict, fake: FakeSuite) -> None:
+    """dora came through authentik (no password of her own) and was left out when connecting. Her link stays with
+    her own provider, set aside while coupled, and holds again after disconnecting."""
+    entry = own_provider()
     with SessionLocal() as db:
-        dora_id = accounts.create_oidc(db, "dora", "authentik-hash-of-dora", "dora@example.com").id
+        dora = Account(name="dora", role="member", sign_in="oidc", email="dora@example.com")
+        db.add(dora)
+        db.commit()
+        dora_id = dora.id
+    own_link("dora", "authentik-hash-of-dora", entry)
     chosen = _choices(client, world)
     chosen["accounts"][dora_id] = "skip"
     assert client.post("/api/suite/finish", json=chosen).status_code == 200
-    with SessionLocal() as db:  # as connected before the own link was set aside
-        dora = db.get(Account, dora_id)
-        assert dora is not None and dora.blocked_at is not None
-        dora.oidc_subject, dora.own_subject = "authentik-hash-of-dora", ""
-        db.commit()
     assert client.post("/api/suite/sync").status_code == 200
     dora = _row("dora")
-    assert (dora.oidc_subject, dora.suite_person, dora.own_subject) == ("", "", "authentik-hash-of-dora")
+    assert (_person("dora"), dora.suite_person) == ("", "")
+    assert _own_links("dora") == [("oidc-own", "authentik-hash-of-dora", False)], "aside while coupled"
     assert client.post("/api/suite/disconnect", json={"current_password": PASSWORD}).status_code == 200
     dora = _row("dora")
-    assert (dora.oidc_subject, dora.suite_person, dora.sign_in) == ("authentik-hash-of-dora", "", "oidc")
+    assert (_own_links("dora"), dora.suite_person, dora.sign_in) == (
+        [("oidc", "authentik-hash-of-dora", True)], "", "oidc")
     rows = _again(client)
     assert rows["dora"]["from_suite"] is False and rows["dora"]["gone"] is False

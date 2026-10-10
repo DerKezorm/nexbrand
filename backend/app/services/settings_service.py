@@ -29,7 +29,8 @@ DEFAULTS: dict[str, Any] = {
     #: Every account that signs in with a password needs a second factor; until it has one, it reaches only its
     #: account page. Accounts from OIDC bring their provider's.
     "two_factor_required": False,
-    #: OIDC: issuer, client id and the encrypted client secret; empty means not set up.
+    #: The single OIDC provider before the provider list (``oidc_providers``, ``services/oidc_store.py``): read once
+    #: by the migration, then kept for one version as the way back, then gone. Never written any more.
     "oidc_issuer": "",
     "oidc_client_id": "",
     "oidc_client_secret_enc": "",
@@ -83,6 +84,11 @@ DEFAULTS: dict[str, Any] = {
     "suite_problem": "",
     #: Reports nexsuite has not heard yet, with the address and key they go to (A11).
     "suite_owed": None,
+    #: The coupling to nexsuite as the shared sign-in module keeps it (``coupling.Coupling.as_dict``): the nexsuite
+    #: entry and how each own entry looked before it was set aside, for uncoupling.
+    "suite_coupling": None,
+    #: Set once the single provider of the settings was looked at for the provider list (``services/oidc_store.py``).
+    "oidc_list_migrated": False,
 }
 
 
@@ -100,7 +106,7 @@ def get_all(db: Session) -> dict[str, Any]:
     return values
 
 
-def save(db: Session, changes: dict[str, Any]) -> None:
+def save(db: Session, changes: dict[str, Any], *, commit: bool = True) -> None:
     for key, value in changes.items():
         if key not in DEFAULTS:
             raise KeyError(key)
@@ -109,7 +115,10 @@ def save(db: Session, changes: dict[str, Any]) -> None:
             db.add(Setting(key=key, value=value))
         else:
             row.value = value
-    db.commit()
+    if commit:
+        db.commit()
+    else:
+        db.flush()
 
 
 def normalize_public_url(value: str) -> str:

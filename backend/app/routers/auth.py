@@ -27,7 +27,7 @@ from ..deps import (
     reauth_succeeded,
 )
 from ..errors import detail, error
-from ..models import OPERATOR, ROLES, SIGN_IN_PASSWORD, Membership, utcnow
+from ..models import OPERATOR, ROLES, SIGN_IN_PASSWORD, Membership, OidcLink, utcnow
 from ..models import Account as AccountRow
 from ..security import (
     DEVICE_COOKIE,
@@ -43,8 +43,9 @@ from ..security import (
     session_account,
     start_session,
 )
-from ..services import accounts, avatars, brands, links, locales, mailer, settings_service, suite, totp
+from ..services import accounts, avatars, brands, links, locales, mailer, oidc_store, settings_service, suite, totp
 from ..services.accounts import AccountError
+from ..vendor.nexoidc import providers
 
 logger = logging.getLogger("nexbrand.auth")
 
@@ -140,6 +141,13 @@ def check_language(language: str) -> str:
     return language
 
 
+def _linked(account_id: int) -> bool:
+    from ..db import SessionLocal
+
+    with SessionLocal() as db:
+        return oidc_store.has_links(db, account_id)
+
+
 def account_view(account: AccountRow) -> dict[str, Any]:
     return {
         "id": account.id,
@@ -152,7 +160,8 @@ def account_view(account: AccountRow) -> dict[str, Any]:
         "sign_in": account.sign_in,
         "email": account.email,
         "language": account.language,
-        "oidc_linked": bool(account.oidc_subject),
+        # Linked to at least one sign-in provider (the providers themselves: ``GET /api/oidc/me``).
+        "oidc_linked": _linked(account.id),
         "two_factor": bool(account.totp_secret_enc),
         "two_factor_recovery_left": len(totp.load_recovery(account.totp_recovery)) if account.totp_secret_enc else 0,
         "created_at": account.created_at.isoformat(),
@@ -220,11 +229,10 @@ def setup(payload: SetupIn, request: Request, response: Response, db: DbSession)
 @router.get("/auth/methods", summary="How one can sign in here (no sign-in needed)")
 def methods(db: DbSession) -> dict[str, Any]:
     values = settings_service.get_all(db)
-    oidc = bool(values["oidc_issuer"] and values["oidc_client_id"])
     return {
         "password": bool(values["password_login"]),
-        "oidc": oidc,
-        "oidc_name": values["oidc_provider_name"] if oidc else "",
+        # One button per active provider, in the order of the list (blueprint 04).
+        "providers": providers.public_list(oidc_store.SqlStore(db)),
         # Connected to nexsuite: people sign in there; the password form is the operator's emergency way.
         "suite": suite.connected(db),
         # Where nexsuite opens, for "Sign in as someone else": signing out there first (B11). The button to sign in
@@ -505,10 +513,18 @@ def list_accounts(_operator: OperatorAccount, db: DbSession) -> list[dict[str, A
         spaces[account_id] = spaces.get(account_id, 0) + 1
     # Its public pages and reviews still open: the block and delete dialogs name them (A15).
     open_links = links.open_counts(db)
+    # The providers each account is linked to, as small marks with "Unlink" in its menu (blueprint 04).
+    entries = {entry.id: entry for entry in oidc_store.SqlStore(db).list_providers()}
+    linked: dict[int, list[dict[str, Any]]] = {}
+    for link in db.scalars(select(OidcLink).order_by(OidcLink.id)):
+        entry = entries.get(link.provider_id)
+        if entry is not None:
+            linked.setdefault(link.account_id, []).append(
+                {"id": entry.id, "slug": entry.slug, "label": entry.label, "managed": entry.managed})
     return [
         {**account_view(row), "spaces": spaces.get(row.id, 0), "locked": accounts.is_locked(row),
          "blocked": row.blocked_at is not None, "has_password": bool(row.password_hash),
-         "open_links": open_links.get(row.id, 0)}
+         "open_links": open_links.get(row.id, 0), "providers": linked.get(row.id, [])}
         for row in db.scalars(select(AccountRow).order_by(AccountRow.created_at))
     ]
 

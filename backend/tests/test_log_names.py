@@ -175,7 +175,8 @@ def offences(source: str, where: str = "x.py") -> list[str]:
 
 def test_every_log_line_names_a_person_under_a_key() -> None:
     wrong = []
-    for path in sorted(Path("app").rglob("*.py")):
+    # The shared sign-in module (``app/vendor``) is checked where it is made (bauplaene/oidc) and copied unchanged.
+    for path in sorted(path for path in Path("app").rglob("*.py") if "vendor" not in path.parts):
         wrong += offences(path.read_text(encoding="utf-8"), path.name)
     assert not wrong, "\n".join(wrong)
 

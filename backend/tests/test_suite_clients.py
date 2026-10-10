@@ -2,27 +2,28 @@
 that hold, direct links through the sign-in, a person made a moment ago, names, invitations from before, and the
 browsers nexbrand knows.
 
-nexsuite is played by ``FakeSuite`` from ``test_suite``; the provider for the sign-in by ``FakeProvider`` from
-``test_oidc``. Nothing here waits for a clock.
+nexsuite is played by ``FakeSuite`` from ``test_suite``; its sign-in by the fake provider of the shared contract tests
+(``tests/oidc_helpers.py``), standing in for nexsuite's entry of the provider list. Nothing here waits for a clock.
+The page a sign-in started from (B10) is tested in ``test_oidc_app.py``.
 """
 
 from __future__ import annotations
 
 from typing import Any
-from urllib.parse import quote
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.db import SessionLocal
-from app.models import Account, Client, Membership, Space
+from app.models import Account, Client, Membership, OidcProvider, Space
 from app.security import encrypt_secret
-from app.services import oidc, settings_service, suite
+from app.services import settings_service, suite
+from app.vendor.nexoidc import secret_context
 
-from . import test_oidc, test_suite
+from . import oidc_helpers, test_suite
 from .conftest import PASSWORD, client_of, make_account, new_client, new_group, sign_in
-from .test_oidc import CLIENT_ID, CLIENT_SECRET, ISSUER, FakeProvider, come_back, configure, fresh_browser
-from .test_suite import SUITE, FakeSuite, _row, _setting, connect
+from .oidc_helpers import FakeProvider, add_provider, come_back, error_in, fresh_browser, location
+from .test_suite import SUITE, FakeSuite, _own_links, _person, _row, _setting, connect, own_link, own_provider
 
 
 @pytest.fixture(autouse=True)
@@ -33,7 +34,7 @@ def _no_catch_up_held() -> None:
 # The fixtures of the suite and sign-in tests, under the names pytest looks for.
 fake = test_suite.fake
 world = test_suite.world
-provider = test_oidc.provider
+provider = oidc_helpers.provider
 
 
 def _purge(browser: TestClient, cid: str, password: str | None = PASSWORD) -> Any:
@@ -100,7 +101,7 @@ def test_b8_connecting_again_keeps_the_blocked_blocked_and_finds_the_own_person(
     # anna is deleted in nexsuite: blocked here.
     del fake.people["2"]
     client.post("/api/suite/sync")
-    assert _row("cleo2").oidc_subject == "60" and _row("anna").blocked_at is not None
+    assert _person("cleo2") == "60" and _row("anna").blocked_at is not None
     assert client.post("/api/suite/disconnect", json={"current_password": PASSWORD}).status_code == 200
     fake.connected = False
     people_before = set(fake.people)
@@ -115,7 +116,7 @@ def test_b8_connecting_again_keeps_the_blocked_blocked_and_finds_the_own_person(
     assert done.status_code == 200, done.text
     assert set(fake.people) == people_before, "nobody made twice in nexsuite"
     assert _row("cleo").blocked_at is not None and _row("anna").blocked_at is not None
-    assert _row("cleo2").oidc_subject == "60" and _row("cleo2").blocked_at is None
+    assert _person("cleo2") == "60" and _row("cleo2").blocked_at is None
 
 
 def test_b8_another_nexsuite_does_not_count_the_persons_from_before(client: TestClient, operator: Account,
@@ -152,7 +153,7 @@ def test_b9_a_person_client_or_team_nexsuite_does_not_have_is_refused(client: Te
                                                         "teams": {world["team"]: "888"}})
     assert wrong_team.status_code == 409 and wrong_team.json()["detail"]["code"] == "team_unknown"
     assert _setting("suite_state") == "connecting"
-    assert _row("ben").blocked_at is None and _row("ben").oidc_subject == ""
+    assert _row("ben").blocked_at is None and _person("ben") == ""
     assert [path for method, path in fake.calls if method == "POST" and path != "/pair"] == [], "nothing made there"
 
 
@@ -207,105 +208,40 @@ def test_b24_a_code_too_short_once_trimmed_is_a_wrong_code_not_another_app(clien
     assert _setting("suite_state") == ""
 
 
-# --- B10, B20: the sign-in ----------------------------------------------------------------------------------------
+# --- B20: the sign-in ------------------------------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(("asked", "landing"), [
-    ("/c/abc123XYZ_-?tab=reviews&v=x1", "/c/abc123XYZ_-?tab=reviews&v=x1"),
-    ("/settings?tab=teams", "/settings?tab=teams"),
-    ("/", None),
-    ("//evil.example.com/x", None),
-    ("/\\evil.example.com", None),
-    ("https://evil.example.com/", None),
-    ("/api/auth/me", None),
-    ("/api", None),
-    ("/c/a b", None),
-    ("/c/ä", None),
-    ("c/relative", None),
-    ("/" + "a" * 600, None),
-    # The API in any spelling a browser or the server reads as the API (correction round).
-    ("/%61pi/auth/me", None),
-    ("/API/auth/me", None),
-    ("/Api", None),
-    ("/c/../api/auth/me", None),
-    ("/./api/x", None),
-    ("/./api/auth/me", None),
-    ("/x/%2e%2e/api/suite", None),
-    ("/x/%2E%2E/api/suite", None),
-    ("/%252F%252Fevil.example.com", None),
-    ("/%2F%2Fevil.example.com", None),
-    ("/%5Cevil.example.com", None),
-    ("/apiary", "/apiary"),
-])
-def test_b10_only_a_page_of_nexbrands_own_is_a_landing(asked: str, landing: str | None) -> None:
-    assert oidc.safe_next(asked) == landing
-
-
-def _sign_in(browser: TestClient, provider: FakeProvider, next_path: str | None, **claims: Any) -> Any:
-    query = f"?next={quote(next_path, safe='')}" if next_path is not None else ""
-    started = browser.get(f"/api/oidc/start{query}", follow_redirects=False)
-    assert started.status_code == 302, started.text
-    values = dict(part.split("=", 1) for part in started.headers["location"].split("?", 1)[1].split("&"))
-    provider.challenge = values["code_challenge"]
-    provider.claims = {"nonce": values["nonce"], **claims}
-    return come_back(browser, values["state"])
-
-
-def test_b10_a_direct_link_survives_the_sign_in_through_the_provider(client: TestClient, operator: Account,
-                                                                     provider: FakeProvider) -> None:
-    configure(client, auto_create=True)
-    browser = fresh_browser(client)
-    back = _sign_in(browser, provider, "/c/abc123XYZ?tab=reviews")
-    assert back.status_code == 303 and back.headers["location"] == "/c/abc123XYZ?tab=reviews"
-    assert browser.get("/api/auth/me").status_code == 200
-    other = _sign_in(fresh_browser(client), provider, "//evil.example.com")
-    assert other.headers["location"] == "/", "never another host"
-    plain = _sign_in(fresh_browser(client), provider, None)
-    assert plain.headers["location"] == "/"
-
-
-def test_b10_a_next_too_long_is_dropped_not_refused(client: TestClient, operator: Account,
-                                                     provider: FakeProvider) -> None:
-    configure(client, auto_create=True)
-    browser = fresh_browser(client)
-    long = "/c/" + "a" * 2000
-    started = browser.get(f"/api/oidc/start?next={quote(long, safe='')}", follow_redirects=False)
-    assert started.status_code == 302, "a sign-in, not a 422"
-    back = _sign_in(browser, provider, long)
-    assert back.status_code == 303 and back.headers["location"] == "/"
-    api = _sign_in(fresh_browser(client), provider, "/%61pi/auth/me")
-    assert api.headers["location"] == "/"
-
-
-def test_b10_a_refusal_keeps_the_page_for_the_next_try(client: TestClient, operator: Account,
-                                                       provider: FakeProvider) -> None:
-    configure(client, auto_create=False)
-    refused = _sign_in(fresh_browser(client), provider, "/c/abc123XYZ", sub="nobody", email="no@example.com")
-    assert refused.headers["location"] == "/login?error=oidc_no_account&next=%2Fc%2Fabc123XYZ"
-
-
-def _suite_signs_in(client: TestClient) -> None:
-    """The provider of the tests stands in for nexsuite's sign-in (the connection set nexsuite's own)."""
+def _suite_signs_in(provider: FakeProvider) -> None:
+    """The fake provider stands in for nexsuite's sign-in: nexsuite's entry of the list takes its issuer and client
+    (the coupling made it with nexsuite's own)."""
     with SessionLocal() as db:
-        settings_service.save(db, {"oidc_issuer": ISSUER, "oidc_client_id": CLIENT_ID,
-                                   "oidc_client_secret_enc": encrypt_secret(CLIENT_SECRET)})
+        row = db.query(OidcProvider).filter_by(managed="nexsuite").one()
+        row.issuer, row.client_id = provider.issuer.rstrip("/"), provider.client_id
+        row.client_secret_enc = encrypt_secret(provider.client_secret, secret_context(row.id))
         db.commit()
+
+
+def _sign_in(browser: TestClient, provider: FakeProvider, page: str | None = None, **person: Any) -> Any:
+    """``person`` signs in through nexsuite's button (the entry ``oidc``); the answer of the return."""
+    provider.person = person
+    started = browser.get("/api/oidc/oidc/start", params={"next": page} if page else {})
+    return come_back(browser, provider, location(started))
 
 
 def test_b20_a_person_made_in_nexsuite_a_moment_ago_gets_in_at_once(
         client: TestClient, operator: Account, world: dict, fake: FakeSuite, provider: FakeProvider) -> None:
     connect(client, world, operator)
-    _suite_signs_in(client)
+    _suite_signs_in(provider)
     fake.people["61"] = {"id": "61", "name": "dora", "display_name": "Dora", "email": "dora@example.com",
                          "operator": False, "blocked": False}
-    browser = fresh_browser(client)
+    browser = fresh_browser()
     back = _sign_in(browser, provider, "/c/abc123XYZ", sub="61", email="dora@example.com", preferred_username="dora")
-    assert back.status_code == 303 and back.headers["location"] == "/c/abc123XYZ"
+    assert back.status_code == 303 and location(back) == "/c/abc123XYZ"
     assert browser.get("/api/auth/me").json()["name"] == "dora"
-    assert _row("dora").oidc_subject == "61"
+    assert _person("dora") == "61"
     # Somebody nexsuite does not list: refused with the reason for a connected app, no invitation offered.
-    stranger = _sign_in(fresh_browser(client), provider, None, sub="999", email="x@example.com")
-    assert stranger.headers["location"] == "/login?error=suite_no_account"
+    stranger = _sign_in(fresh_browser(), provider, sub="999", email="x@example.com")
+    assert location(stranger) == "/login?error=suite_no_account"
 
 
 def test_b20_the_directory_is_fetched_off_the_server_loop_and_at_most_every_half_minute(
@@ -314,7 +250,7 @@ def test_b20_the_directory_is_fetched_off_the_server_loop_and_at_most_every_half
     import threading
 
     connect(client, world, operator)
-    _suite_signs_in(client)
+    _suite_signs_in(provider)
     now = [1000.0]
     monkeypatch.setattr(suite, "_clock", lambda: now[0])
     threads: list[str] = []
@@ -331,18 +267,20 @@ def test_b20_the_directory_is_fetched_off_the_server_loop_and_at_most_every_half
 
     before = fetched()
     for _ in range(3):
-        refused = _sign_in(fresh_browser(client), provider, None, sub="999", email="x@example.com")
-        assert refused.headers["location"] == "/login?error=suite_no_account"
+        refused = _sign_in(fresh_browser(), provider, sub="999", email="x@example.com")
+        assert error_in(refused) == "suite_no_account"
     assert fetched() == before + 1, "the same stranger fetches the directory once in half a minute"
     assert threads and all(name.startswith("AnyIO worker thread") for name in threads), threads
     now[0] += suite.CATCH_UP_SECONDS + 1
-    _sign_in(fresh_browser(client), provider, None, sub="999", email="x@example.com")
+    _sign_in(fresh_browser(), provider, sub="999", email="x@example.com")
     assert fetched() == before + 2, "and once more after it"
-    # Another person is not held back by the stranger.
+    # Another person is not held back by the stranger; a person known here fetches nothing.
     fake.people["62"] = {"id": "62", "name": "eli", "display_name": "", "email": "", "operator": False,
                          "blocked": False}
-    back = _sign_in(fresh_browser(client), provider, None, sub="62", email="eli@example.com")
-    assert back.headers["location"] == "/" and _row("eli").oidc_subject == "62"
+    back = _sign_in(fresh_browser(), provider, sub="62", email="eli@example.com")
+    assert location(back) == "/" and _person("eli") == "62"
+    known = fetched()
+    assert location(_sign_in(fresh_browser(), provider, sub="62")) == "/" and fetched() == known
 
 
 # --- B21, B22, B26, G3 ------------------------------------------------------------------------------------------
@@ -464,64 +402,47 @@ def test_b21_a_display_name_of_its_own_stays(client: TestClient, operator: Accou
 def test_b21_b8_an_account_left_out_keeps_its_name_and_its_own_link(client: TestClient, operator: Account,
                                                                     world: dict, fake: FakeSuite) -> None:
     # The checker's r2 and r3: cleo signs in through authentik on her own and is left out when connecting.
-    with SessionLocal() as db:
-        cleo = db.get(Account, world["cleo"].id)
-        assert cleo is not None
-        cleo.oidc_subject = "ak-cleo-uuid"
-        db.commit()
+    own_link("cleo", "ak-cleo-uuid", own_provider())
     connect(client, world, operator)
     fake.people["60"] = {"id": "60", "name": "cleo", "display_name": "", "email": "", "operator": False,
                          "blocked": False}
     client.post("/api/suite/sync")
-    assert (_row("cleo").id, _row("cleo").oidc_subject, _row("cleo").suite_person) == (
+    assert (_row("cleo").id, _person("cleo"), _row("cleo").suite_person) == (
         world["cleo"].id, "", ""), "nexsuite never had her: not renamed"
-    assert _row("cleo").own_subject == "ak-cleo-uuid", "her own link is set aside while connected"
-    assert _row("cleo2").oidc_subject == "60"
+    assert _own_links("cleo") == [("oidc-own", "ak-cleo-uuid", False)], "her own link waits aside while connected"
+    assert _person("cleo2") == "60"
     assert client.post("/api/suite/disconnect", json={"current_password": PASSWORD}).status_code == 200
-    assert _row("cleo").oidc_subject == "ak-cleo-uuid" and _row("cleo").own_subject == "", "her own link is back"
-    assert _row("cleo2").oidc_subject == "" and _row("cleo2").suite_person == "60"
+    assert _own_links("cleo") == [("oidc", "ak-cleo-uuid", True)], "her own link is back"
+    assert _person("cleo2") == "" and _row("cleo2").suite_person == "60"
     fake.connected = False
     rows = {a["name"]: a for a in _start(client)["accounts"]}
     assert (rows["cleo"]["from_suite"], rows["cleo"]["gone"], rows["cleo"]["suggest"]) == (False, False, "skip")
     assert (rows["cleo2"]["from_suite"], rows["cleo2"]["suggest"]) == (True, "60")
 
 
-def _left_out_with_a_number(client: TestClient, world: dict, operator: Account, *, legacy: bool) -> None:
+def _left_out_with_a_number(client: TestClient, world: dict, operator: Account) -> None:
     """cleo signs in through another provider whose subject is "2", the id anna has in nexsuite, and is left out when
-    connecting. ``legacy``: connected before the own link was set aside, it is still in ``oidc_subject``."""
-    with SessionLocal() as db:
-        cleo = db.get(Account, world["cleo"].id)
-        assert cleo is not None
-        cleo.oidc_subject = "2"
-        db.commit()
+    connecting. Links belong to their provider: hers stays with authentik's entry, aside while connected."""
+    own_link("cleo", "2", own_provider())
     connect(client, world, operator)
-    if legacy:
-        with SessionLocal() as db:
-            cleo = db.get(Account, world["cleo"].id)
-            assert cleo is not None
-            cleo.oidc_subject, cleo.own_subject = "2", ""
-            db.commit()
 
 
-@pytest.mark.parametrize("legacy", [False, True])
 def test_a_left_out_account_never_takes_the_sign_in_of_a_person_with_the_same_id(
-        client: TestClient, operator: Account, world: dict, fake: FakeSuite, provider: FakeProvider,
-        legacy: bool) -> None:
+        client: TestClient, operator: Account, world: dict, fake: FakeSuite, provider: FakeProvider) -> None:
     # (A) from the nextasks checker: the blocked cleo was found first, anna got "account_blocked".
-    _left_out_with_a_number(client, world, operator, legacy=legacy)
-    _suite_signs_in(client)
-    browser = fresh_browser(client)
-    back = _sign_in(browser, provider, None, sub="2", email="anna@example.com")
-    assert back.status_code == 303 and back.headers["location"] == "/", back.headers.get("location")
+    _left_out_with_a_number(client, world, operator)
+    _suite_signs_in(provider)
+    browser = fresh_browser()
+    back = _sign_in(browser, provider, sub="2", email="anna@example.com")
+    assert location(back) == "/", location(back)
     assert browser.get("/api/auth/me").json()["name"] == "anna"
 
 
-@pytest.mark.parametrize("legacy", [False, True])
 def test_a_left_out_account_never_takes_what_a_person_with_the_same_id_has(
-        client: TestClient, operator: Account, world: dict, fake: FakeSuite, legacy: bool) -> None:
+        client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
     # (B) from the nextasks checker: the sync took the last account with subject "2", unblocked cleo and gave her
     # anna's address, name, person, teams and rights.
-    _left_out_with_a_number(client, world, operator, legacy=legacy)
+    _left_out_with_a_number(client, world, operator)
     assert client.post("/api/suite/sync").status_code in (200, 204)
     cleo, anna = _row("cleo"), _row("anna")
     assert cleo.blocked_at is not None, "left out stays blocked"
@@ -533,24 +454,15 @@ def test_a_left_out_account_never_takes_what_a_person_with_the_same_id_has(
         assert not db.query(TeamMember).filter_by(account_id=cleo.id).count()
         assert not db.query(Membership).filter_by(account_id=cleo.id).count()
     assert client.post("/api/suite/disconnect", json={"current_password": PASSWORD}).status_code == 200
-    assert _row("cleo").oidc_subject == "2", "her own link is hers again after disconnecting"
+    assert _own_links("cleo") == [("oidc", "2", True)], "her own link is hers again after disconnecting"
 
 
 def test_a_left_out_account_is_not_taken_for_a_new_person_with_its_number(
         client: TestClient, operator: Account, world: dict, fake: FakeSuite, provider: FakeProvider) -> None:
-    # (B) where nobody here knows the person yet: connected before the own link was set aside, cleo's subject "77"
-    # is the id of a person nexsuite makes later. The person gets an account of its own; cleo stays as she was.
-    with SessionLocal() as db:
-        cleo = db.get(Account, world["cleo"].id)
-        assert cleo is not None
-        cleo.oidc_subject = "77"
-        db.commit()
+    # (B) where nobody here knows the person yet: cleo's own subject "77" is the id of a person nexsuite makes later.
+    # The person gets an account of its own; cleo stays as she was.
+    own_link("cleo", "77", own_provider())
     connect(client, world, operator)
-    with SessionLocal() as db:
-        cleo = db.get(Account, world["cleo"].id)
-        assert cleo is not None
-        cleo.oidc_subject, cleo.own_subject = "77", ""
-        db.commit()
     fake.people["77"] = {"id": "77", "name": "dora", "display_name": "Dora", "email": "dora@example.com",
                          "operator": False, "blocked": False}
     assert client.post("/api/suite/sync").status_code in (200, 204)
@@ -558,10 +470,10 @@ def test_a_left_out_account_is_not_taken_for_a_new_person_with_its_number(
     assert cleo.blocked_at is not None and cleo.suite_person == "" and cleo.email != "dora@example.com"
     assert _row("dora").suite_person == "77" and _row("dora").id != cleo.id
     # (A) the same way round: dora's account is younger than cleo's, and dora signs in as dora, not as blocked cleo.
-    _suite_signs_in(client)
-    browser = fresh_browser(client)
-    back = _sign_in(browser, provider, None, sub="77", email="dora@example.com")
-    assert back.status_code == 303 and back.headers["location"] == "/", back.headers.get("location")
+    _suite_signs_in(provider)
+    browser = fresh_browser()
+    back = _sign_in(browser, provider, sub="77", email="dora@example.com")
+    assert location(back) == "/", location(back)
     assert browser.get("/api/auth/me").json()["name"] == "dora"
 
 
@@ -569,159 +481,65 @@ def test_no_account_links_itself_to_a_provider_while_connected(
         client: TestClient, operator: Account, world: dict, fake: FakeSuite, provider: FakeProvider) -> None:
     # From nextasks: the emergency account linked to a subject of its own would be nobody's to the next sync, and
     # locked out. Started before connecting and coming back after, nothing is linked either.
-    from urllib.parse import parse_qs, urlsplit
-
-    configure(client, auto_create=False)
-    started = client.post("/api/oidc/link/start", json={"password": PASSWORD})
+    add_provider(client, provider, slug="sso")
+    started = client.post("/api/oidc/sso/link", json={"password": PASSWORD})
     assert started.status_code == 200, started.text
-    values = {k: v[0] for k, v in parse_qs(urlsplit(started.json()["url"]).query).items()}
     connect(client, world, operator)
-    _suite_signs_in(client)
-    refused = client.post("/api/oidc/link/start", json={"password": PASSWORD})
+    refused = client.post("/api/oidc/oidc/link", json={"password": PASSWORD})
     assert refused.status_code == 409 and refused.json()["detail"]["code"] == "managed_by_suite"
-    provider.challenge = values["code_challenge"]
-    provider.claims = {"nonce": values["nonce"], "sub": "ak-own-uuid"}
-    back = come_back(client, values["state"])
-    assert back.headers["location"] == "/account?error=managed_by_suite"
-    assert _row("tester").oidc_subject == "1", "still its person in nexsuite, not the foreign subject"
+    refused = client.post("/api/oidc/sso/link", json={"password": PASSWORD})
+    assert refused.status_code == 409 and refused.json()["detail"]["code"] == "managed_by_suite"
+    provider.person = {"sub": "ak-own-uuid"}
+    back = come_back(client, provider, started.json()["url"])
+    assert location(back).startswith("/account?error="), "nothing linked, back on the account page"
+    assert _person("tester") == "1", "still its person in nexsuite"
+    assert _own_links("tester") == [], "and no foreign subject beside it"
     assert client.post("/api/suite/sync").status_code in (200, 204)
     assert _row("tester").blocked_at is None, "the emergency account still gets in"
 
 
-def test_a_person_blocked_in_nexsuite_keeps_its_account_in_a_connection_from_before(
+def test_a_person_blocked_in_nexsuite_keeps_its_account(
         client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
-    # The checker's case for connections before c485f67 (``suite_person`` empty everywhere): erik is blocked in
-    # nexsuite, synced, then the marks are gone; the next syncs must not make "erik2" with erik's subject, and
-    # unblocked in nexsuite, erik works with his rights and history again.
+    # erik is blocked in nexsuite; the next syncs must not make "erik2" with erik's person, and unblocked in nexsuite,
+    # erik works with his rights and history again.
     connect(client, world, operator)
     fake.people["3"]["blocked"] = True
     assert client.post("/api/suite/sync").status_code in (200, 204)
     erik = _row("erik")
-    assert erik.blocked_at is not None and erik.oidc_subject == "3"
-    with SessionLocal() as db:
-        db.query(Account).update({"suite_person": ""})
-        db.commit()
+    assert erik.blocked_at is not None and _person("erik") == "3"
     for _ in range(2):
         assert client.post("/api/suite/sync").status_code in (200, 204)
     with SessionLocal() as db:
-        assert db.query(Account).filter(Account.oidc_subject == "3").count() == 1
         assert db.query(Account).filter(Account.name == "erik2").count() == 0
-    assert _row("erik").oidc_subject == "3" and _row("erik").suite_person == "3"
+    assert _person("erik") == "3" and _row("erik").suite_person == "3"
     fake.people["3"]["blocked"] = False
     assert client.post("/api/suite/sync").status_code in (200, 204)
     assert _row("erik").id == erik.id and _row("erik").blocked_at is None
 
 
-def test_a_stranger_with_the_persons_copied_address_does_not_win_her_subject(
+def test_a_person_renamed_in_nexsuite_keeps_its_blocked_account(
         client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
-    # From nextasks: an old sync copied anna's address and display name onto ben, who also holds her subject; anna's
-    # own account has no address left. The sign-in name decides: anna keeps her account, ben is blocked, loses the
-    # subject (put aside: nothing tells whether it was his own link) and what he had of her.
-    connect(client, world, operator)
-    with SessionLocal() as db:
-        anna = db.get(Account, world["anna"].id)
-        ben = db.get(Account, world["ben"].id)
-        assert anna is not None and ben is not None
-        ben.oidc_subject, ben.email, ben.display_name = "2", "anna@example.com", "Anna Berg"
-        anna.email, anna.display_name = "", ""
-        db.query(Account).update({"suite_person": ""})
-        db.commit()
-    assert client.post("/api/suite/sync").status_code in (200, 204)
-    anna, ben = _row("anna"), _row("ben")
-    assert anna.id == world["anna"].id and anna.oidc_subject == "2" and anna.suite_person == "2"
-    assert anna.blocked_at is None and anna.email == "anna@example.com"
-    assert ben.oidc_subject != "2" and ben.own_subject == "2" and ben.blocked_at is not None
-    assert (ben.email, ben.display_name) == ("", "")
-
-
-def test_a_subject_from_the_connection_is_dropped_where_the_own_link_is_aside(
-        client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
-    # cleo was left out with her own link (aside since connecting); a subject of a person she got later is dropped,
-    # not put over her own link.
-    with SessionLocal() as db:
-        cleo = db.get(Account, world["cleo"].id)
-        assert cleo is not None
-        cleo.oidc_subject = "ak-cleo-uuid"
-        db.commit()
-    connect(client, world, operator)
-    with SessionLocal() as db:
-        cleo = db.get(Account, world["cleo"].id)
-        assert cleo is not None and cleo.own_subject == "ak-cleo-uuid"
-        cleo.oidc_subject = "3"
-        db.commit()
-    assert client.post("/api/suite/sync").status_code in (200, 204)
-    cleo = _row("cleo")
-    assert (cleo.oidc_subject, cleo.own_subject) == ("", "ak-cleo-uuid") and cleo.blocked_at is not None
-    assert _row("erik").oidc_subject == "3"
-
-
-def test_a_person_renamed_in_nexsuite_keeps_its_blocked_account_from_before(
-        client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
-    # erik blocked in nexsuite, his display name changed there meanwhile, the marks of an old connection: no erik2.
+    # erik blocked in nexsuite, his display name changed there meanwhile: no erik2.
     connect(client, world, operator)
     fake.people["3"]["blocked"] = True
     assert client.post("/api/suite/sync").status_code in (200, 204)
     erik = _row("erik")
-    with SessionLocal() as db:
-        db.query(Account).update({"suite_person": ""})
-        db.commit()
     fake.people["3"]["display_name"] = "Erik New"
     for _ in range(2):
         assert client.post("/api/suite/sync").status_code in (200, 204)
     with SessionLocal() as db:
         assert db.query(Account).filter(Account.name == "erik2").count() == 0
-    assert _row("erik").id == erik.id and _row("erik").oidc_subject == "3" and _row("erik").suite_person == "3"
-
-
-def test_the_operators_choice_when_connecting_goes_before_the_name(
-        client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
-    # The checker's case (connected under c485f67): person 2 ("anna") was given to the account ben, the account anna
-    # was left out and keeps her own subject "2" of another provider (blocked, unmarked). ben stays anna's person.
-    connect(client, world, operator)
-    with SessionLocal() as db:
-        anna = db.get(Account, world["anna"].id)
-        ben = db.get(Account, world["ben"].id)
-        assert anna is not None and ben is not None
-        anna.oidc_subject, anna.suite_person, anna.own_subject, anna.blocked_at = "2", "", "", suite.utcnow()
-        ben.oidc_subject, ben.suite_person, ben.own_subject = "2", "2", ""
-        db.commit()
-    assert client.post("/api/suite/sync").status_code in (200, 204)
-    anna, ben = _row("anna"), _row("ben")
-    assert (ben.oidc_subject, ben.suite_person, ben.blocked_at) == ("2", "2", None)
-    assert ben.email == "anna@example.com", "the person's address stays on the account chosen for it"
-    assert anna.blocked_at is not None and anna.oidc_subject == "" and anna.own_subject == "2"
-    assert client.post("/api/suite/disconnect", json={"current_password": PASSWORD}).status_code == 200
-    assert _row("anna").oidc_subject == "2", "her own link is hers again"
-    assert (_row("ben").oidc_subject, _row("ben").own_subject) == ("", ""), "ben gets no link of anna's"
-
-
-def test_the_persons_sign_in_name_wins_even_blocked_and_younger(
-        client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
-    # Nobody marked (a connection from before): ben, older and not blocked, and erik, blocked, both hold "3". The
-    # sign-in name of person 3 is erik's: erik keeps his account.
-    connect(client, world, operator)
-    with SessionLocal() as db:
-        ben = db.get(Account, world["ben"].id)
-        erik = db.query(Account).filter(Account.name == "erik").one()
-        assert ben is not None and ben.id < erik.id
-        ben.oidc_subject, ben.blocked_at = "3", None
-        erik.blocked_at = suite.utcnow()
-        db.query(Account).update({"suite_person": ""})
-        db.commit()
-    assert client.post("/api/suite/sync").status_code in (200, 204)
-    erik, ben = _row("erik"), _row("ben")
-    assert erik.oidc_subject == "3" and erik.suite_person == "3" and erik.blocked_at is None
-    assert ben.oidc_subject != "3" and ben.blocked_at is not None
+    assert _row("erik").id == erik.id and _person("erik") == "3" and _row("erik").suite_person == "3"
 
 
 def test_b8_a_connection_from_before_this_was_kept_is_known_too(client: TestClient, operator: Account, world: dict,
                                                                 fake: FakeSuite) -> None:
     connect(client, world, operator)
-    with SessionLocal() as db:  # as connected before ``suite_person`` was kept
+    with SessionLocal() as db:  # the mark lost: the link at nexsuite's entry still says who is who
         db.query(Account).update({"suite_person": ""})
         db.commit()
     assert client.post("/api/suite/disconnect", json={"current_password": PASSWORD}).status_code == 200
-    assert (_row("anna").oidc_subject, _row("anna").suite_person) == ("", "2")
+    assert (_person("anna"), _row("anna").suite_person) == ("", "2")
 
 
 def test_b21_a_new_person_gets_the_name_a_deleted_one_had(client: TestClient, operator: Account, world: dict,
@@ -737,7 +555,7 @@ def test_b21_a_new_person_gets_the_name_a_deleted_one_had(client: TestClient, op
                          "blocked": False}
     client.post("/api/suite/sync")
     new = _row("anna")
-    assert new.oidc_subject == "70" and new.id != old, "named as in nexsuite"
+    assert _person("anna") == "70" and new.id != old, "named as in nexsuite"
     with SessionLocal() as db:
         before = db.get(Account, old)
         assert before is not None and before.name == "anna2" and before.blocked_at is not None
@@ -747,7 +565,7 @@ def test_b21_a_new_person_gets_the_name_a_deleted_one_had(client: TestClient, op
     fake.people["71"] = {"id": "71", "name": "tester", "display_name": "", "email": "", "operator": False,
                          "blocked": False}
     client.post("/api/suite/sync")
-    assert _row("tester").id == operator.id and _row("tester2").oidc_subject == "71"
+    assert _row("tester").id == operator.id and _person("tester2") == "71"
 
 
 def test_b21_r7_a_person_that_came_with_a_sync_is_renamed_when_deleted_there(
@@ -765,7 +583,7 @@ def test_b21_r7_a_person_that_came_with_a_sync_is_renamed_when_deleted_there(
     with SessionLocal() as db:
         before = db.get(Account, old)
         assert before is not None and before.name == "dora2", "the account of the deleted one moves aside"
-    assert _row("dora").oidc_subject == "51" and _row("dora").id != old
+    assert _person("dora") == "51" and _row("dora").id != old
 
 
 def test_b21_the_log_renames_people_only(client: TestClient, operator: Account) -> None:

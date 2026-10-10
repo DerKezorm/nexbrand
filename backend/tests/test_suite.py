@@ -22,7 +22,7 @@ from fastapi.testclient import TestClient
 
 from app.db import SessionLocal
 from app.models import Account, AuthSession, Client, Membership, Space, Team, TeamGrant, TeamMember
-from app.services import settings_service, suite
+from app.services import oidc_store, settings_service, suite
 
 from .conftest import PASSWORD, client_of, make_account, new_client, new_group
 
@@ -211,6 +211,55 @@ def _setting(key: str) -> Any:
         return settings_service.get(db, key)
 
 
+def _person(name: str) -> str:
+    """The account's person in nexsuite: its link at nexsuite's entry of the provider list, "" without one."""
+    with SessionLocal() as db:
+        row = db.query(Account).filter_by(name=name).one()
+        entry = oidc_store.coupled_entry(db)
+        if entry is None:
+            return ""
+        found = [link for link in oidc_store.SqlStore(db).links_of_account(row.id) if link.provider_id == entry.id]
+        return found[0].subject if found else ""
+
+
+def _own_links(name: str) -> list[tuple[str, str, bool]]:
+    """The account's links at the own providers (not nexsuite's): slug, subject, whether the provider is on."""
+    with SessionLocal() as db:
+        row = db.query(Account).filter_by(name=name).one()
+        store = oidc_store.SqlStore(db)
+        out = []
+        for link in store.links_of_account(row.id):
+            entry = store.get_provider(link.provider_id)
+            if entry is not None and entry.managed != "nexsuite":
+                out.append((entry.slug, link.subject, entry.enabled))
+        return out
+
+
+def own_provider(slug: str = "oidc", label: str = "authentik") -> int:
+    """An own provider of the app (as the button or the form made it before connecting); its id."""
+    from app.vendor.nexoidc import DEFAULT_SCOPES, ProviderValues
+
+    with SessionLocal() as db:
+        store = oidc_store.SqlStore(db)
+        made = store.insert_provider(ProviderValues(
+            slug=slug, label=label, issuer="https://auth.example.com/application/o/nexbrand", client_id="own-client",
+            client_secret="own-" + secrets.token_hex(4), scopes=DEFAULT_SCOPES, enabled=True, auto_create=False,
+            trusts_second_factor=True, managed="", position=0))
+        db.commit()
+        return made.id
+
+
+def own_link(name: str, subject: str, provider_id: int) -> None:
+    """``name`` linked to the own provider (as after signing in through authentik)."""
+    from app.vendor.nexoidc import Link
+
+    with SessionLocal() as db:
+        row = db.query(Account).filter_by(name=name).one()
+        oidc_store.SqlStore(db).add_link(Link(provider_id=provider_id, subject=subject, account_id=row.id,
+                                              issuer="https://auth.example.com/application/o/nexbrand"))
+        db.commit()
+
+
 @pytest.fixture
 def world(client: TestClient, operator: Account) -> dict[str, Any]:
     """Here, before connecting: the operator (address tester@example.com), anna (matches anna in nexsuite), ben (no
@@ -252,10 +301,15 @@ def test_connecting_matches_accounts_and_spaces_and_brings_the_rest(client: Test
     assert suggested == {"tester": "1", "anna": "2", "ben": "new", "cleo": "new", "erik": "3"}
     assert {s["name"]: s["suggest"] for s in found["clients"]}["ideen"] == "10", "names match whatever the case"
     assert _setting("suite_state") == "connected"
-    assert _setting("oidc_issuer") == SUITE and _setting("oidc_client_id") == "nxs-client"
+    with SessionLocal() as db:
+        entry = oidc_store.coupled_entry(db)
+        assert entry is not None
+        assert (entry.slug, entry.label, entry.issuer, entry.client_id, entry.redirect_path) == (
+            "oidc", "nexsuite", SUITE, "nxs-client", "")
+        assert entry.client_secret == "the-client-secret" and not entry.auto_create
     assert _setting("password_login") is False
-    assert _row("anna").oidc_subject == "2" and _row("tester").oidc_subject == "1"
-    ben_id = _row("ben").oidc_subject
+    assert _person("anna") == "2" and _person("tester") == "1"
+    ben_id = _person("ben")
     assert fake.people[ben_id]["name"] == "ben"
     assert _row("cleo").blocked_at is not None and "cleo" not in [p["name"] for p in fake.people.values()]
     with SessionLocal() as db:
@@ -355,9 +409,16 @@ def test_what_nexsuite_keeps_cannot_be_changed_here(client: TestClient, operator
         client.post(f"/api/spaces/{own}/invites", json={"role": "read", "days": 7}),
         client.put("/api/me/profile", json={"display_name": "Me"}),
         client.put("/api/settings", json={"password_login": True}),
-        client.delete("/api/oidc/config"),
+        client.post("/api/oidc/oidc/link", json={"password": PASSWORD}),
+        client.delete("/api/oidc/oidc/link"),
     ):
         assert answer.status_code == 409 and answer.json()["detail"]["code"] == "managed_by_suite", answer.text
+    # The provider list is nexsuite's while coupled: read only, the form refused at its own field.
+    listed = client.get("/api/oidc/admin/providers").json()
+    assert [(item["slug"], item["managed"], item["editable"]) for item in listed] == [("oidc", "nexsuite", False)]
+    refused = client.post("/api/oidc/admin/providers", json={"label": "Mine", "slug": "mine",
+                                                            "issuer": "https://auth.example.com", "client_id": "x"})
+    assert refused.status_code == 422 and refused.json()["detail"]["code"] == "provider_managed"
 
 
 def test_only_the_emergency_account_signs_in_with_a_password(client: TestClient, operator: Account, world: dict,
@@ -406,7 +467,9 @@ def test_disconnecting_restores_the_own_sign_in_and_keeps_everything(client: Tes
     assert _row("anna").sign_in == "password", "the own password holds again"
     assert client.get("/api/auth/me").json()["suite_emergency"] is False
     assert ("POST", "/leave") in fake.calls
-    assert _setting("suite_state") == "" and _setting("oidc_issuer") == "" and _setting("password_login") is True
+    assert _setting("suite_state") == "" and _setting("password_login") is True
+    assert client.get("/api/oidc/admin/providers").json() == [], "nexsuite's entry went with the connection"
+    assert _setting(oidc_store.COUPLING) is None
     with SessionLocal() as db:
         team = db.get(Team, world["team"])
         assert team is not None and team.source == "local" and team.external_id == ""
@@ -787,7 +850,7 @@ def test_connected_an_old_invitation_is_no_way_in_through_nexsuite(client: TestC
     token = client.post("/api/invites", json={"days": 7}).json()["link"].rsplit("/", 1)[1]
     connect(client, world, operator)
     with new_client() as stranger:
-        answer = stranger.get(f"/api/oidc/start?invite={token}", follow_redirects=False)
+        answer = stranger.get(f"/api/oidc/oidc/start?invite={token}", follow_redirects=False)
         assert answer.status_code in (302, 303) and "invite_invalid" in answer.headers["location"]
 
 

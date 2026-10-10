@@ -108,9 +108,13 @@ an account and with an end date.*
 - **Around it, as in nexlore.** Accounts by invitation (the mail, like the operator's test mail, in the receiver's
   language when an account with that address has one, else in the sender's), blocked and let in again by the operator
   (a blocked account hears so only after its right password; the links it made for clients stay until the operator
-  withdraws them), second factor with recovery codes, sign-in through an OIDC
-  provider with a button for authentik, a log in four levels, German and English plus languages the operator adds as
-  JSON files, backups of the database together with every file, with a check before going back.
+  withdraws them), second factor with recovery codes, sign-in through one or more OpenID Connect providers side by
+  side, each with its own button (a one-button setup for authentik, or a blueprint to import; Microsoft Entra ID also
+  with `common` or `organizations` as the issuer), a log in four levels, German and English plus languages the
+  operator adds as JSON files, backups of the database together with every file, with a check before going back.
+  An identity at a provider belongs to an account only once that account linked itself under My account, came in by
+  invitation, or the operator lets new people in through that provider; an account is never found by its mail
+  address. Per provider the operator decides whether it checks the second factor itself.
 
 ## Start
 
@@ -162,7 +166,8 @@ nexbrand is made to be reachable from outside, for yourself on the road or for a
    guessing cannot tell people apart: a browser that signed in as that name before still gets in, also while
    somebody guesses that very name (until a new password, a block or signing out everywhere), any other waits;
    Settings, Server says so while it is missing), and `NEXBRAND_COOKIE_SECURE: "on"`.
-4. **A second factor**: set up your own under My account, Security. Or sign in through your OpenID Connect provider.
+4. **A second factor**: set up your own under My account, Security. Or sign in through your OpenID Connect provider
+   (and leave "The provider checks the second factor itself" on only for one that does).
 5. **Leave the switches closed you do not need**: public pages, API tokens, collecting from websites and AI are
    off until you open them.
 6. **Optionally keep the operator's settings at home**: `NEXBRAND_OPERATOR_NETWORKS: "192.168.0.0/16"` refuses them

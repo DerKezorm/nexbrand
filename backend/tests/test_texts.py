@@ -4,6 +4,10 @@ every sentence belongs to a code something still sends, and no API message is th
 The codes are read from the source: ``error("code", ...)``, the typed errors (``AiError("code")`` and the like), the
 middleware's and MCP's refusals and the sign-in redirects (``?error=code``). A code built at run time is named in
 ``BUILT`` with where it comes from.
+
+The shared sign-in module (``app/vendor/nexoidc``) is checked where it is made (bauplaene/oidc) and copied unchanged:
+its codes have their sentences in its own wording files (``oidc.error.*``, ``oidc.formError.*``), the same in every
+nex app, and the house rules for words below are nexbrand's, not the module's.
 """
 
 from __future__ import annotations
@@ -31,24 +35,40 @@ BUILT = {
     "person_twice", "client_twice", "team_twice", "person_unknown", "client_unknown", "team_unknown",
     # services/suite.py: nexsuite's own code, passed on when it refuses to pair (409)
     "app_still_connected", "app_not_reachable",
-    # routers/oidc.py: issuer_unreachable / issuer_invalid from the provider's error
-    "issuer_unreachable", "issuer_invalid",
 }
+
+#: The fixed codes of the shared sign-in module: their sentences come with it (``frontend/src/vendor/nexoidc``).
+MODULE = ROOT / "frontend" / "src" / "vendor" / "nexoidc"
 
 #: Typed errors that carry an error code to the page (``SetError`` names a field, ``FetchError`` a collect problem).
 TYPED = "Ai|Api|Account|Avatar|Backup|Brand|Locale|Mail|Media|Notice|Oidc|Rights|Space|Suite|Team|Token"
 RAISED = re.compile(
-    rf"""(?:\berror|(?:{TYPED})Error|NameTaken|\brefuse|_to_login|_to_account|_refuse\(\d+,|_text\([^)]*?,)"""
+    rf"""(?:\berror|(?:{TYPED})Error|AppRefusal|NameTaken|\brefuse|_to_login|_to_account|_refuse\(\d+,|_text\([^)]*?,)"""
     r"""\(?\s*"([a-z][a-z0-9_]+)\"""",
 )
+
+
+def _own(folder: Path, pattern: str = "*") -> list[Path]:
+    """The app's own files, without the shared module copied in (``vendor``)."""
+    return sorted(path for path in folder.rglob(pattern) if "vendor" not in path.parts)
 
 
 def _sources(folder: Path, suffixes: tuple[str, ...]) -> str:
     return "\n".join(
         path.read_text(encoding="utf-8")
-        for path in sorted(folder.rglob("*"))
+        for path in _own(folder)
         if path.suffix in suffixes and ".test." not in path.name and "i18n" not in path.parts
     )
+
+
+def module_codes() -> set[str]:
+    """The codes with a sentence in the shared module's wording, in both languages."""
+    found: set[str] | None = None
+    for language in ("de", "en"):
+        tree = json.loads((MODULE / f"oidc.{language}.json").read_text(encoding="utf-8"))["oidc"]
+        codes = set(tree["error"]) | set(tree["formError"])
+        found = codes if found is None else found & codes
+    return found or set()
 
 
 def server_codes() -> set[str]:
@@ -62,12 +82,13 @@ def texts(language: str) -> dict[str, str]:
 def test_the_scan_finds_the_codes_it_should() -> None:
     codes = server_codes()
     # One of each way in: error(), a typed error, a refusal of the middleware, of MCP, a sign-in redirect, _text().
-    assert {"not_found", "ai_not_on", "too_large", "token_invalid", "oidc_denied", "invalid_sector"} <= codes
+    assert {"not_found", "ai_not_on", "too_large", "token_invalid", "suite_no_account", "invalid_sector"} <= codes
+    assert {"oidc_no_account", "slug_taken", "oidc_only_account"} <= module_codes()
 
 
 @pytest.mark.parametrize("language", ["de", "en"])
 def test_every_code_the_server_sends_has_a_sentence(language: str) -> None:
-    assert sorted(server_codes() - set(texts(language))) == []
+    assert sorted(server_codes() - set(texts(language)) - module_codes()) == []
 
 
 def test_every_sentence_belongs_to_a_code_still_used() -> None:
@@ -76,6 +97,8 @@ def test_every_sentence_belongs_to_a_code_still_used() -> None:
     backend, frontend = _sources(APP, (".py",)), _sources(FRONTEND, (".ts", ".tsx"))
     unused = [code for code in texts("de") if code not in server_codes() and f'"{code}"' not in backend
               and f"'{code}'" not in frontend]
+    # The module's codes speak with its own sentences; one of nexbrand's own beside it would never be shown.
+    unused += sorted(set(texts("de")) & module_codes())
     assert unused == []
 
 
@@ -123,7 +146,7 @@ def test_english_says_trash_where_german_says_papierkorb() -> None:
         text = path.read_text(encoding="utf-8").replace(".venv/bin", "")
         found += [f"{path.name}: {line.strip()}" for line in text.splitlines() if bin_word.search(line)]
     files = strings = 0
-    for path in sorted(APP.rglob("*.py")):
+    for path in _own(APP, "*.py"):
         pieces = _strings(path.read_text(encoding="utf-8"))
         files, strings = files + 1, strings + len(pieces)
         found += [f"{path.name}:{line}" for line, text in pieces if bin_word.search(text)]
@@ -144,7 +167,7 @@ def test_the_server_speaks_english_not_german_word_for_word() -> None:
                        re.IGNORECASE)
     found = []
     files = strings = 0
-    for path in sorted(APP.rglob("*.py")):
+    for path in _own(APP, "*.py"):
         files += 1
         tree = ast.parse(path.read_text(encoding="utf-8"))
         docs = {id(node.body[0].value) for node in ast.walk(tree)

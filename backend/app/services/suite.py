@@ -8,7 +8,8 @@ The contract is nexsuite's ``docs/connect.md``. In short:
   one), and the local teams go along. Only then nexbrand counts as connected: from now on people sign in through
   nexsuite.
 * **Keeping in step**: nexbrand fetches the directory once a minute and whenever nexsuite says something changed
-  (``POST /api/suite/event``, signed with the token). Accounts follow their person (``oidc_subject`` = the person's id),
+  (``POST /api/suite/event``, signed with the token). Accounts follow their person (their link at nexsuite's entry of
+  the provider list, ``oidc_links``; ``suite_person`` says the same),
   teams follow theirs, and each client follows its client there (``external_id`` of its group of rights): name,
   sector, contact, colour and who may see it. A client nexsuite brought comes without a design set; it gets one here.
   A blocked person is signed out at once.
@@ -58,7 +59,8 @@ from ..models import (
     utcnow,
 )
 from ..security import decrypt_secret, encrypt_secret, end_all_sessions
-from . import logs, names, settings_service
+from ..vendor.nexoidc import Link, coupling
+from . import logs, names, oidc_store, settings_service
 
 logger = logging.getLogger("nexbrand.suite")
 
@@ -74,7 +76,8 @@ NOTICE_SECONDS = 300
 TOKEN_CONTEXT = "suite-token"
 SECRET_CONTEXT = "oidc-client-secret"
 SMTP_KEYS = ("smtp_host", "smtp_port", "smtp_security", "smtp_user", "smtp_password_enc", "smtp_from")
-OIDC_KEYS = ("oidc_issuer", "oidc_client_id", "oidc_client_secret_enc", "oidc_provider_name", "oidc_auto_create")
+#: The name on the sign-in button while coupled (blueprint 06: the app names it).
+SUITE_LABEL = "nexsuite"
 
 _sync_lock = threading.RLock()
 #: Saving the choices of a connection under way and finishing it do not cross (B23).
@@ -631,15 +634,10 @@ def _confirm(db: Session, token: str, plan: dict[str, Any]) -> list[dict[str, st
             space.external_id = external
             space.suite_dropped_at = None
     for account_id, row in accounts_here.items():
-        # Which accounts nexsuite knows from now on, by its person (B8, B21): the matched and the made ones. One left
-        # out is not nexsuite's; it keeps whatever sign-in link it had here (authentik) and is never renamed for it.
+        # Which accounts nexsuite knows from now on, by its person (B8, B21): the matched and the made ones, linked to
+        # it at nexsuite's entry below. One left out is not nexsuite's; whatever own link it has (authentik) stays
+        # with its own provider, set aside while coupled, and it is never renamed for it.
         person = person_of.get(account_id)
-        if person is not None:
-            row.oidc_subject = person
-        elif row.oidc_subject:
-            # Its own link is set aside until disconnecting: a foreign subject that looks like a person's id of
-            # nexsuite ("2") would otherwise sign that person in as this account, or hand it the person's rights.
-            row.own_subject, row.oidc_subject = row.oidc_subject, ""
         row.suite_person = person or ""
         # Left out, or made here after the choices (between pairing and finishing, or after /finish went out): no
         # person in nexsuite, so no way in while connected, and never a sign-in with a password of its own beside
@@ -653,18 +651,27 @@ def _confirm(db: Session, token: str, plan: dict[str, Any]) -> list[dict[str, st
         if team is not None:
             team.source, team.external_id = TEAM_ADMIN, external
     # Confirmed: everything here in one transaction with the settings below (``settings_service.save`` commits).
+    # nexsuite becomes the provider: the own entries step aside (switched off; the entry ``oidc`` waits as
+    # ``oidc-own``), nexsuite takes the slug ``oidc`` with ``/api/oidc/callback``, the address it was told when
+    # pairing, and each matched or made account is linked to its person (blueprint 06, the shared module).
     pending = settings_service.get(db, "suite_pending") or {}
     values = settings_service.get_all(db)
+    joined = coupling.couple(
+        oidc_store.couple_store(db),
+        issuer=str(pending.get("issuer", "")),
+        client_id=str(pending.get("client_id", "")),
+        client_secret=decrypt_secret(str(pending.get("secret_enc", "")), SECRET_CONTEXT),
+        label=SUITE_LABEL,
+        people=[(account_id, person) for account_id, person in person_of.items() if account_id in accounts_here],
+        trusts_second_factor=True,
+    )
     settings_service.save(db, {
         # What it was before, for the way back; the roles too, so that an operator role only nexsuite gave goes with
-        # the connection (B17). An account made while connected was none before: a member.
-        "suite_saved": {**{key: values[key] for key in (*OIDC_KEYS, *SMTP_KEYS, "password_login")},
+        # the connection (B17). An account made while connected was none before: a member. The own providers come
+        # back through the coupling kept beside it.
+        "suite_saved": {**{key: values[key] for key in (*SMTP_KEYS, "password_login")},
                         "roles": {str(row.id): row.role for row in accounts_here.values()}},
-        "oidc_issuer": str(pending.get("issuer", "")).rstrip("/"),
-        "oidc_client_id": str(pending.get("client_id", "")),
-        "oidc_client_secret_enc": encrypt_secret(decrypt_secret(str(pending.get("secret_enc", "")), SECRET_CONTEXT)),
-        "oidc_provider_name": "nexsuite",
-        "oidc_auto_create": False,
+        oidc_store.COUPLING: joined.as_dict(),
         "password_login": False,
         "suite_pending": None,
         "suite_state": "connected",
@@ -857,108 +864,41 @@ def _moment(text: Any) -> datetime:
     return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
 
 
-def claimants(db: Session, subject: str | None = None) -> list[Account]:
-    """While connected, the accounts whose ``oidc_subject`` is a person of nexsuite: those nexsuite knows
-    (``suite_person``), and, connected before that was kept, those not blocked. A blocked account nexsuite never knew
-    (left out when connecting) never stands for a person, even with a subject that looks like one's id."""
-    query = select(Account).where(Account.oidc_subject != "" if subject is None else Account.oidc_subject == subject)
-    return [row for row in db.scalars(query.order_by(Account.id)) if row.suite_person or row.blocked_at is None]
-
-
-def _same_name(row: Account, person: dict[str, Any] | None) -> bool:
-    """The account's sign-in name is the person's: no earlier sync changed it, unlike address and display name, which
-    an old sync may have copied onto a stranger's account."""
-    return person is not None and row.name == str(person.get("name") or "")
-
-
-def _switched(row: Account) -> bool:
-    """An account with a password of its own that signs in through the provider: only a sync switches one so (the
-    operator's "set a password" switches back, a provider makes accounts without one). Its subject is a person of
-    nexsuite's, never a link of its own, also once nexsuite has deleted the person."""
-    return row.sign_in == SIGN_IN_OIDC and bool(row.password_hash)
-
-
-def _settle_subjects(db: Session, people: dict[str, dict[str, Any]], keeper: int, signed_out: list[int]) -> None:
-    """Each subject is claimed by one account at most: a connection made before ``suite_person`` was kept (c485f67)
-    knows no owner, and a person blocked in nexsuite must not lose its account to a new one ("erik2") just because
-    the old one is blocked. An account whose ``suite_person`` names another person never claims a subject: it goes
-    back to its own person. Among the rest, unmarked ones only when not blocked, carrying the person's sign-in name, or
-    (person deleted there) switched to the provider by a sync, so a deleted person's id never turns into a link of its
-    own on disconnecting; the first by: marked for exactly this person (the operator's choice when connecting), the
-    sign-in name is the person's, not blocked, smallest id. Address and display name do not count: an old sync may
-    have copied them onto a stranger's account. Every other account lets the subject go: when its
-    own link is aside already, the subject came with the connection and is dropped; otherwise nothing tells whether it
-    is its own link (a connection from before kept no mark), so it is put aside (``own_subject``, given back on
-    disconnecting). Left without a person it is blocked like an account left out; an
-    address it holds goes only together with the display name when both are exactly those of that person."""
-    rows = list(db.scalars(select(Account).where(Account.oidc_subject != "").order_by(Account.id)))
-    holders: dict[str, list[Account]] = {}
-    for row in rows:
-        holders.setdefault(row.oidc_subject, []).append(row)
-    owner: dict[str, Account] = {}
-    for subject, group in holders.items():
-        person = people.get(subject)
-        able = [row for row in group if row.suite_person == subject
-                or (not row.suite_person and (row.blocked_at is None or _same_name(row, person)
-                                              or (person is None and _switched(row))))]
-        if able:
-            # The operator's choice when connecting comes first: an account marked for exactly this person.
-            owner[subject] = min(able, key=lambda row: (row.suite_person != subject, not _same_name(row, person),
-                                                        row.blocked_at is not None, row.id))
-    for row in rows:
-        subject = row.oidc_subject
-        if owner.get(subject) is row:
-            # Marked as the person's: also one whose person nexsuite deleted, when a sync had switched it to the
-            # provider; a disconnect then gives it its password back instead of keeping the id as a link.
-            if subject in people or _switched(row):
-                row.suite_person = subject
-            continue
-        person = people.get(subject)
-        if row.own_subject:
-            # Its own link is aside already (since connecting): this subject came with the connection.
-            logger.info("A subject from the connection dropped from an account name=%s", row.name)
-        else:
-            logger.info("A link of its own kept aside from nexsuite name=%s", row.name)
-            row.own_subject = subject
-        row.oidc_subject = ""
-        own = row.suite_person if row.suite_person and row.suite_person != subject else ""
-        if own and own not in owner and own not in holders:
-            row.oidc_subject = own  # its own person in nexsuite, whose account it stays
-            owner[own] = row
-            continue
-        row.suite_person = ""
-        copied = (person is not None and row.email == str(person.get("email") or "")[:255]
-                  and row.display_name == names.from_suite(person.get("display_name"), 80, invisible=True))
-        if copied:
-            row.email, row.display_name = "", ""
-        if row.id != keeper and row.blocked_at is None:
-            row.blocked_at = utcnow()
-            signed_out.append(row.id)
-    db.flush()
-
-
 def _apply(db: Session, seen: dict[str, Any], token: str) -> None:
     keeper = int(settings_service.get(db, "suite_emergency_account") or 0)
     present = {str(person["id"]) for person in seen.get("people", [])}
     account_of: dict[str, int] = {}
     signed_out: list[int] = []
     renamed: list[tuple[str, str]] = []
-    # Before anything is matched by subject: one account per subject (connections from before c485f67).
-    _settle_subjects(db, {str(person["id"]): person for person in seen.get("people", [])}, keeper, signed_out)
-    by_subject = {row.oidc_subject: row for row in claimants(db)}
+    store = oidc_store.SqlStore(db)
+    entry = oidc_store.coupled_entry(db)
+    if entry is None:
+        # Connected without nexsuite's entry in the provider list cannot happen through the coupling; nothing is
+        # matched by guessing then.
+        logger.error("Connected to nexsuite, but its sign-in entry is missing; the directory was not applied")
+        return
+    # Which account is which person: its link at nexsuite's entry, one identity per account and provider.
+    by_subject: dict[str, Account] = {}
+    for link in store.links_of_provider(entry.id):
+        holder = db.get(Account, link.account_id)
+        if holder is not None:
+            by_subject[link.subject] = holder
     for person in seen.get("people", []):
         pid = str(person["id"])
         row = by_subject.get(pid)
         if row is None:
             row = Account(name=_claim_name(db, person, present, keeper, renamed), sign_in=SIGN_IN_OIDC,
-                          password_hash="", oidc_subject=pid, whats_new_seen=__version__)
+                          password_hash="", whats_new_seen=__version__)
             db.add(row)
             db.flush()
+            store.add_link(Link(provider_id=entry.id, subject=pid, account_id=row.id, issuer=entry.issuer))
         # nexsuite knows this account by its person (also one connected before this was kept, B8).
         row.suite_person = pid
         # Names from nexsuite follow the rule for names typed here: no control (C1 too) or format characters.
         row.display_name = names.from_suite(person.get("display_name"), 80, invisible=True)
         row.email = str(person.get("email") or "")[:255]
+        # nexsuite's address, not a provider's: it stays when the link goes with a disconnect.
+        row.email_from_provider = False
         if row.id != keeper:
             # Signs in through nexsuite (password and second factor are set there); the own password stays kept
             # for a disconnect. Only the emergency account keeps signing in here.
@@ -986,8 +926,8 @@ def _apply(db: Session, seen: dict[str, Any], token: str) -> None:
             row.blocked_at = None
         account_of[pid] = row.id
     # People nexsuite no longer has can no longer sign in here; the emergency account neither, as when blocked there
-    # (Prüfgang D8, decided 04.10.2026). Disconnecting lets it in again.
-    # One left out when connecting is blocked already and keeps its own link (authentik): untouched here.
+    # (Prüfgang D8, decided 04.10.2026). Disconnecting lets it in again. One left out when connecting has no link at
+    # nexsuite's entry: untouched here, its own link (authentik) waits with its own provider.
     for subject, row in by_subject.items():
         if subject not in account_of and row.blocked_at is None:
             row.blocked_at = utcnow()
@@ -1201,13 +1141,10 @@ def _disconnect(db: Session, *, tell: bool) -> tuple[list[str], list[str], list[
         row.role = MEMBER
         back.append(row.name)
         logger.warning("Operator role from nexsuite ended name=%s", row.name)
-    restore = {key: saved[key] for key in (*OIDC_KEYS, "password_login") if key in saved}
-    if not restore:
-        restore = {"oidc_issuer": "", "oidc_client_id": "", "oidc_client_secret_enc": "", "oidc_provider_name": "",
-                   "oidc_auto_create": False, "password_login": True}
+    restore = {"password_login": saved.get("password_login", True) if isinstance(saved, dict) else True}
     if settings_service.get(db, "suite_mail"):
         restore.update({key: saved[key] for key in SMTP_KEYS if key in saved})
-    settings_service.save(db, restore)
+    settings_service.save(db, restore, commit=False)
     for team in db.scalars(select(Team).where(Team.source == TEAM_ADMIN)):
         team.source, team.external_id = TEAM_LOCAL, ""
     for space in db.scalars(select(Space).where(Space.external_id != "")):
@@ -1219,27 +1156,35 @@ def _disconnect(db: Session, *, tell: bool) -> tuple[list[str], list[str], list[
         keeper.blocked_at = None
         logger.warning("Emergency account let in again on disconnecting name=%s", keeper.name)
         db.flush()
-    without = []
-    for row in db.scalars(select(Account).where(Account.oidc_subject != "")):
-        # Only the accounts nexsuite knew sign in here again; one left out keeps its own link (authentik) as it was
-        # (B8). Connected before ``suite_person`` was kept: every account not blocked was nexsuite's.
-        if not (row.suite_person == row.oidc_subject or (not row.suite_person and row.blocked_at is None)):
-            continue
-        # Kept for connecting again to the same nexsuite (B8): the account is suggested its own person.
-        row.suite_person = row.oidc_subject
-        row.oidc_subject = ""
-        if row.password_hash:
-            row.sign_in = SIGN_IN_PASSWORD
-        if not row.password_hash and row.blocked_at is None:
-            without.append(row.name)
-    for row in db.scalars(select(Account).where(Account.own_subject != "")):
-        # Left out when connecting: its own link (authentik) is its way in again.
-        if not row.oidc_subject:
-            row.oidc_subject = row.own_subject
-        row.own_subject = ""
+    theirs: list[Account] = []
+    entry = oidc_store.coupled_entry(db)
+    if entry is not None:
+        for link in oidc_store.SqlStore(db).links_of_provider(entry.id):
+            # Only the accounts nexsuite knew sign in here again, with their password (B8). Kept for connecting
+            # again to the same nexsuite: the account is suggested its own person.
+            row = db.get(Account, link.account_id)
+            if row is None:
+                continue
+            row.suite_person = link.subject
+            if row.password_hash:
+                row.sign_in = SIGN_IN_PASSWORD
+            theirs.append(row)
+    # nexsuite's entry goes with its links, and every own entry comes back as it was before connecting: one left out
+    # when connecting signs in with its own link (authentik) again.
+    store = oidc_store.couple_store(db)
+    kept = settings_service.get(db, oidc_store.COUPLING)
+    if isinstance(kept, dict) and kept.get("provider_id"):
+        coupling.uncouple(store, coupling.Coupling.from_dict(kept))
+    elif entry is not None:
+        logger.warning("No coupling kept for nexsuite's sign-in entry; it goes, the own entries stay as they are")
+        store.delete_provider(entry.id)
+    db.flush()
+    without = [row.name for row in theirs
+               if not row.password_hash and row.blocked_at is None and not oidc_store.has_links(db, row.id)]
     blocked = [row.name for row in
                db.scalars(select(Account).where(Account.blocked_at.is_not(None)).order_by(Account.name))]
-    settings_service.save(db, {"suite_former_url": str(settings_service.get(db, "suite_url") or "")})
+    settings_service.save(db, {"suite_former_url": str(settings_service.get(db, "suite_url") or ""),
+                               oidc_store.COUPLING: None}, commit=False)
     db.commit()
     _forget(db)
     logger.warning("Disconnected from nexsuite; running on its own")

@@ -47,8 +47,9 @@ from .routers import suite as suite_router
 from .routers import totp as totp_router
 from .routers import v1 as v1_router
 from .security import HashingBusy, purge_sessions
-from .services import accounts, backups, cleanup, locales, logs, settings_service, totp
+from .services import accounts, backups, cleanup, locales, logs, oidc_store, settings_service, totp
 from .services import ai as ai_service
+from .vendor import nexoidc
 
 logger = logging.getLogger("nexbrand")
 
@@ -109,6 +110,10 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     logs.setup()
     backups.apply_pending()
     init_db()
+    # The single provider of the settings becomes the provider list, once, after a backup (blueprint 01, 06).
+    oidc_store.migrate_settings()
+    # The TLS context for the providers and authentik, read once outside the event loop.
+    await nexoidc.warm()
     private.tighten_all()
     logs.attach_store(_read_log_mode, _write_log_mode)
     logs.apply_stored_mode()
@@ -224,3 +229,6 @@ def _mount_frontend(target: FastAPI, dist: Path) -> None:
 
 
 _mount_frontend(app, get_settings().frontend_dist)
+
+# The shared sign-in module learns who it runs in before the first request (and before any test client).
+oidc_store.configure()
