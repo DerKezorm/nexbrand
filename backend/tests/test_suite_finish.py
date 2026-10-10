@@ -366,6 +366,23 @@ def test_a_left_out_account_deleted_between_the_tries_stops_nothing(
     assert _setting("suite_state") == "connected"
 
 
+def test_a_matched_account_deleted_between_the_tries_gets_no_link_and_stops_nothing(
+        client: TestClient, operator: Account, world: dict, fake: FakeSuite,
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    """anna was matched to person 2; she is deleted here before the next try: the coupling links the others and
+    leaves her person out (a link needs its account)."""
+    chosen = _sent_and_lost(client, world, fake, monkeypatch)
+    with SessionLocal() as db:
+        anna = db.get(Account, world["anna"].id)
+        assert anna is not None
+        db.delete(anna)
+        db.commit()
+    done = client.post("/api/suite/finish", json=chosen)
+    assert done.status_code == 200, done.text
+    assert _setting("suite_state") == "connected"
+    assert _person("tester") == "1"
+
+
 def test_after_sending_a_chosen_person_deleted_in_nexsuite_still_shows_by_its_name(
         client: TestClient, operator: Account, world: dict, fake: FakeSuite,
         monkeypatch: pytest.MonkeyPatch) -> None:

@@ -352,6 +352,22 @@ def test_an_account_without_a_password_cannot_start_a_link(
     assert refused.status_code == 409 and refused.json()["detail"]["code"] == "oidc_only_account"
 
 
+def test_a_blocked_account_does_not_come_in_through_its_provider(
+    client: TestClient, operator: Account, provider: FakeProvider
+) -> None:
+    add_provider(client, provider)
+    make_account("anna")
+    member = fresh_browser()
+    sign_in(member, accounts_row("anna"))
+    link(member, provider, PASSWORD, sub="anna-1")
+    with SessionLocal() as db:
+        db.get(Account, accounts_row("anna").id).blocked_at = suite.utcnow()  # type: ignore[union-attr]
+        db.commit()
+    browser = fresh_browser()
+    assert error_in(sign_in_via_oidc(browser, provider, sub="anna-1")) == "account_blocked"
+    assert browser.get("/api/auth/me").status_code == 401
+
+
 # --- The address a provider knows ------------------------------------------------------------------------------------
 
 
