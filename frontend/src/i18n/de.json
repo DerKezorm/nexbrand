@@ -173,7 +173,7 @@
     "mailTest": "Testmail an",
     "send": "Senden",
     "mailSent": "Die Testmail ist raus.",
-    "twoFactorRequiredHint": "Jedes Konto, das sich mit Passwort anmeldet, muss ihn einrichten, bevor es weiterkommt. Konten vom Anbieter bringen dessen eigenen mit. Erst den eigenen einschalten.",
+    "twoFactorRequiredHint": "Jedes Konto, das sich mit Passwort anmeldet, muss ihn einrichten, bevor es weiterkommt. Konten vom Anbieter bringen dessen eigenen mit. Ein Konto mit Passwort ist ebenfalls nicht betroffen, wenn es über einen Anbieter kommt, bei dem „{{trusts}}“ an ist.",
     "inSpaces_one": "Zugriff auf einen Kunden",
     "inSpaces_other": "Zugriff auf {{count}} Kunden",
     "withTwoFactor": "zweiter Faktor",
@@ -321,7 +321,7 @@
     "noPassword": "ohne Passwort",
     "givePassword": "Passwort setzen",
     "unblock": "Entsperren",
-    "ownSecondFactorFirst": "Richte zuerst deinen eigenen zweiten Faktor ein (Mein Konto, Sicherheit), sonst wärst du der Erste, der nicht mehr weiterkommt.",
+    "ownSecondFactorFirst": "Richte zuerst deinen eigenen zweiten Faktor ein (Mein Konto, Sicherheit), sonst wärst du der Erste, der nicht mehr weiterkommt. Nicht betroffen ist, wer sich über einen Anbieter anmeldet, bei dem „{{trusts}}“ an ist.",
     "outside": {
       "title": "Sammeln und KI",
       "text": "Zwei Wege nach draußen, beide zu, bis du sie öffnest. Beim Sammeln erfährt die Webseite, dass dieser Server sie abgerufen hat; mit KI geht das Material eines Kunden an den Dienst, den ein Konto eingetragen hat.",

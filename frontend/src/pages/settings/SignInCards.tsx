@@ -69,6 +69,9 @@ function SignInCard({ server, anyActive, coupled }: { server: Server; anyActive:
   if (!s) return null
   // Without an own second factor the operator would be the first one sent away (a1-14): first the own one.
   const ownFirst = !s.two_factor_required && me?.sign_in === 'password' && !me?.two_factor
+  // A sign-in through a provider whose switch says it checks the second factor itself is not sent away; both hints name
+  // that switch.
+  const trusts = { trusts: t('oidc.admin.trustsSecondFactor') }
   return (
     <Card id="sign-in" icon={ShieldCheck} title={t('oidc.admin.signInTitle')}>
       <Toggle
@@ -105,7 +108,7 @@ function SignInCard({ server, anyActive, coupled }: { server: Server; anyActive:
       </form>
       <Toggle
         label={t('server.twoFactorRequired')}
-        hint={ownFirst ? t('server.ownSecondFactorFirst') : t('server.twoFactorRequiredHint')}
+        hint={ownFirst ? t('server.ownSecondFactorFirst', trusts) : t('server.twoFactorRequiredHint', trusts)}
         checked={s.two_factor_required}
         disabled={ownFirst}
         onChange={(two_factor_required) => void server.save({ two_factor_required })}

@@ -31,10 +31,12 @@ const TEXTS = { de: de.oidc, en: en.oidc } as const
 type Language = keyof typeof TEXTS
 type Step = { key: string; ok: boolean; detail: string; reason?: string; status?: number }
 
+/** Whether the operator has an own second factor; the requirement switch shows another hint without one. */
+const viewer = vi.hoisted(() => ({ two_factor: true }))
 const ME = { id: 1, name: 'robin', display_name: '', role: 'operator', sign_in: 'password', two_factor: true, suite: '' } as unknown as Me
 vi.mock('../state/auth', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../state/auth')>()),
-  useAuth: () => ({ status: 'signedIn', me: ME, ended: false, refresh: async () => undefined, setMe: () => undefined, signOut: async () => undefined }),
+  useAuth: () => ({ status: 'signedIn', me: { ...ME, two_factor: viewer.two_factor }, ended: false, refresh: async () => undefined, setMe: () => undefined, signOut: async () => undefined }),
 }))
 
 function entry(change: Partial<OidcProvider> = {}): OidcProvider {
@@ -174,6 +176,7 @@ async function setUp(page: HTMLElement): Promise<void> {
 const rows = (page: HTMLElement) => [...page.querySelectorAll('[data-testid="authentik-steps"] li')].map((row) => row.textContent)
 
 beforeEach(() => {
+  viewer.two_factor = true
   Object.assign(server, {
     steps: [], gate: null, pending: 0, providers: [], asked: [], ask: null, runs: [], answers: [], address: addressView(),
     settings: { ...SETTINGS }, askAddress: null, saved: [], settingsSaved: [],
@@ -492,4 +495,22 @@ describe('the three cards', () => {
     const password = page.querySelector(`#sign-in input[aria-label="${en.oidc.admin.password}"]`) as HTMLInputElement
     expect(password.disabled).toBe(true)
   })
+})
+
+describe('the second factor requirement', () => {
+  for (const language of ['de', 'en'] as const) {
+    for (const own of [true, false]) {
+      it(`names the provider switch that exempts a sign-in (${language}, ${own ? 'with' : 'without'} an own factor)`, async () => {
+        viewer.two_factor = own
+        const shown = await cards(language)
+        const hint = i18n.t(own ? 'server.twoFactorRequiredHint' : 'server.ownSecondFactorFirst', {
+          trusts: i18n.t('oidc.admin.trustsSecondFactor'),
+        })
+        expect(shown.textContent).toContain(hint)
+        // The words of the switch itself, between the quotes of the sentence: not a gap.
+        const [open, close] = language === 'de' ? ['„', '“'] : ['“', '”']
+        expect(shown.textContent).toContain(`${open}${i18n.t('oidc.admin.trustsSecondFactor')}${close}`)
+      })
+    }
+  }
 })
