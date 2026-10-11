@@ -50,7 +50,8 @@ class Settings(BaseSettings):
     argon2_time: int = 3
     argon2_memory_kib: int = 65536
     argon2_parallelism: int = 2
-    #: ``auto``: the session cookie is ``Secure`` when the request came over HTTPS (or a proxy says so).
+    #: ``auto``: the session cookie is ``Secure`` when the request came over HTTPS (or a proxy in ``trusted_proxies``
+    #: says so).
     cookie_secure: str = "auto"
     #: The address people reach nexbrand under, for links in invitations and the OIDC return. Empty: the address of
     #: the request. The setting in the interface wins over this.
@@ -58,8 +59,8 @@ class Settings(BaseSettings):
     #: Appended to every cookie name. Two instances on one host under different ports share their cookies (a browser
     #: does not tell ports apart); a suffix keeps their sign-ins apart. Letters, digits and "_" only.
     cookie_suffix: str = ""
-    #: Addresses or networks of reverse proxies whose ``X-Forwarded-For`` may be believed, comma separated. Empty:
-    #: the header is ignored, so that nobody dodges the sign-in brake with made-up addresses.
+    #: Addresses or networks of reverse proxies whose ``X-Forwarded-For`` and ``X-Forwarded-Proto`` may be believed,
+    #: comma separated. Empty: the headers are ignored, so that nobody dodges the sign-in brake with made-up addresses.
     trusted_proxies: str = ""
     #: The code the first account must bring. Empty: nexbrand makes one at every start until set up and writes it to
     #: the log, so that whoever reaches a fresh instance first does not become its operator.

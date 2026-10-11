@@ -54,24 +54,39 @@ SECURITY_HEADERS: tuple[tuple[bytes, bytes], ...] = (
 )
 
 
+#: The schemes a trusted proxy may hand on, per kind of connection.
+_SCHEMES = {"http": ("http", "https"), "websocket": ("ws", "wss")}
+
+
+def forwarded_proto(headers: list[tuple[bytes, bytes]], kind: str) -> str | None:
+    """The scheme the last proxy wrote into ``X-Forwarded-Proto``: the rightmost value of the last such header (what
+    stands left of it a sender may have written itself), without regard to case, and only one this kind of connection
+    has (http, https; ws, wss for a WebSocket). None for anything else. Whether to believe it at all is the caller's
+    question: only from a peer in ``NEXBRAND_TRUSTED_PROXIES`` (``ForwardedProtoMiddleware``)."""
+    values = [value for name, value in headers if name.lower() == b"x-forwarded-proto"]
+    if not values:
+        return None
+    proto = values[-1].decode("latin-1").split(",")[-1].strip().lower()
+    return proto if proto in _SCHEMES.get(kind, ()) else None
+
+
 class ForwardedProtoMiddleware:
     """The scheme a proxy that ends TLS reports. uvicorn runs with ``--no-proxy-headers`` (it would believe any sender
     that writes ``X-Forwarded-For``), so behind such a proxy every request looked like plain http: the return address
-    of a sign-in, links in mails and ``request.base_url`` said ``http://``. Only a peer in ``NEXBRAND_TRUSTED_PROXIES``
-    is believed, and only its ``X-Forwarded-Proto`` (the last value, which that proxy wrote; what stands left of it a
-    sender wrote itself), and only the scheme: host and address of the sender stay as they were. Without trusted
-    proxies nothing changes."""
+    of a sign-in, links in mails, ``request.base_url`` and the ``Secure`` flag of the cookies said ``http``. Only a
+    peer in ``NEXBRAND_TRUSTED_PROXIES`` is believed (none out of the box), only its ``X-Forwarded-Proto`` as
+    ``forwarded_proto`` reads it, and only the scheme: host and address of the sender stay as they were. Without
+    trusted proxies nothing changes."""
 
     def __init__(self, app: Any) -> None:
         self.app = app
 
     async def __call__(self, scope: dict, receive: Callable, send: Callable) -> None:
-        if scope["type"] == "http" and scope.get("client") and is_trusted_proxy(str(scope["client"][0])):
-            values = [value for name, value in scope.get("headers", []) if name == b"x-forwarded-proto"]
-            if values:
-                proto = values[-1].decode("latin-1").split(",")[-1].strip().lower()
-                if proto in ("http", "https"):
-                    scope = {**scope, "scheme": proto}
+        kind = scope.get("type", "")
+        if kind in _SCHEMES and scope.get("client") and is_trusted_proxy(str(scope["client"][0])):
+            proto = forwarded_proto(scope.get("headers", []), kind)
+            if proto:
+                scope = {**scope, "scheme": proto}
         await self.app(scope, receive, send)
 
 

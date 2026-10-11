@@ -4,15 +4,17 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
+from app.config import get_settings
 from app.db import SessionLocal
 from app.models import OPERATOR, Account, AuthSession, utcnow
 from app.security import MAX_FAILURES, SESSION_COOKIE, decrypt_secret, encrypt_secret, hash_token
 from app.services import settings_service
 
-from .conftest import PASSWORD, SETUP_CODE, make_account, sign_in
+from .conftest import PASSWORD, SETUP_CODE, TAB, make_account, sign_in
 
 GOOD = "a long enough password"
 
@@ -61,12 +63,57 @@ def test_sign_in_and_out(client: TestClient) -> None:
     assert client.get("/api/auth/me").status_code == 401
 
 
-def test_the_cookie_is_secure_behind_https(client: TestClient) -> None:
+def _cookie_secure(peer: str, headers: list[tuple[str, str]]) -> bool:
+    """Whether the session cookie of a sign-in from ``peer`` with these headers carries ``Secure``."""
+    from app.main import app
+
+    sender = TestClient(app, base_url="http://testserver", headers=TAB, client=(peer, 50000))
+    signed = sender.post("/api/auth/login", json={"name": "anna", "password": PASSWORD}, headers=headers)
+    assert signed.status_code == 200, signed.text
+    return "secure" in signed.headers["set-cookie"].lower()
+
+
+def test_the_cookie_is_secure_behind_https_from_a_trusted_proxy_only(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     make_account("anna")
-    signed = client.post(
-        "/api/auth/login", json={"name": "anna", "password": PASSWORD}, headers={"X-Forwarded-Proto": "https"}
-    )
-    assert "Secure" in signed.headers["set-cookie"]
+    https = [("X-Forwarded-Proto", "https")]
+    # Over https itself, always.
+    secure = TestClient(client.app, base_url="https://testserver", headers=TAB)
+    assert "Secure" in secure.post("/api/auth/login", json={"name": "anna", "password": PASSWORD}).headers["set-cookie"]
+    # Out of the box nexbrand trusts no proxy: the header of any sender changes nothing.
+    assert _cookie_secure("10.9.0.5", https) is False
+    monkeypatch.setattr(get_settings(), "trusted_proxies", "10.9.0.0/16")
+    assert _cookie_secure("10.9.0.5", https) is True, "the trusted proxy ended TLS"
+    assert _cookie_secure("203.0.113.7", https) is False, "any other sender writes what it likes"
+    # The rightmost value of the last header line counts; what stands left of it a sender may have written.
+    assert _cookie_secure("10.9.0.5", [("X-Forwarded-Proto", "https, http")]) is False
+    assert _cookie_secure("10.9.0.5", [("X-Forwarded-Proto", "http, https")]) is True
+    assert _cookie_secure("10.9.0.5", [("X-Forwarded-Proto", "https"), ("X-Forwarded-Proto", "http")]) is False
+    assert _cookie_secure("10.9.0.5", [("X-Forwarded-Proto", "http"), ("X-Forwarded-Proto", "HTTPS")]) is True
+    assert _cookie_secure("10.9.0.5", [("X-Forwarded-Proto", "https, wss")]) is False, "no scheme of plain http"
+    # The operator's word wins either way.
+    monkeypatch.setattr(get_settings(), "cookie_secure", "on")
+    assert _cookie_secure("203.0.113.7", []) is True
+    monkeypatch.setattr(get_settings(), "cookie_secure", "off")
+    assert _cookie_secure("10.9.0.5", https) is False
+
+
+def test_the_scheme_of_a_proxy_is_read_as_the_shared_rule_says() -> None:
+    from app.middleware import forwarded_proto
+
+    def said(kind: str, *values: str) -> str | None:
+        return forwarded_proto([(b"x-forwarded-proto", value.encode()) for value in values], kind)
+
+    assert said("http") is None
+    assert said("http", "https") == "https" and said("http", "HTTP") == "http"
+    assert said("http", "https, http") == "http" and said("http", " http ,  Https ") == "https"
+    assert said("http", "http", "https") == "https" and said("http", "https", "http") == "http"
+    assert said("http", "javascript") is None and said("http", "https, ftp") is None and said("http", "") is None
+    # A WebSocket knows ws and wss, plain http neither.
+    assert said("websocket", "wss") == "wss" and said("websocket", "WS") == "ws"
+    assert said("websocket", "https") is None and said("http", "wss") is None
+    assert said("lifespan", "https") is None
 
 
 def test_an_expired_session_is_gone(client: TestClient) -> None:

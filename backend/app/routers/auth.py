@@ -109,8 +109,10 @@ def secure_cookie(request: Request) -> bool:
         return True
     if mode == "off":
         return False
-    forwarded = request.headers.get("x-forwarded-proto", "")
-    return request.url.scheme == "https" or forwarded.split(",")[-1].strip().lower() == "https"
+    # The scheme as ``ForwardedProtoMiddleware`` left it: the connection's own, or the rightmost value of the last
+    # ``X-Forwarded-Proto`` from a proxy in ``NEXBRAND_TRUSTED_PROXIES``, never the header of anybody else (the shared
+    # sign-in module README, "Hinter einem Proxy"). Behind a proxy nexbrand was not told about: ``on``.
+    return request.url.scheme == "https"
 
 
 def _set_cookie(response: Response, request: Request, token: str) -> None:

@@ -208,13 +208,13 @@ With an image: `docker compose pull && docker compose up -d`. Built from source:
 | `NEXBRAND_LOCALES_DIR` | `<data>/locales` | Extra languages, one JSON file each |
 | `NEXBRAND_SECRET_KEY` | created on first start | Protects server-side secrets; when set, it wins over `secret.key` |
 | `NEXBRAND_PUBLIC_URL` | from the request | The address people use to reach nexbrand, for invitation links, public pages and the OIDC redirect. The setting in the interface wins when set |
-| `NEXBRAND_TRUSTED_PROXIES` | none | Addresses or networks of reverse proxies whose `X-Forwarded-For` is believed, comma separated |
+| `NEXBRAND_TRUSTED_PROXIES` | none | Addresses or networks of reverse proxies whose `X-Forwarded-For` and `X-Forwarded-Proto` are believed, comma separated |
 | `NEXBRAND_SETUP_TOKEN` | created at start | The code the first account needs |
 | `NEXBRAND_OPERATOR_NETWORKS` | none | Networks the operator's settings may be changed from, comma separated |
 | `NEXBRAND_UPLOAD_MAX_MB` | `50` | The largest file; the operator can lower it in the settings |
 | `NEXBRAND_SESSION_DAYS` | `30` | A browser session ends after this many days |
 | `NEXBRAND_LOG_LEVEL` | stored setting | `quiet`, `normal`, `detailed` or `trace`; overrides the setting |
-| `NEXBRAND_COOKIE_SECURE` | `auto` | `on`, `off` or `auto` (from the request or `X-Forwarded-Proto`) |
+| `NEXBRAND_COOKIE_SECURE` | `auto` | `on`, `off` or `auto` (from the request, or `X-Forwarded-Proto` of a proxy in `NEXBRAND_TRUSTED_PROXIES`) |
 | `NEXBRAND_API_DOCS` | `false` | Serves `/api/docs` and `/api/openapi.json` |
 | `PUID`, `PGID` | `1000` | Owner of the files in the data directory |
 
