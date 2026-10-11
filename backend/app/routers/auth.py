@@ -110,7 +110,7 @@ def secure_cookie(request: Request) -> bool:
     if mode == "off":
         return False
     forwarded = request.headers.get("x-forwarded-proto", "")
-    return request.url.scheme == "https" or forwarded.split(",")[0].strip() == "https"
+    return request.url.scheme == "https" or forwarded.split(",")[-1].strip().lower() == "https"
 
 
 def _set_cookie(response: Response, request: Request, token: str) -> None:
