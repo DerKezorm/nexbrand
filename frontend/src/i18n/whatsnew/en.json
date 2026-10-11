@@ -1,4 +1,18 @@
 {
+  "0.2.1": {
+    "lead": "The hint under “Require a second factor” now says which sign-ins it does not stop, and behind a reverse proxy only a proxy you trust decides whether the session cookie stays on https.",
+    "sections": [
+      {
+        "title": "Who has to set up a second factor",
+        "where": "Settings, Server, Sign-in, “Require a second factor”",
+        "body": "An account with a password is not sent to set up a second factor while it signs in through a provider for which “The provider checks the second factor itself” is on. The hint under the switch says so now, also the one that asks you to set up your own first."
+      }
+    ],
+    "smallTitle": "Also",
+    "small": [
+      "The session cookie is marked for https only when the request came over https or a proxy in NEXBRAND_TRUSTED_PROXIES says it ended TLS. Before, any sender could ask for that. Behind a proxy that is not listed there, add it or set NEXBRAND_COOKIE_SECURE to on."
+    ]
+  },
   "0.2.0": {
     "lead": "Signing in works with several providers at once, and changing the public address asks before it takes effect.",
     "sections": [

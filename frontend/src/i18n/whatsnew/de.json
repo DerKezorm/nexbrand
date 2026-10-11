@@ -1,4 +1,18 @@
 {
+  "0.2.1": {
+    "lead": "Der Hinweis unter „Zweiten Faktor verlangen“ sagt jetzt, welche Anmeldungen er nicht aufhält, und hinter einem Reverse-Proxy entscheidet nur ein Proxy, dem du traust, ob das Sitzungscookie bei https bleibt.",
+    "sections": [
+      {
+        "title": "Wer einen zweiten Faktor einrichten muss",
+        "where": "Einstellungen, Server, Anmeldung, „Zweiten Faktor verlangen“",
+        "body": "Ein Konto mit Passwort muss keinen zweiten Faktor einrichten, solange es sich über einen Anbieter anmeldet, bei dem „Der Anbieter prüft den zweiten Faktor selbst“ an ist. Das sagt jetzt auch der Hinweis unter dem Schalter, ebenso der, der dich zuerst um deinen eigenen bittet."
+      }
+    ],
+    "smallTitle": "Außerdem",
+    "small": [
+      "Das Sitzungscookie gilt nur noch dann allein für https, wenn die Anfrage über https kam oder ein Proxy aus NEXBRAND_TRUSTED_PROXIES meldet, dass er TLS beendet hat. Bisher konnte jeder Absender das verlangen. Hinter einem Proxy, der dort nicht steht: ihn eintragen oder NEXBRAND_COOKIE_SECURE auf on setzen."
+    ]
+  },
   "0.2.0": {
     "lead": "Die Anmeldung geht mit mehreren Anbietern zugleich, und das Ändern der öffentlichen Adresse fragt nach, bevor es gilt.",
     "sections": [
