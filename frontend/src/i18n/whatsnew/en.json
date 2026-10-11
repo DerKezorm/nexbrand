@@ -1,4 +1,29 @@
 {
+  "0.2.0": {
+    "lead": "Signing in works with several providers at once, and changing the public address asks before it takes effect.",
+    "sections": [
+      {
+        "title": "Several providers, one button each",
+        "where": "Sign-in page, Settings, Server, Sign-in",
+        "body": "Offer as many OpenID Connect providers as you like, for example authentik and Microsoft Entra ID, each with its own button. A person links an account per provider, and signing in follows the link, never the mail address. Accounts that were found by their address before are linked already."
+      },
+      {
+        "title": "Asked before it changes",
+        "where": "Settings, Server, Sign-in",
+        "body": "The authentik button asks first when it would hand the links to another issuer. Changing the public address asks as well, because the return address of every provider depends on it."
+      },
+      {
+        "title": "Keys wait for a second factor",
+        "where": "My account, Connections",
+        "body": "While a required second factor is still missing for your account, your API keys wait, and the list of keys says so."
+      }
+    ],
+    "smallTitle": "Also",
+    "small": [
+      "Behind a reverse proxy, NEXBRAND_TRUSTED_PROXIES now also decides whether the scheme sent by the proxy is believed. Without it the return address of the sign-in is asked for and never guessed.",
+      "Mails carry a Date header now, some providers dropped them without one."
+    ]
+  },
   "0.1.1": {
     "lead": "Signing in stands up better to strangers, and the authentik button finds its own provider again after a move.",
     "sections": [

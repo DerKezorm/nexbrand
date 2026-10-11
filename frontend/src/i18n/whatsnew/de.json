@@ -1,4 +1,29 @@
 {
+  "0.2.0": {
+    "lead": "Die Anmeldung geht mit mehreren Anbietern zugleich, und das Ändern der öffentlichen Adresse fragt nach, bevor es gilt.",
+    "sections": [
+      {
+        "title": "Mehrere Anbieter, je ein Knopf",
+        "where": "Anmeldeseite, Einstellungen, Server, Anmeldung",
+        "body": "Biete so viele OpenID-Connect-Anbieter an, wie du magst, zum Beispiel authentik und Microsoft Entra ID, jeden mit eigenem Knopf. Eine Person verknüpft ein Konto je Anbieter, und die Anmeldung folgt der Verknüpfung, nie der Mailadresse. Konten, die bisher über ihre Adresse gefunden wurden, sind schon verknüpft."
+      },
+      {
+        "title": "Erst fragen, dann ändern",
+        "where": "Einstellungen, Server, Anmeldung",
+        "body": "Der authentik-Knopf fragt zuerst, wenn er die Verknüpfungen an einen anderen Aussteller übergeben würde. Auch das Ändern der öffentlichen Adresse fragt nach, weil die Rückleitadresse jedes Anbieters daran hängt."
+      },
+      {
+        "title": "Schlüssel warten auf den zweiten Faktor",
+        "where": "Mein Konto, Verbindungen",
+        "body": "Solange für dein Konto ein verlangter zweiter Faktor noch fehlt, warten deine API-Schlüssel, und die Liste der Schlüssel sagt es."
+      }
+    ],
+    "smallTitle": "Außerdem",
+    "small": [
+      "Hinter einem Reverse-Proxy entscheidet NEXBRAND_TRUSTED_PROXIES jetzt auch, ob das vom Proxy gemeldete Schema geglaubt wird. Ohne diese Angabe wird die Rückleitadresse der Anmeldung erfragt und nie erraten.",
+      "Mails tragen jetzt einen Date-Header, manche Anbieter haben sie ohne einen stillschweigend verworfen."
+    ]
+  },
   "0.1.1": {
     "lead": "Die Anmeldung hält Fremden besser stand, und der authentik-Knopf findet nach einem Umzug seinen eigenen Anbieter wieder.",
     "sections": [
