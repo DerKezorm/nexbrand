@@ -1,15 +1,11 @@
 # nexbrand
 
-[![Website: www.nexbrand.de](https://img.shields.io/badge/website-www.nexbrand.de-2f7bff?style=for-the-badge)](https://www.nexbrand.de)
-
 The corporate design of your clients in one place, on your own server: colours, fonts, logos, type scale, rules and
 example files, per client and per project, with every version kept. For agencies, freelancers and developers who build
 for several brands.
 
 nexbrand is one of the nex apps and looks like them: cobalt, dark and light. Whoever knows nexlore or nexcanvas finds
-the same frame here: accounts, second factor, sign-in through a provider, log, languages and backups. What it can do
-and a guide from the first client to the first review are on the project site,
-**[www.nexbrand.de](https://www.nexbrand.de)**.
+the same frame here: accounts, second factor, sign-in through a provider, log, languages and backups.
 
 > **Early days.** nexbrand is at its first version. It works and is well tested, but a lot of it is still finding
 > its shape, and this is the time when ideas and feedback change the most. What do you keep for your clients today,
