@@ -1,4 +1,4 @@
-"""Versions, checks and export (Prüfgang 05.10.2026, block 5): a version that holds from a later day, colours written
+"""Versions, checks and export: a version that holds from a later day, colours written
 as CSS writes them, uploads of the wrong kind, comparing two versions in full, ratios shown as they are graded, the
 type scale in the code, names that are unique, and the defaults of a new API token.
 
@@ -66,7 +66,7 @@ def _two_versions(client: TestClient, space: int) -> dict[str, str]:
     return {"cid": cid, "first": first, "second": second, "pid": pid}
 
 
-# --- F2: a version that holds from a later day ---------------------------------------------------------------------
+# --- a version that holds from a later day ---------------------------------------------------------------------
 
 
 def test_f2_a_version_from_a_later_day_holds_only_from_that_day(client: TestClient, space: int,
@@ -116,7 +116,7 @@ def test_f2_a_project_version_from_a_later_day_holds_only_from_that_day(client: 
     assert project["current"] == "1.0" and project["current_id"] == first
 
 
-# --- F3, F17: colours as style sheets write them, ratios as they are graded ------------------------------------------
+# --- colours as style sheets write them, ratios as they are graded ------------------------------------------
 
 
 def test_f3_audit_and_contrast_read_colours_as_style_sheets_write_them(client: TestClient, space: int,
@@ -153,7 +153,7 @@ def test_f17_a_ratio_just_under_a_threshold_is_not_shown_on_it(client: TestClien
     assert answer["ratio"] == tool["ratio"] == 4.49 and answer["text"] == "AA large"
 
 
-# --- F18: the type scale in the code -------------------------------------------------------------------------------
+# --- the type scale in the code -------------------------------------------------------------------------------
 
 
 def test_f18_the_code_carries_weight_and_line_height_of_each_step(client: TestClient, space: int,
@@ -176,7 +176,7 @@ def test_f18_the_code_carries_weight_and_line_height_of_each_step(client: TestCl
         assert "--text-body--font-weight: 400;" in program.get(f"/api/v1/clients/{cid}/code", headers=auth).text
 
 
-# --- F9: an upload of the wrong kind -------------------------------------------------------------------------------
+# --- an upload of the wrong kind -------------------------------------------------------------------------------
 
 
 def test_f9_a_logo_or_font_of_the_wrong_kind_is_refused_and_not_kept(client: TestClient, space: int) -> None:
@@ -205,7 +205,7 @@ def test_f9_a_logo_or_font_of_the_wrong_kind_is_refused_and_not_kept(client: Tes
     assert client.post(f"/api/media?space={space}&name=brief.txt", content=b"words").status_code == 201
 
 
-# --- F26: a new token is narrow from the start ---------------------------------------------------------------------
+# --- a new token is narrow from the start ---------------------------------------------------------------------
 
 
 def test_f26_a_new_token_asks_for_its_clients_and_runs_out_after_90_days(client: TestClient, space: int,
@@ -238,7 +238,7 @@ def token_end(token: dict[str, Any]) -> Any:
     return end if end.tzinfo else end.replace(tzinfo=UTC)
 
 
-# --- F15: names that tell things apart ------------------------------------------------------------------------------
+# --- names that tell things apart ------------------------------------------------------------------------------
 
 
 def _code(answer: Any) -> str:
@@ -321,7 +321,7 @@ def test_f15_doubles_from_before_get_a_number_at_start(client: TestClient, opera
 
 def test_f15_what_nexsuite_brings_never_fails_on_a_name(client: TestClient, operator: Account, world: dict,
                                                         fake: test_suite.FakeSuite) -> None:
-    """Two clients and two teams of one name in nexsuite: both come, the second with a number here, and the sync goes
+    """Two clients and two teams of one name in the directory service: both come, the second with a number here, and the sync goes
     through, the next one too without a further number."""
     from app.db import SessionLocal
     from app.models import Client, Team

@@ -85,7 +85,7 @@ export function PublicPage() {
               {page.label && <> · {t('public.for', { label: page.label })}</>}
             </p>
           </div>
-          {/* For a developer: the same code as the export in the app, fonts kept in the house by name only (F27). */}
+          {/* For a developer: the same code as the export in the app, fonts kept in the house by name only. */}
           <button type="button" className="nc-btn nc-btn-ghost" onClick={() => setCode(true)}>
             <Code2 className="h-4 w-4" /> {t('public.asCode')}
           </button>
@@ -129,13 +129,13 @@ export function ReviewPage() {
     }
   }
   const fileUrl = useCallback((id: string) => pageMediaUrl('review', token, id), [token])
-  // A review withdrawn or deleted meanwhile: the page says it is gone, not that something failed (F5).
+  // A review withdrawn or deleted meanwhile: the page says it is gone, not that something failed.
   const fail = (error: unknown) => (error instanceof ApiError && error.status === 404 ? setGone(true) : setProblem(error instanceof ApiError ? error.code : 'internal_error'))
   useTitle(page?.client, true)
   if (gone) return <p className="p-10 text-center text-mist-400">{t('public.reviewGone')}</p>
   if (!page) return <main aria-busy="true" />
   const chosen = page.variants.find((v) => v.id === page.chosen)
-  // One draft is "the draft", not a direction with a name of its own (F31).
+  // One draft is "the draft", not a direction with a name of its own.
   const one = page.variants.length === 1
   return (
     <div className="min-h-dvh">

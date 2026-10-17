@@ -8,7 +8,7 @@ const fsName = 'node:fs'
 const files = (await import(/* @vite-ignore */ fsName)) as Files
 const cases = JSON.parse(files.readFileSync('../backend/tests/data/diff_cases.json', 'utf-8')) as { cases: { name: string; a: unknown; b: unknown; changes: unknown[] }[] }
 
-/** Comparing two versions finds what the server finds, in every part (F10). */
+/** Comparing two versions finds what the server finds, in every part. */
 describe('comparing two versions, as the server does it', () => {
   it.each(cases.cases.map((c) => [c.name, c] as const))('%s', (_name, c) => {
     expect(diffSets(c.a, c.b)).toEqual(c.changes)

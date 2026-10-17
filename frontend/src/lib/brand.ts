@@ -108,7 +108,7 @@ export function pickColors(colors: BrandColor[], luminance: (hex: string) => num
 }
 
 /** What a step of the type scale is for, beside its name, only when it says something the name does not: "Heading 1
- * (Heading 1)" said it twice (F33). */
+ * (Heading 1)" said it twice. */
 export function purposeBeside(name: string, use: string): string | null {
   const plain = (text: string) => text.trim().toLocaleLowerCase()
   return use && plain(use) !== plain(name) ? use : null

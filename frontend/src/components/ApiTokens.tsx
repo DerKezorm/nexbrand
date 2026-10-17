@@ -3,8 +3,8 @@
  * (`/api/v1`). List, make, delete. A token is shown once, right after it was made, with the header line a program
  * needs and a command to try it; afterwards only its first characters.
  *
- * A token reads, or reads and proposes drafts; the list says which (F12). A new one sees only the clients chosen and
- * runs out after 90 days unless somebody picks "all" or "never" on purpose (F26, decided 05.10.2026); 30 and 365 days
+ * A token reads, or reads and proposes drafts; the list says which. A new one sees only the clients chosen and
+ * runs out after 90 days unless somebody picks "all" or "never" on purpose; 30 and 365 days
  * are there too. A week before, the list marks it. A token the operator blocked stays in the list, marked, until the
  * account deletes it.
  */
@@ -21,7 +21,7 @@ import { useAuth } from '../state/auth'
 import { KeysWait } from './KeysWait'
 import { copyText } from '../lib/copy'
 
-/** Days until a token runs out; null: never. A new one starts at 90 (F26). */
+/** Days until a token runs out; null: never. A new one starts at 90. */
 const LIFETIMES: (number | null)[] = [30, 90, 365, null]
 const DEFAULT_DAYS = 90
 const WEEK = 7 * 24 * 60 * 60 * 1000
@@ -55,7 +55,7 @@ export function ApiTokens() {
   const [state, setState] = useState<{ allowed: boolean; tokens: ApiToken[] } | null>(null)
   const [making, setMaking] = useState(false)
   const [name, setName] = useState('')
-  // null: every client the account may read, later ones too; otherwise the ids chosen. A new token starts narrow (F26).
+  // null: every client the account may read, later ones too; otherwise the ids chosen. A new token starts narrow.
   const [chosen, setChosen] = useState<string[] | null>([])
   const [days, setDays] = useState<number | null>(DEFAULT_DAYS)
   const [level, setLevel] = useState<'read' | 'draft'>('read')
@@ -78,7 +78,7 @@ export function ApiTokens() {
 
   if (!state) return null
   const day = (value: string) => new Date(value).toLocaleDateString(i18n.language)
-  // The day as everywhere in the app (4.10.2026), with the time (F12).
+  // The day as everywhere in the app (4.10.2026), with the time.
   const at = (value: string) => moment(value, i18n.language)
   const title = (
     <h2 id="api-tokens-title" className="mb-1 flex items-center gap-2 font-semibold text-mist-100">

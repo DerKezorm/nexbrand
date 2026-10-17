@@ -35,7 +35,7 @@ export function AppShell() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [searching, setSearching] = useState(false)
-  // Connected to nexsuite, clients are made there; without the operator's leave, only the operator makes them.
+  // Connected to the directory service, clients are made there; without the operator's leave, only the operator makes them.
   const mayCreate = !!useAuth().me?.may_create_clients
 
   const newClient = useCallback((client?: string) => navigate(client ? `/new?client=${client}` : '/new'), [navigate])

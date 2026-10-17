@@ -49,7 +49,7 @@ SECURITY_HEADERS: tuple[tuple[bytes, bytes], ...] = (
     (b"referrer-policy", b"same-origin"),
     (b"x-frame-options", b"DENY"),
     (b"permissions-policy", b"camera=(), microphone=(), geolocation=()"),
-    # Nothing of nexbrand belongs in a search engine: not the app, not a client's public page or review (F13).
+    # Nothing of nexbrand belongs in a search engine: not the app, not a client's public page or review.
     (b"x-robots-tag", b"noindex, nofollow"),
 )
 
@@ -145,7 +145,7 @@ CLIENT_HEADER = b"x-nexbrand-client"
 CLIENT_PATTERN = re.compile(rb"^[A-Za-z0-9_-]{8,64}$")
 #: The API for programs: a token in ``Authorization``, no tab, an ``Origin`` refused (``routers/v1.py``).
 API_PREFIX = "/api/v1/"
-#: Notices from nexsuite: signed with the app's token instead (``routers/suite.py``).
+#: Notices from the directory service: signed with the app's token instead (``routers/suite.py``).
 SUITE_NOTICE = "/api/suite/event"
 #: MCP clients: a token in ``Authorization``, never a browser (``routers/mcp.py`` refuses an ``Origin``).
 MCP_PATH = "/api/mcp"

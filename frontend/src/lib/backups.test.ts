@@ -12,7 +12,7 @@ describe('backupActions', () => {
     expect(backupActions({ suite: 'connected', suite_emergency: true })).toEqual({ download: true, restore: false, upload: false, remove: true, note: 'restore' })
   })
 
-  it('connected, an operator from nexsuite neither downloads nor deletes', () => {
+  it('connected, an operator from the directory service neither downloads nor deletes', () => {
     expect(backupActions({ suite: 'connected', suite_emergency: false })).toEqual({ download: false, restore: false, upload: false, remove: false, note: 'keeper' })
   })
 })

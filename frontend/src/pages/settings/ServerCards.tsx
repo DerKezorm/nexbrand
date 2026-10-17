@@ -82,13 +82,13 @@ export function useServerSettings() {
   return { settings, save, saveAddress, reload, ...action }
 }
 
-/** `open_links`: public pages and reviews it made that are still open; they stay when it is blocked or deleted (A15). */
+/** `open_links`: public pages and reviews it made that are still open; they stay when it is blocked or deleted. */
 type AccountRow = Me & { spaces: number; locked: boolean; blocked?: boolean; has_password?: boolean; open_links?: number; created_at: string; last_seen_at: string | null; providers?: LinkedProvider[] }
 type OpenInvite = { id: number; email: string; expires_at: string }
 const DAYS = ['1', '7', '30'] as const
 
-/** The accounts; connected to nexsuite only shown (``readOnly``): people are kept there, but the operator still sees
- * who is blocked (Prüfgang 05.10.2026 G1). */
+/** The accounts; connected to the directory service only shown (``readOnly``): people are kept there, but the operator still sees
+ * who is blocked. */
 export function AccountsCard({ readOnly = false }: { readOnly?: boolean }) {
   const { t, i18n } = useTranslation()
   const { me } = useAuth()
@@ -96,13 +96,13 @@ export function AccountsCard({ readOnly = false }: { readOnly?: boolean }) {
   // Inviting into nexbrand without a space, as nexlore's: how long, to which address, and the open invitations.
   const [days, setDays] = useState<(typeof DAYS)[number]>('7')
   const [email, setEmail] = useState('')
-  // An address typed in is meant to get the link (F23: the box was off, and nothing went out).
+  // An address typed in is meant to get the link (the box was off, and nothing went out).
   const [send, setSend] = useState(true)
   const [made, setMade] = useState<{ link: string; sent: boolean; email: string } | null>(null)
   const [invites, setInvites] = useState<OpenInvite[]>([])
   const [asking, setAsking] = useState<{ kind: 'role' | 'delete' | 'password' | 'reset' | 'signout' | 'block' | 'unblock' | 'links'; account: AccountRow } | null>(null)
   const [newPassword, setNewPassword] = useState('')
-  // The operator unlinks an account from a provider, with the own password; the account gets a notice (blueprint 01).
+  // The operator unlinks an account from a provider, with the own password; the account gets a notice.
   const [unlinking, setUnlinking] = useState<{ account: AccountRow; provider: LinkedProvider } | null>(null)
   const { busy, problem, done, run } = useAction()
   const load = useCallback(() => {
@@ -115,7 +115,7 @@ export function AccountsCard({ readOnly = false }: { readOnly?: boolean }) {
       <ul className="divide-y divide-ink-700 rounded-xl border border-ink-700">
         {list.map((row) => {
           const shown = row.display_name || row.name
-          // Each button names the account it acts on: seven "Delete" in a row told a screen reader nothing (G6).
+          // Each button names the account it acts on: seven "Delete" in a row told a screen reader nothing.
           const named = (action: string) => t('server.forAccount', { action, name: shown })
           return (
           <li key={row.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
@@ -127,14 +127,14 @@ export function AccountsCard({ readOnly = false }: { readOnly?: boolean }) {
                   {row.display_name && <span className="ml-1 text-xs font-normal text-mist-500">@{row.name}</span>}
                   {row.id === me?.id && <span className="ml-1.5 text-xs font-normal text-mist-500">{t('members.you')}</span>}
                 </span>
-                {/* Up front, not at the end of a line that a phone cuts short (G1). */}
+                {/* Up front, not at the end of a line that a phone cuts short. */}
                 {row.blocked && (
                   <span className="shrink-0 rounded-full border border-bad-500/40 px-1.5 py-px text-[11px] font-medium text-bad-500" data-testid="blocked-mark">
                     {t('server.blocked')}
                   </span>
                 )}
               </div>
-              {/* Whole, on as many lines as it needs: the part a button row cut off was the one that matters (G6). The
+              {/* Whole, on as many lines as it needs: the part a button row cut off was the one that matters. The
                   operator sees and manages every client, whatever access it has of its own. */}
               <div className="text-xs break-words text-mist-500" data-testid="account-status">
                 {row.role === 'operator' ? t('account.operator') : t('server.member')} · {t(`server.signInBy.${row.sign_in}`)} · {row.role === 'operator' ? t('server.allClients') : t('server.inSpaces', { count: row.spaces })}
@@ -143,7 +143,7 @@ export function AccountsCard({ readOnly = false }: { readOnly?: boolean }) {
                 {row.has_password === false && !row.blocked ? ' · ' + t('server.noPassword') : ''}
                 {row.open_links ? ' · ' + t('server.openLinks', { count: row.open_links }) : ''}
               </div>
-              {/* The providers the account is linked to, as small marks (blueprint 04). */}
+              {/* The providers the account is linked to, as small marks. */}
               {!!row.providers?.length && (
                 <div className="mt-1 flex flex-wrap gap-1" data-testid="account-providers">
                   {row.providers.map((provider) => (
@@ -154,20 +154,20 @@ export function AccountsCard({ readOnly = false }: { readOnly?: boolean }) {
                 </div>
               )}
             </div>
-            {/* The links of a blocked account stay for the client's sake; here they end (A15), connected too: a person
-                blocked in nexsuite keeps them as well. */}
+            {/* The links of a blocked account stay for the client's sake; here they end, connected too: a person
+                blocked in the directory service keeps them as well. */}
             {row.blocked && !!row.open_links && (
               <Button small label={named(t('server.withdrawLinksRow'))} onClick={() => setAsking({ kind: 'links', account: row })}>
                 {t('server.withdrawLinksRow')}
               </Button>
             )}
             {row.id !== me?.id && !readOnly && (
-              // A row of their own under the name, not beside it (G6).
+              // A row of their own under the name, not beside it.
               <div className="flex w-full flex-wrap gap-1.5 sm:pl-11" data-testid="account-actions">
                 <Button small label={named(row.role === 'operator' ? t('server.makeMember') : t('server.makeOperator'))} onClick={() => setAsking({ kind: 'role', account: row })}>
                   {row.role === 'operator' ? t('server.makeMember') : t('server.makeOperator')}
                 </Button>
-                {/* Also for accounts without one (after leaving nexsuite): a password is how they get in again (B4). */}
+                {/* Also for accounts without one (after leaving the directory service): a password is how they get in again. */}
                 <Button small label={named(row.has_password === false ? t('server.givePassword') : t('server.newPassword'))} onClick={() => setAsking({ kind: 'password', account: row })}>
                   {row.has_password === false ? t('server.givePassword') : t('server.newPassword')}
                 </Button>
@@ -322,7 +322,7 @@ export function AccountsCard({ readOnly = false }: { readOnly?: boolean }) {
 }
 
 /** In the block and delete dialogs: how many links for clients the account has open. They stay; "Withdraw" ends them all
- * with the password typed above, as for blocking (A15, decided 05.10.2026). */
+ * with the password typed above, as for blocking. */
 function OpenLinks({ account, password, onWithdrawn }: { account: AccountRow; password: string; onWithdrawn: () => void }) {
   const { t } = useTranslation()
   const { me } = useAuth()
@@ -360,8 +360,8 @@ function OpenLinks({ account, password, onWithdrawn }: { account: AccountRow; pa
 
 type AdminSpace = { id: number; name: string; members: number; managers: string[]; role: SpaceInfo['role']; managed?: boolean }
 
-/** Every client with who manages it, without its design: the operator resets rights here, as in nexlore. Above it,
- * whether members make clients (the operator always does); while nexsuite keeps the clients, that is decided there. */
+/** Every client with who manages it, without its design: the operator resets rights here. Above it,
+ * whether members make clients (the operator always does); while the directory service keeps the clients, that is decided there. */
 export function AllSpacesCard({ server }: { server: Server }) {
   const { t } = useTranslation()
   const { me } = useAuth()
@@ -395,7 +395,7 @@ export function AllSpacesCard({ server }: { server: Server }) {
                   : t('server.allSpaces.membersNoManager', { count: space.members })}
             </span>
             <span className="ml-auto">
-              {/* Rights nexsuite keeps are only looked at here (G8). */}
+              {/* Rights the directory service keeps are only looked at here. */}
               <Button small onClick={() => setOpen(space)}>
                 {space.managed ? t('server.allSpaces.view') : t('server.allSpaces.rights')}
               </Button>
@@ -606,7 +606,7 @@ export function MailCard({ server, managed = false }: { server: Server; managed?
   if (!s) return null
   const security = (value: string) => (value === 'none' ? t('server.none') : value.toUpperCase())
   if (managed) {
-    // Connected: the mail server is nexsuite's; shown as it came, in words, never changed here (G8).
+    // Connected: the mail server is the directory service's; shown as it came, in words, never changed here.
     const rows: [string, string][] = [
       // One line, as the label says: "server and port".
       [t('server.smtpHost'), s.smtp_host ? `${s.smtp_host}:${s.smtp_port}` : ''],
@@ -705,7 +705,7 @@ export function BackupsCard({ server }: { server: Server }) {
   const size = (bytes: number) => (bytes > 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`)
   const icon = 'rounded-lg p-1.5 text-mist-500 hover:bg-ink-800 hover:text-mist-100'
   return (
-    // The dry run is promised only where restoring is offered (not while connected to nexsuite).
+    // The dry run is promised only where restoring is offered (not while connected to the directory service).
     <Card id="backups" icon={History} title={t('server.backups')} text={offer.restore ? `${t('server.backupsHint')} ${t('server.backupsDryRun')}` : t('server.backupsHint')}>
       <div className="flex flex-wrap items-end gap-2">
         <Select
@@ -1006,7 +1006,7 @@ export function LogCard() {
   )
 }
 
-/** Requests come with proxy headers, but no proxy is named: the sign-in brake sees one sender for everybody (A5). */
+/** Requests come with proxy headers, but no proxy is named: the sign-in brake sees one sender for everybody. */
 export function ProxyHint() {
   const { t } = useTranslation()
   const [seen, setSeen] = useState(false)

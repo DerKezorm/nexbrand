@@ -20,7 +20,7 @@ SAMPLES = ["#B8322A", "#E9A23B", "#F2E3C6", "#3B2A20", "#FFFFFF", "#000000", "#2
            "#E255F5", "#FFE14A", "#123456"]
 
 
-#: Colours as people and style sheets write them (F3, F16), and what they read as; None: not read.
+#: Colours as people and style sheets write them, and what they read as; None: not read.
 PARSE_SAMPLES = ["#B8322A", "#b8322a", "b8322a", "#abc", "abc", "#abcd", "abcd", "#A63D1780", "A63D1780",
                  "rgb(166, 61, 23)", "rgb(20,40,90)", "rgb(20 40 90)", "rgba(20, 40, 90, 0.5)", "rgb(20 40 90 / 50%)",
                  "rgb(100%, 50%, 0%)", "rgb(10.5, 20.5, 30.5)", "rgb(300, 0, 0)", "rgb(-1, 0, 0)", "rgb(1, 2)",
@@ -28,10 +28,10 @@ PARSE_SAMPLES = ["#B8322A", "#b8322a", "b8322a", "#abc", "abc", "#abcd", "abcd",
                  "hsla(200, 50%, 50%, .3)", "hsl(-30, 50%, 50%)", "hsl(390 50 50)", "hsl(10%, 50%, 50%)",
                  "hsl(10, 150%, 50%)", "  #FFF  ", "RGB(1,2,3)", "red", "transparent", "", "#12345", "#1234567",
                  "#ggg", "rgb()", "rgb(1,2,3", "url(x)", "hsl(" + "1 " * 50 + ")",
-                 # Read the same in the browser: no Unicode digits, only the spaces CSS knows (F3).
+                 # Read the same in the browser: no Unicode digits, only the spaces CSS knows.
                  "rgb(\u0663,0,0)", "rgb(\uff11, 0, 0)", "\x1c#fff", "#fff\x1c", "\u00a0#fff", "rgb(1,\u00a02,3)",
                  "rgb(1\u20032\u20033)", "\t#fff\n", "\u212aaa"]
-#: Ratios as shown (F17): cut, never rounded up past a threshold.
+#: Ratios as shown: cut, never rounded up past a threshold.
 SHOWN_SAMPLES = [4.4992, 4.5, 4.57, 2.9999, 3.0, 6.995, 7.0, 9.999, 10.0, 12.36, 21.0, 1.0]
 
 
@@ -163,4 +163,4 @@ def test_the_checks_name_what_is_wrong() -> None:
     codes = {hint["code"] for hint in checks.check(data)}
     assert {"white_on", "nearly_same", "body_small", "logo_mark"} <= codes
     white = next(h for h in checks.check(data) if h["code"] == "white_on")
-    assert white["better"] in ("Kruste", "Kruste 2") and white["ratio"] == 2.16, "shown as cut, never rounded up (F17)"
+    assert white["better"] in ("Kruste", "Kruste 2") and white["ratio"] == 2.16, "shown as cut, never rounded up"

@@ -1,12 +1,11 @@
-"""Handling and the small things around it after the check of 05.10.2026 (block 6, the numbers of LISTE.md in
-brackets), with what nextasks settled the same day.
+"""Handling and the small things around it.
 
 * An account locked for a while after wrong passwords keeps its API tokens; a block still ends them.
-* A new password that is the old one is refused and ends no other session (E25 in nextasks).
-* Names and titles refuse every control character, DEL and C1 too; names from nexsuite lose them.
-* A test mail without a mail server is a setting, not a failure outside: 409, no error in the log (G12).
-* Nothing of nexbrand belongs in a search engine (F13).
-* Whether collecting from outside is allowed is known before anybody tries (F19).
+* A new password that is the old one is refused and ends no other session.
+* Names and titles refuse every control character, DEL and C1 too; names from the directory service lose them.
+* A test mail without a mail server is a setting, not a failure outside: 409, no error in the log.
+* Nothing of nexbrand belongs in a search engine.
+* Whether collecting from outside is allowed is known before anybody tries.
 """
 
 from __future__ import annotations
@@ -191,7 +190,7 @@ def test_the_switch_for_collecting_is_known_before_anybody_tries(client: TestCli
         assert anna.get("/api/auth/me").json()["collect_allowed"] is True
 
 
-# --- Connecting: what nexsuite answers since 3ef5282 -------------------------------------------------------------
+# --- Connecting: what the directory service answers -------------------------------------------------------------
 
 
 @pytest.mark.parametrize("code", ["app_still_connected", "app_not_reachable"])
@@ -199,7 +198,7 @@ def test_a_pairing_nexsuite_refuses_for_an_older_connection_says_why(client: Tes
                                                                      fake: FakeSuite, code: str) -> None:
     fake.pair_refused = code
     answer = client.post("/api/suite/start", json={"url": test_suite.SUITE + "/", "code": "GOOD-CODE-1234"})
-    # Not "no nexsuite at this address": it is one, and it names what to do.
+    # Not "no the directory service at this address": it is one, and it names what to do.
     assert answer.status_code == 409 and answer.json()["detail"]["code"] == code
 
 

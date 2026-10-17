@@ -109,7 +109,7 @@ def get(url: str, *, limit: int, accept: str = "*/*", headers: dict[str, str] | 
                 raise FetchError("timeout")
             named = host if port in (80, 443) else f"{host}:{port}"
             if (scheme, host.lower(), port) != origin:
-                # A key is for the host it was given for: a redirect elsewhere goes without it from there on (A11),
+                # A key is for the host it was given for: a redirect elsewhere goes without it from there on,
                 # as browsers and the usual clients do.
                 given = {key: value for key, value in given.items() if key.lower() not in PRIVATE_HEADERS}
             sent = {"Host": named, "User-Agent": AGENT, "Accept": accept, **given}

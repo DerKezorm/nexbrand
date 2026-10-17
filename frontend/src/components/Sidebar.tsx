@@ -92,7 +92,7 @@ export function Sidebar() {
       <section className="px-2.5 py-2.5">
         <div className="flex items-center justify-between px-1.5">
           <span className="rounded-full bg-ink-850 px-3 py-1 text-[11px] font-semibold tracking-wider text-mist-100 uppercase">{t('sidebar.clients')}</span>
-          {/* Connected to nexsuite, clients are made there; here they get their design set. */}
+          {/* Connected to the directory service, clients are made there; here they get their design set. */}
           {me?.may_create_clients && (
             <button type="button" className="rounded p-1 text-mist-500 hover:bg-ink-850 hover:text-mist-100" title={t('client.new')} aria-label={t('client.new')} onClick={() => shell.newClient()}>
               <Plus className="h-4 w-4" />

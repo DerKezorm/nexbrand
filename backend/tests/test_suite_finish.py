@@ -1,8 +1,7 @@
-"""Connecting to nexsuite that fails at its last step, or whose answer gets lost (nexcanvas review of ba44488, 4f54522,
-e709c94): nothing here changes before nexsuite confirms ``/finish``, giving up leaves nothing half connected, a
-finish nexsuite took finishes with the next try, and the choices that went out with it hold.
+"""Connecting to the directory service that fails at its last step, or whose answer gets lost: nothing here changes before the directory service confirms ``/finish``, giving up leaves nothing half connected, a
+finish the directory service took finishes with the next try, and the choices that went out with it hold.
 
-nexsuite is played by ``FakeSuite`` from ``test_suite``.
+The directory service is played by ``FakeSuite`` from ``test_suite``.
 """
 
 from __future__ import annotations
@@ -53,14 +52,14 @@ def _choices(client: TestClient, world: dict) -> dict[str, Any]:
 
 
 def _again(client: TestClient) -> dict[str, dict[str, Any]]:
-    """Connecting again to the same nexsuite: the rows of the accounts by name."""
+    """Connecting again to the same directory service: the rows of the accounts by name."""
     started = client.post("/api/suite/start", json={"url": SUITE, "code": "GOOD-CODE-1234"})
     assert started.status_code == 200, started.text
     return {a["name"]: a for a in started.json()["accounts"]}
 
 
 def _lose_finish_once(fake: FakeSuite, monkeypatch: pytest.MonkeyPatch) -> None:
-    """nexsuite takes /finish, the answer never comes back (once)."""
+    """The directory service takes /finish, the answer never comes back (once)."""
     real = fake.handle
     lost = {"once": True}
 
@@ -85,7 +84,7 @@ def _connected_here(world: dict) -> None:
         assert ideen is not None and ideen.external_id == "10"
 
 
-# --- nothing here before nexsuite confirms ----------------------------------------------------------------------------
+# --- nothing here before the directory service confirms ----------------------------------------------------------------------------
 
 
 def test_finish_failing_at_its_last_step_changes_nothing_here_and_abort_leaves_it_so(
@@ -121,7 +120,7 @@ def test_finish_again_after_a_failed_last_step_connects_once(client: TestClient,
 
 def test_abort_in_another_tab_waits_for_a_finish_under_way(client: TestClient, operator: Account, world: dict,
                                                            fake: FakeSuite, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Tab 1 connects and nexsuite is slow to confirm; tab 2 gives up meanwhile. The give-up waits for the finish and
+    """Tab 1 connects and the directory service is slow to confirm; tab 2 gives up meanwhile. The give-up waits for the finish and
     then finds the connection done (409), instead of forgetting it half way."""
     chosen = _choices(client, world)
     reached, go = threading.Event(), threading.Event()
@@ -156,12 +155,12 @@ def test_abort_in_another_tab_waits_for_a_finish_under_way(client: TestClient, o
     assert ("POST", "/leave") not in fake.calls
 
 
-# --- a /finish nexsuite took, the answer lost ---------------------------------------------------------------------
+# --- a /finish the directory service took, the answer lost ---------------------------------------------------------------------
 
 
 def test_finish_whose_answer_got_lost_finishes_with_the_next_try(client: TestClient, operator: Account, world: dict,
                                                                 fake: FakeSuite, monkeypatch: pytest.MonkeyPatch) -> None:
-    """nexsuite took /finish, the answer never came. The next try sends only /finish again; nexsuite's
+    """The directory service took /finish, the answer never came. The next try sends only /finish again; the directory service's
     already_connected (asked with this app's token) is the confirmation."""
     chosen = _choices(client, world)
     _lose_finish_once(fake, monkeypatch)
@@ -181,7 +180,7 @@ def test_finish_whose_answer_got_lost_finishes_with_the_next_try(client: TestCli
 def test_finish_whose_local_commit_failed_finishes_with_the_next_try(client: TestClient, operator: Account,
                                                                    world: dict, fake: FakeSuite,
                                                                    monkeypatch: pytest.MonkeyPatch) -> None:
-    """nexsuite confirmed /finish, then writing it here failed (a full disk, a lock): nothing here changed, and the
+    """The directory service confirmed /finish, then writing it here failed (a full disk, a lock): nothing here changed, and the
     next try writes it."""
     chosen = _choices(client, world)
     real = settings_service.save
@@ -270,7 +269,7 @@ def _sent_and_lost(client: TestClient, world: dict, fake: FakeSuite, monkeypatch
 def test_after_reloading_the_assistant_shows_what_was_sent_and_finishes_with_it(
         client: TestClient, operator: Account, world: dict, fake: FakeSuite,
         monkeypatch: pytest.MonkeyPatch) -> None:
-    """nexsuite has the connection, so it offers no client any more. The proposal still names the choices that went
+    """The directory service has the connection, so it offers no client any more. The proposal still names the choices that went
     out, with the names of their targets, and finishing with them works."""
     chosen = _sent_and_lost(client, world, fake, monkeypatch)
     ideen = client_of(client, world["ideen"])
@@ -292,7 +291,7 @@ def test_an_account_made_after_sending_is_not_in_the_list_and_stops_nothing(
         client: TestClient, operator: Account, world: dict, fake: FakeSuite,
         monkeypatch: pytest.MonkeyPatch) -> None:
     """An account made here after /finish went out is not among the choices, and a finish that brings it along still
-    finishes; nothing is made for it in nexsuite."""
+    finishes; nothing is made for it in the directory service."""
     chosen = _sent_and_lost(client, world, fake, monkeypatch)
     late = make_account("spaet")
     found = client.get("/api/suite/proposal").json()
@@ -335,8 +334,8 @@ def test_giving_up_before_finish_went_out_says_nothing_more(client: TestClient, 
 def test_an_account_without_a_place_in_the_plan_is_blocked_like_one_left_out(
         client: TestClient, operator: Account, world: dict, fake: FakeSuite, monkeypatch: pytest.MonkeyPatch,
         role: str, way: str) -> None:
-    """Made between pairing and finishing, or after /finish went out: no person in nexsuite, so no way in while
-    connected; never a password sign-in of its own beside nexsuite."""
+    """Made between pairing and finishing, or after /finish went out: no person in the directory service, so no way in while
+    connected; never a password sign-in of its own beside the directory service."""
     chosen = _choices(client, world)
     if way == "after a lost answer":
         _lose_finish_once(fake, monkeypatch)
@@ -400,7 +399,7 @@ def test_after_sending_a_chosen_person_deleted_in_nexsuite_still_shows_by_its_na
 
 def test_a_person_deleted_in_nexsuite_leaves_no_link_behind(
         client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
-    """anna's person was deleted in nexsuite and her account blocked. Her link was nexsuite's, not one of her own:
+    """anna's person was deleted in the directory service and her account blocked. Her link was the directory service's, not one of her own:
     after a disconnect she has no link and signs in with her password again, and connecting again says that her
     person is gone."""
     connect(client, world, operator)

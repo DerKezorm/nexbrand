@@ -1,11 +1,10 @@
-"""What was decided after the check of 05.10.2026 (nexsuite/tools/pruefgang-2026-10-05/ENTSCHEIDUNGEN.md, the
-numbers of LISTE.md in brackets).
+"""Team leads, the links of blocked accounts, signing in as someone else while connected, and the operator role.
 
-* A team lead changes the team only when the operator allows it; off from the start (D3).
-* The links of a blocked or deleted person stay; the operator sees how many and withdraws them all at once (A15).
-* A blocked account hears that it is blocked, but only after the right password (A16).
-* Connected, the sign-in page can lead to nexsuite to sign in as someone else (B11).
-* An operator role that came from nexsuite only goes when disconnecting; the dialog names who loses it (B17).
+* A team lead changes the team only when the operator allows it; off from the start.
+* The links of a blocked or deleted person stay; the operator sees how many and withdraws them all at once.
+* A blocked account hears that it is blocked, but only after the right password.
+* Connected, the sign-in page can lead to the directory service to sign in as someone else.
+* An operator role that came from the directory service only goes when disconnecting; the dialog names who loses it.
 * Mail goes out in the language of whoever receives it, the test mail too.
 """
 
@@ -47,7 +46,7 @@ def _set(**values: Any) -> None:
         db.commit()
 
 
-# --- D3: a team lead changes the team only when the operator allows it ---------------------------------------------
+# --- a team lead changes the team only when the operator allows it ---------------------------------------------
 
 
 def test_d3_a_team_lead_changes_the_members_only_when_the_operator_allows_it(
@@ -94,7 +93,7 @@ def test_d3_connected_the_teams_and_the_switch_are_nexsuite_s(
     assert refused.status_code == 409 and refused.json()["detail"]["code"] == "managed_by_suite"
 
 
-# --- A16: blocked, said only after the right password ---------------------------------------------------------------
+# --- blocked, said only after the right password ---------------------------------------------------------------
 
 
 def _login(browser: TestClient, name: str, password: str) -> Any:
@@ -127,7 +126,7 @@ def test_a16_the_right_password_of_a_blocked_account_still_counts_for_the_brake(
 def test_a16_the_emergency_way_says_blocked_too(client: TestClient, operator: Account, world: dict,
                                                 fake: FakeSuite) -> None:
     connect(client, world, operator)
-    # The person of the emergency account is deleted in nexsuite: the account is blocked here (D8).
+    # The person of the emergency account is deleted in the directory service: the account is blocked here.
     del fake.people["1"]
     client.post("/api/suite/sync")
     with new_client() as browser:
@@ -179,7 +178,7 @@ def test_a16_blocked_between_password_and_code_gets_no_session(client: TestClien
     assert code_step(client, current_code(secret)).json()["detail"]["code"] == "second_factor_expired"
 
 
-# --- A15: the links of a blocked or deleted person ------------------------------------------------------------------
+# --- the links of a blocked or deleted person ------------------------------------------------------------------
 
 
 def _links_of(client: TestClient, space: int, maker: Account) -> tuple[str, str, str]:
@@ -211,7 +210,7 @@ def test_a15_the_links_stay_and_the_operator_withdraws_them_with_the_password(
     assert _open_links(client, "tester") == 0
     assert client.post(f"/api/accounts/{wim.id}/block", json={"current_password": PASSWORD}).status_code == 204
     with new_client() as visitor:
-        assert visitor.get(f"/api/public/{page}").status_code == 200, "the links stay (decided 05.10.2026)"
+        assert visitor.get(f"/api/public/{page}").status_code == 200, "the links stay"
         assert visitor.get(f"/api/review/{review}").status_code == 200
     wrong = client.post(f"/api/accounts/{wim.id}/links/withdraw", json={"current_password": "wrong"})
     assert wrong.status_code == 401
@@ -310,7 +309,7 @@ def test_a15_connected_the_links_of_a_person_blocked_in_nexsuite_are_withdrawn_h
     assert done.status_code == 200 and done.json() == {"withdrawn": 2}
 
 
-# --- B11: connected, signing in as someone else goes through nexsuite -----------------------------------------------
+# --- connected, signing in as someone else goes through the directory service -----------------------------------------------
 
 
 def test_b11_the_sign_in_page_learns_where_nexsuite_is_only_while_connected(
@@ -324,7 +323,7 @@ def test_b11_the_sign_in_page_learns_where_nexsuite_is_only_while_connected(
         assert methods["suite"] is True and methods["suite_url"] == test_suite.SUITE
 
 
-# --- B17: an operator role from nexsuite only goes with the connection ----------------------------------------------
+# --- an operator role from the directory service only goes with the connection ----------------------------------------------
 
 
 def test_b17_an_operator_role_only_nexsuite_gave_goes_back_when_disconnecting(

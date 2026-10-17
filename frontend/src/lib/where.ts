@@ -1,5 +1,5 @@
 /** Where in a design set a value the server refused sits (`where` of `invalid_set`, such as `colors.1.hex`), told
- * with the name of the item: "colour “Accent”, field value" instead of "a value of this CI is wrong" (F11). */
+ * with the name of the item: "colour “Accent”, field value" instead of "a value of this CI is wrong". */
 import type { BrandSet } from './brand'
 
 export type Place = { part: string; index: number | null; name: string; field: string; twice: boolean }

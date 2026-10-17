@@ -190,7 +190,7 @@ PERSON_KEYS = ("by", "name", "account", "person")
 
 
 def rename_actor(old: str, new: str) -> int:
-    """An account moved from ``old`` to ``new`` (``services/suite.py``, B21): its lines in the log name it so too,
+    """An account moved from ``old`` to ``new`` (``services/suite.py``): its lines in the log name it so too,
     as ``u:<name>`` and under a person's key (``PERSON_KEYS``) in a message, so nothing it did reads like whoever gets
     the old name; a font family, a label or a team of that name stays. Under the handler's lock, so no line is written
     in between. Returns the lines changed."""

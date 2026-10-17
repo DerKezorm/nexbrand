@@ -1,4 +1,4 @@
-// A client nexsuite no longer gives nexbrand (B18): only the operator sees it, marked in the side bar and on its page
+// A client the directory service no longer gives nexbrand: only the operator sees it, marked in the side bar and on its page
 // with what it means, and the operator may move it to the trash, bring it back and delete it for good here.
 import { act, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
@@ -71,7 +71,7 @@ afterEach(async () => {
 
 const HINT = 'nexbrand no longer gets this client from nexsuite. Its versions stay, only the operator sees it. You can move it to the trash.'
 
-describe('a client nexsuite let go (B18)', () => {
+describe('a client the directory service let go', () => {
   it('is marked in the side bar with what it means, the others are not', async () => {
     const page = await mount(<Sidebar />)
     const marks = [...page.querySelectorAll('[data-testid="client-dropped"]')]
@@ -97,7 +97,7 @@ describe('a client nexsuite let go (B18)', () => {
     expect([...page.querySelectorAll('button')].some((b) => b.textContent?.trim() === i18n.t('client.trash'))).toBe(true)
   })
 
-  it('in the trash it can be brought back and deleted for good here; one deleted in nexsuite cannot', async () => {
+  it('in the trash it can be brought back and deleted for good here; one deleted in the directory service cannot', async () => {
     scene.bin = [
       info({ id: 'c1', name: 'Ideen', dropped: true, deleted_at: '2026-10-04T10:00:00Z' }),
       info({ id: 'c3', name: 'Kurbel', deleted_at: '2026-10-04T10:00:00Z' }),

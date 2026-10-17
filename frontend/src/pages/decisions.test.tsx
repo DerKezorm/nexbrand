@@ -1,6 +1,6 @@
-// What was decided after the check of 05.10.2026, as the pages show it: the switch for team leads (D3), the open
-// links of a blocked or deleted account (A15), signing in as someone else while connected (B11) and who stops being an
-// operator when disconnecting (B17). The server is a stub that answers by path; nothing waits for a clock.
+// As the pages show it: the switch for team leads, the open
+// links of a blocked or deleted account, signing in as someone else while connected and who stops being an
+// operator when disconnecting. The server is a stub that answers by path; nothing waits for a clock.
 import { act, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { MemoryRouter } from 'react-router-dom'
@@ -120,7 +120,7 @@ afterEach(async () => {
   vi.unstubAllGlobals()
 })
 
-// --- D3: team leads change their teams only when the operator allows it --------------------------------------------
+// --- team leads change their teams only when the operator allows it --------------------------------------------
 
 const DIRECTORY = {
   me: 2,
@@ -171,7 +171,7 @@ describe('team leads', () => {
   })
 })
 
-// --- A15: the open links of a blocked or deleted account ------------------------------------------------------------
+// --- the open links of a blocked or deleted account ------------------------------------------------------------
 
 const ACCOUNTS = [
   { id: 1, name: 'robin', display_name: '', role: 'operator', sign_in: 'password', spaces: 1, locked: false, blocked: false, open_links: 0 },
@@ -225,10 +225,10 @@ describe('the open links of an account', () => {
   })
 })
 
-// --- B11: signing in as someone else while connected ----------------------------------------------------------------
+// --- signing in as someone else while connected ----------------------------------------------------------------
 
 describe('the sign-in page', () => {
-  it('says that nexsuite may still be signed in and leads there to sign in as someone else', async () => {
+  it('says that the directory service may still be signed in and leads there to sign in as someone else', async () => {
     auth.me = null
     server.handler = (_m, path) => {
       if (path === '/api/setup') return { status: 200, body: { needs_setup: false, signed_in: false } }
@@ -251,7 +251,7 @@ describe('the sign-in page', () => {
     expect(other?.getAttribute('rel')).toContain('noopener')
   })
 
-  it('on its own says nothing about nexsuite', async () => {
+  it('on its own says nothing about the directory service', async () => {
     auth.me = null
     server.handler = (_m, path) => {
       if (path === '/api/setup') return { status: 200, body: { needs_setup: false, signed_in: false } }
@@ -270,10 +270,10 @@ describe('the sign-in page', () => {
   })
 })
 
-// --- B17: who stops being an operator when disconnecting ------------------------------------------------------------
+// --- who stops being an operator when disconnecting ------------------------------------------------------------
 
 describe('disconnecting', () => {
-  it('names the operators through nexsuite before, and after', async () => {
+  it('names the operators through the directory service before, and after', async () => {
     auth.me = { ...ME, suite: 'connected', suite_emergency: true } as Me
     server.handler = (method, path) => {
       if (path === '/api/suite') return { status: 200, body: { state: 'connected', url: 'https://suite.example.com', last_sync: null, problem: '', emergency_codes: 2, mail: false, operators_from_suite: ['anna', 'fritz'] } }

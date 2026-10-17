@@ -1,4 +1,4 @@
-"""Who may do what in which space, as in nexlore, with teams as in nextasks.
+"""Who may do what in which space.
 
 Three rights, each including the ones before it: **read** (look at clients, their versions, projects and files,
 export them), **write** (change clients, drafts and projects, upload files, publish a version, the trash), **manage**

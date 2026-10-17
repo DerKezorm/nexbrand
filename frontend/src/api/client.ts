@@ -159,16 +159,16 @@ export type Me = {
   keys_wait_for_second_factor?: boolean
   upload_max_mb?: number
   preferences?: Preferences
-  /** Connected to nexsuite: accounts, teams, rights, sign-in (and mail) are kept there. */
+  /** Connected to the directory service: accounts, teams, rights, sign-in (and mail) are kept there. */
   suite?: '' | 'connecting' | 'connected'
   suite_mail?: boolean
-  /** Connected: where nexsuite opens (password, second factor and profile are changed there). */
+  /** Connected: where the directory service opens (password, second factor and profile are changed there). */
   suite_url?: string
   /** Connected: this account is the app's emergency account. */
   suite_emergency?: boolean
-  /** Whether "New client" makes one here (not while nexsuite keeps the clients; else the operator's switch). */
+  /** Whether "New client" makes one here (not while the directory service keeps the clients; else the operator's switch). */
   may_create_clients?: boolean
-  /** Whether the lead of a team changes its members (the operator's switch; never while nexsuite keeps teams). */
+  /** Whether the lead of a team changes its members (the operator's switch; never while the directory service keeps teams). */
   may_edit_led_teams?: boolean
 }
 
@@ -192,7 +192,7 @@ export type SpaceInfo = {
   teams: TeamGrantInfo[]
   /** Everybody who gets in, through a right of their own or a team, each once. */
   people?: number
-  /** Its rights come from nexsuite. */
+  /** Its rights come from the directory service. */
   managed?: boolean
 }
 
@@ -262,13 +262,13 @@ export type ClientInfo = {
   space_id: number
   name: string
   color: string
-  /** Kept in nexsuite: name, sector, contact, colour and who may see it are changed there. */
+  /** Kept in the directory service: name, sector, contact, colour and who may see it are changed there. */
   managed: boolean
-  /** nexsuite no longer gives nexbrand this client: only the operator sees it, and may put it away here (B18). */
+  /** The directory service no longer gives nexbrand this client: only the operator sees it, and may put it away here. */
   dropped?: boolean
   sector: string
   contact: string
-  /** The client's addresses, for collecting with a click; nexbrand's own, also for a client nexsuite keeps. */
+  /** The client's addresses, for collecting with a click; nexbrand's own, also for a client the directory service keeps. */
   links: ClientLink[]
   created_at: string
   updated_at: string
@@ -385,13 +385,13 @@ export type MediaInfo = {
 }
 
 export type SetupState = { needs_setup: boolean; code_required: boolean; signed_in: boolean; version: string; min_password: number }
-/** `suite_url`: connected, where nexsuite opens (signing in as someone else goes through signing out there, B11). */
+/** `suite_url`: connected, where the directory service opens (signing in as someone else goes through signing out there). */
 export type Methods = { password: boolean; providers: ProviderButton[]; suite?: boolean; suite_url?: string }
 
 /** A button on the sign-in and invitation page: one per active provider, in the order of the operator's list. */
 export type ProviderButton = { slug: string; label: string }
 /** An entry of the provider list as the operator sees it (never the secret). `managed`: "" by hand, "authentik" by
- * the authentik button, "nexsuite" through the coupling. `editable`: false while coupled (the list is read only). */
+ * the authentik button, the coupled value through the coupling. `editable`: false while coupled (the list is read only). */
 export type OidcProvider = {
   id: number
   slug: string
@@ -615,7 +615,7 @@ export const clientsApi = {
   files: (id: string) => api<Record<string, FileInfo & { width?: number; height?: number }>>(`/api/clients/${id}/files`),
   trash: (id: string) => api<void>(`/api/clients/${id}`, { method: 'DELETE' }),
   restore: (id: string) => api<ClientInfo>(`/api/clients/${id}/restore`, { method: 'POST' }),
-  /** For good; asks the own password once more (B6). */
+  /** For good; asks the own password once more. */
   purge: (id: string, password = '') => api<void>(`/api/clients/${id}/purge`, { method: 'DELETE', body: { current_password: password } }),
   newVersion: (id: string, body: { label: string; source?: string; data?: BrandSet | OwnSet; note?: string; origin?: 'hand' | 'collect'; project_id?: string; base_id?: string }) =>
     api<VersionInfo>(`/api/clients/${id}/versions`, { method: 'POST', body }),

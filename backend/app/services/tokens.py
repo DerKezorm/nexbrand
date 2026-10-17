@@ -43,7 +43,7 @@ def _font_names(fonts: list[dict[str, Any]]) -> list[tuple[str, str]]:
 
 def _steps(data: dict[str, Any]) -> list[tuple[str, str, int | None, float | None]]:
     """Each step of the type scale, named by what it is for, else by its name: its size in rem (16 px = 1 rem), weight
-    and line height (F18: a step is more than its size). Weight and line height ``None`` where a step has none."""
+    and line height (a step is more than its size). Weight and line height ``None`` where a step has none."""
     steps = data.get("scale", [])
     names = _unique([step.get("use") or slug(step["name"]) for step in steps])
     out = []
@@ -69,7 +69,7 @@ def _step_lines(data: dict[str, Any], line: str) -> list[str]:
 
 
 def _comment(text: str) -> str:
-    """A name inside ``/* … */``: on one line, and never ending the comment (A6: ``*/`` in a client's name made the
+    """A name inside ``/* … */``: on one line, and never ending the comment (``*/`` in a client's name made the
     code after it count)."""
     line = " ".join("".join(char if ord(char) >= 32 and ord(char) != 127 else " " for char in text).split())
     while "*/" in line:

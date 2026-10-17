@@ -2,7 +2,7 @@
  * The pages before signing in, as in nexlore: the first account (with the setup code from the server's log),
  * signing in, and accepting an invitation.
  *
- * Signing in (blueprint 04): name and password, and below the line "or" a button per active sign-in provider, in the
+ * Signing in: name and password, and below the line "or" a button per active sign-in provider, in the
  * order of the operator's list. With the password sign-in turned off only the buttons show, and small at the bottom
  * the operator's way in with the password. The code step of the second factor comes after a provider too, when that
  * provider is not trusted with it (`?step=code`, the server parked the sign-in). An error from the address
@@ -154,7 +154,7 @@ export function LoginPage({ emergency = false }: { emergency?: boolean }) {
   // Password sign-in off: the form waits behind "Sign in as the operator with a password".
   const [operatorWay, setOperatorWay] = useState(false)
   const next = safeNext(params.get('next'))
-  /** Sent here from the open app whose session ended (blocked, signed out everywhere, A8). */
+  /** Sent here from the open app whose session ended (blocked, signed out everywhere). */
   const ended = params.get('ended') === '1'
 
   useEffect(() => {
@@ -165,7 +165,7 @@ export function LoginPage({ emergency = false }: { emergency?: boolean }) {
   if (status === 'setup') return <Navigate to="/setup" replace />
   if (status === 'signedIn') return <Navigate to={next} replace />
   // Which ways in there are decides what the page shows: before the answer it shows none, so no password form flashes
-  // up where nexsuite signs in, and the emergency page does not first read as the usual one.
+  // up where the directory service signs in, and the emergency page does not first read as the usual one.
   if (methods === null) return null
 
   const submit = async () => {
@@ -229,14 +229,14 @@ export function LoginPage({ emergency = false }: { emergency?: boolean }) {
   if (methods?.suite && !emergency) {
     return (
       <AuthFrame title={t('auth.login.title')} text={t('suite.loginText')}>
-        {/* Connected, a new password in nexsuite ends the sessions here too (B12). */}
+        {/* Connected, a new password in the directory service ends the sessions here too. */}
         {ended && <p className="mb-3 rounded-xl border border-warn-500/30 bg-warn-500/10 px-3 py-2 text-xs text-mist-200" role="status">{t('auth.login.endedSuite')}</p>}
         <Problem code={problem} />
         <a href={providerStart(methods.providers[0]?.slug ?? 'oidc', { next })} className="nc-btn nc-btn-accent flex h-10 w-full items-center justify-center">
           {t('suite.loginButton')}
         </a>
-        {/* Signing out here leaves nexsuite signed in, and the button would bring the same person back (B11). Who is
-            signed in there this page cannot tell without asking nexsuite for it, so it says it in general. */}
+        {/* Signing out here leaves the directory service signed in, and the button would bring the same person back. Who is
+            signed in there this page cannot tell without asking the directory service for it, so it says it in general. */}
         <div className="mt-4 space-y-1.5 text-xs text-mist-500" data-testid="still-signed-in">
           <p>{t('suite.stillSignedIn')}</p>
           {methods.suite_url && (
@@ -258,10 +258,10 @@ export function LoginPage({ emergency = false }: { emergency?: boolean }) {
     )
   }
 
-  // The emergency page speaks of nexsuite only while connected; alone it is the usual sign-in (G4).
+  // The emergency page speaks of the directory service only while connected; alone it is the usual sign-in.
   const emergencyNow = emergency && !!methods?.suite
   const providers = emergencyNow ? [] : methods.providers
-  // Password sign-in off: only the buttons, the form behind the operator's way in (blueprint 04).
+  // Password sign-in off: only the buttons, the form behind the operator's way in.
   const passwordShown = methods.password || providers.length === 0 || operatorWay || emergencyNow
   const endedNote = ended && (
     <p className="rounded-xl border border-warn-500/30 bg-warn-500/10 px-3 py-2 text-xs text-mist-200" role="status">
@@ -315,8 +315,8 @@ export function InvitePage() {
   const { setMe, refresh } = useAuth()
   const navigate = useNavigate()
   const [state, setState] = useState<InviteState | null>(null)
-  /** Why the link does not hold: run out, nexbrand connected to nexsuite since (B26), or anything else (used,
-   * withdrawn, replaced) (G4). */
+  /** Why the link does not hold: run out, nexbrand connected to the directory service since, or anything else (used,
+   * withdrawn, replaced). */
   const [invalid, setInvalid] = useState<'expired' | 'invalid' | 'suite' | null>(null)
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
@@ -343,7 +343,7 @@ export function InvitePage() {
   }
   // Until the ways in are known too: the form would flash up where only the provider's button belongs.
   if (!state || !methods) return null
-  // Who invites, where the server names them (E18 in nextasks); without, as before.
+  // Who invites, where the server names them; without, as before.
   const role = t(`roles.${state.role}`)
   const text = state.space
     ? state.by ? t('auth.invite.intoSpaceBy', { by: state.by, space: state.space, role }) : t('auth.invite.intoSpace', { space: state.space, role })
@@ -417,14 +417,14 @@ export function InvitePage() {
         </form>
         </>
       )}
-      {/* Below "or" (blueprint 04): through a sign-in provider, the invitation travels along and is the permission for
-          the new account (a1-9, C9). */}
+      {/* Below "or": through a sign-in provider, the invitation travels along and is the permission for
+          the new account. */}
       <ProviderButtons providers={methods.providers} invite={token} withOr={methods.password} />
     </AuthFrame>
   )
 }
 
-/** The way back from a page behind a link that does not hold (G4). */
+/** The way back from a page behind a link that does not hold. */
 function BackLink() {
   const { t } = useTranslation()
   return (

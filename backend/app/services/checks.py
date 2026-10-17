@@ -268,7 +268,7 @@ def css_color(value: str, variables: dict[str, str]) -> str | None:
             digits = "".join(char * 2 for char in digits[:3])
         return "#" + digits[:6].upper()
     if function:
-        # rgb() and hsl() as ``colors.parse`` reads them everywhere else (F3).
+        # rgb() and hsl() as ``colors.parse`` reads them everywhere else.
         return colors.parse(function.group(0))
     word = value.strip().lower()
     return _NAMED.get(word)

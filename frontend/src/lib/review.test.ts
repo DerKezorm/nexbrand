@@ -14,7 +14,7 @@ describe('a review', () => {
     expect([0, 1, 2, 3].map(directionLetter)).toEqual(['A', 'B', 'C', 'D'])
   })
 
-  it('shows the link from write up, and lets the maker or a manager end it (A2, A3)', () => {
+  it('shows the link from write up, and lets the maker or a manager end it', () => {
     expect(linkRights('read', false)).toEqual({ link: false, make: false, end: false })
     expect(linkRights('read', true)).toEqual({ link: false, make: false, end: false })
     expect(linkRights('write', false)).toEqual({ link: true, make: true, end: false })

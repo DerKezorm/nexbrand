@@ -46,8 +46,8 @@ DEFAULTS: dict[str, Any] = {
     "api_tokens_allowed": False,
     #: Whether members make clients (and then manage them), not only the operator. On, as before spaces went.
     "members_create_clients": True,
-    #: Whether the lead of a team changes its members, as in nexsuite: off unless the operator turns it on (Prüfgang
-    #: 05.10.2026 D3, as decided). Taking somebody into a team gives them the team's rights in every client.
+    #: Whether the lead of a team changes its members: off unless the operator turns it on.
+    #: Taking somebody into a team gives them the team's rights in every client.
     "team_leads_edit": False,
     #: Collecting from websites and repositories (``services/collect.py``): a way out, closed until opened.
     "collect_allowed": False,
@@ -67,9 +67,9 @@ DEFAULTS: dict[str, Any] = {
     "smtp_user": "",
     "smtp_password_enc": "",
     "smtp_from": "",
-    #: nexsuite (``services/suite.py``): "" on its own, ``connecting``, ``connected``; its address, the app's token
-    #: (sealed), what pairing gave until the operator finishes, what was set before (for the way back), the person
-    #: whose own password sign-in stays (emergency account), the emergency code hashes, the last fetch.
+    #: the directory service (``services/suite.py``): "" on its own, ``connecting``, ``connected``; its address, the
+    #: app's token (sealed), what pairing gave until the operator finishes, what was set before (for the way back), the
+    #: person whose own password sign-in stays (emergency account), the emergency code hashes, the last fetch.
     "suite_state": "",
     "suite_url": "",
     "suite_token_enc": "",
@@ -79,18 +79,18 @@ DEFAULTS: dict[str, Any] = {
     "suite_emergency": [],
     "suite_mail": False,
     "suite_last_sync": None,
-    #: The address of the nexsuite of the last connection, kept after a disconnect: matching ``suite_person`` of the
-    #: accounts counts only when connecting to that one again (B8).
+    #: The address of the directory service of the last connection, kept after a disconnect: matching ``suite_person``
+    #: of the accounts counts only when connecting to that one again.
     "suite_former_url": "",
     "suite_revision": 0,
     "suite_problem": "",
-    #: Reports nexsuite has not heard yet, with the address and key they go to (A11).
+    #: Reports the directory service has not heard yet, with the address and key they go to.
     "suite_owed": None,
-    #: The coupling to nexsuite as the shared sign-in module keeps it (``coupling.Coupling.as_dict``): the nexsuite
-    #: entry and how each own entry looked before it was set aside, for uncoupling.
+    #: The coupling to the directory service as the shared sign-in module keeps it (``coupling.Coupling.as_dict``): the
+    #: directory service entry and how each own entry looked before it was set aside, for uncoupling.
     "suite_coupling": None,
-    #: Persons of nexsuite a coupled migration could not give an account without their sign-in name, settled by the
-    #: first sync: ``{subject: [account ids]}`` (``oidc_store.coupled_pairs``).
+    #: Persons of the directory service a coupled migration could not give an account without their sign-in name,
+    #: settled by the first sync: ``{subject: [account ids]}`` (``oidc_store.coupled_pairs``).
     "suite_unsettled": None,
     #: Set once the single provider of the settings was looked at for the provider list (``services/oidc_store.py``).
     "oidc_list_migrated": False,

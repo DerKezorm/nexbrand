@@ -200,7 +200,7 @@ def compare(db: Session, caller: Caller, client_key: str, older: str, newer: str
         "colors_added": [after[k] for k in after if k not in before],
         "colors_removed": [before[k] for k in before if k not in after],
         "fonts_added": sorted(fonts_b - fonts_a), "fonts_removed": sorted(fonts_a - fonts_b),
-        # Every part, the type scale, rules, examples and the dark mode too (F10), as the interface compares.
+        # Every part, the type scale, rules, examples and the dark mode too, as the interface compares.
         "changes": diff.diff(brands.effective(db, a), brands.effective(db, b)),
     }
 
@@ -235,7 +235,7 @@ def audit(
         found = [*found, *(value for value in sheet.pop("values") if value not in found)]
     out = []
     for raw in found[:500]:
-        # As style sheets write colours: #RGB, #RRGGBB (with alpha), without #, rgb(), hsl() (F3).
+        # As style sheets write colours: #RGB, #RRGGBB (with alpha), without #, rgb(), hsl().
         value = colors.parse(raw)
         if value is None:
             out.append({"value": raw, "verdict": "unreadable"})

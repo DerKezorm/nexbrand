@@ -1,5 +1,5 @@
 """What changed from one design set to another, in every part: colours, fonts, logos, the type scale, rules, examples
-and the dark mode (F10: a comparison that saw only colours, fonts and logos said "no differences" over a new type
+and the dark mode (a comparison that saw only colours, fonts and logos said "no differences" over a new type
 scale).
 
 The same as ``frontend/src/lib/diff.ts``; ``tests/data/diff_cases.json`` holds both to it. A change names its part,

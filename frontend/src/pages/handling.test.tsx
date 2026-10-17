@@ -1,9 +1,9 @@
-// Handling and looks after the check of 05.10.2026 (block 6), as the pages show them: the sign-in pages wait for the
-// ways in, the bin names its clients and asks with the family's dialog (F6), a protected page says so in words (F14),
-// collecting says up front that it is off and does not point the wrong way (F19), the emergency page alone is the
-// usual sign-in (F20), the assistant has one way on and says why it waits (F25), the two "Edit" say what they edit
-// (F28), a new person learns whom to ask (G5), the account list is readable and names its buttons (G6), and the family
-// is the same in words (G11). The server is a stub that answers by path; nothing waits for a clock.
+// Handling and looks, as the pages show them: the sign-in pages wait for the
+// ways in, the bin names its clients and asks with the family's dialog, a protected page says so in words,
+// collecting says up front that it is off and does not point the wrong way, the emergency page alone is the
+// usual sign-in, the assistant has one way on and says why it waits, the two "Edit" say what they edit,
+// a new person learns whom to ask, the account list is readable and names its buttons, and the family
+// is the same in words. The server is a stub that answers by path; nothing waits for a clock.
 import { act, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -197,7 +197,7 @@ describe('the pages before signing in', () => {
     expect(page.querySelector('a[href^="/api/oidc/oidc/start"]')?.textContent).toBe(i18n.t('suite.loginButton'))
   })
 
-  it('show the emergency page as such from the start while connected, and the usual sign-in alone (F20)', async () => {
+  it('show the emergency page as such from the start while connected, and the usual sign-in alone', async () => {
     const connected = await signIn('/notzugang', { password: false, providers: [{ slug: 'oidc', label: 'nexsuite' }], suite: true })
     expect(connected.page.querySelector('h1')).toBeNull()
     await connected.release()
@@ -235,13 +235,13 @@ describe('the pages before signing in', () => {
     release()
     await settle()
     expect(page.querySelector('input[type=password]')).toBeNull()
-    // One button per provider, "Continue with …" (blueprint 04): it takes the invitation along to the provider.
+    // One button per provider, "Continue with …": it takes the invitation along to the provider.
     const button = [...page.querySelectorAll('[data-testid="provider-buttons"] button')]
     expect(button.map((b) => b.textContent)).toEqual([i18n.t('oidc.invite.button', { name: 'authentik' })])
   })
 })
 
-// --- F6: the bin, and asking with the family's dialog -------------------------------------------------------------
+// --- the bin, and asking with the family's dialog -------------------------------------------------------------
 
 describe('the bin', () => {
   it('names each client on a line of its own and in its buttons, and deletes for good only after the dialog', async () => {
@@ -289,7 +289,7 @@ describe('withdrawing a review and ending a public page', () => {
     expect(calls('DELETE', '/api/clients/c1/reviews/3')).toHaveLength(1)
   })
 
-  it('a page with a password says so in words, and ending it asks first (F14)', async () => {
+  it('a page with a password says so in words, and ending it asks first', async () => {
     const share = { id: 9, project_id: null, label: 'Press kit', link: 'https://brand.example.com/s/abc', mine: true, version_id: null, version_label: null, views: 2, created_at: '2026-10-04T10:00:00Z', expires_at: null, password: true } as ShareInfo
     server.handler = (method, path) => {
       if (path === '/api/clients/c1/shares' && method === 'GET') return { status: 200, body: [share] }
@@ -308,7 +308,7 @@ describe('withdrawing a review and ending a public page', () => {
   })
 })
 
-// --- G5: a new person without a client ------------------------------------------------------------------------------
+// --- a new person without a client ------------------------------------------------------------------------------
 
 describe('a person without a client', () => {
   it('reads one wording and whom to ask, alone and connected', async () => {
@@ -332,7 +332,7 @@ describe('a person without a client', () => {
   })
 })
 
-// --- G6: the list of accounts --------------------------------------------------------------------------------------
+// --- the list of accounts --------------------------------------------------------------------------------------
 
 const ACCOUNTS = [
   { id: 1, name: 'robin', display_name: '', role: 'operator', sign_in: 'password', spaces: 1, locked: false, blocked: false, open_links: 0 },
@@ -363,7 +363,7 @@ describe('the list of accounts', () => {
   })
 })
 
-// --- F19: collecting --------------------------------------------------------------------------------------------------
+// --- collecting --------------------------------------------------------------------------------------------------
 
 describe('collecting', () => {
   it('says before any click that the operator has switched it off, and does not try', async () => {
@@ -401,7 +401,7 @@ describe('collecting', () => {
   })
 })
 
-// --- F25: the assistant ------------------------------------------------------------------------------------------------
+// --- the assistant ------------------------------------------------------------------------------------------------
 
 describe('the assistant for a new client', () => {
   it('says why "Next" waits and has one way on from the start step', async () => {
@@ -468,7 +468,7 @@ describe('the assistant for a new client', () => {
     expect(page.textContent).not.toContain(i18n.t('wizard.proposeNoteAi'))
   })
 
-  it('keeps a start colour as entered and only offers the one that reaches on the light ground (decided 06.10.2026)', async () => {
+  it('keeps a start colour as entered and only offers the one that reaches on the light ground', async () => {
     server.handler = (_m, path) => {
       if (path === '/api/clients/name-check') return { status: 200, body: { free: true, code: null } }
     }
@@ -596,7 +596,7 @@ describe('the assistant for a new client', () => {
   it('keeps the colours of a picture as measured and offers the main one that reaches, only taken by the button', async () => {
     await withPicture([['#F6EFE4', 5000], ['#D9822B', 2000], ['#2B2A28', 1500], ['#6F8F55', 716]], async (page) => {
       const { contrast, formatRatio, reach } = await import('../lib/color')
-      // The main colour on the light one of the picture, and the nearest of its hue that reaches, as the checker says.
+      // The main colour on the light one of the picture, and the nearest of its hue that reaches, as the contrast calculator says.
       const better = reach('#D9822B', '#F6EFE4', 4.5)!
       const note = () => page.querySelector('[role="status"]')
       expect(note()?.textContent).toContain(i18n.t('wizard.shortPicture', { color: '#D9822B', ratio: formatRatio(contrast('#D9822B', '#F6EFE4'), 'en'), hex: better }))
@@ -621,7 +621,7 @@ describe('the assistant for a new client', () => {
   })
 })
 
-// --- G11: the family in words --------------------------------------------------------------------------------------
+// --- the family in words --------------------------------------------------------------------------------------
 
 describe('the family', () => {
   it('the about page says "Version" for the app and shows the family', async () => {
@@ -637,7 +637,7 @@ describe('the family', () => {
     expect(document.title).toBe(`${i18n.t('about.menu')} · nexbrand`)
   })
 
-  it('the about page does not name nexsuite, in either language: it is what everybody sees, coupled or not', async () => {
+  it('the about page does not name the directory service, in either language: it is what everybody sees, coupled or not', async () => {
     server.handler = (_m, path) => {
       if (path === '/api/about') return { status: 200, body: { version: '0.1.0', license: 'AGPL-3.0', repo_url: 'https://github.com/example/nexbrand', releases_url: 'https://github.com/example/nexbrand/releases', project_url: '' } }
     }
@@ -686,7 +686,7 @@ describe('the family', () => {
     expect(chips).toEqual(['Deutsch', 'English', 'Čeština', 'Español', 'Français', 'Zulu'])
   })
 
-  it('German keys are "Strg", and the header names its parts as nexsuite and nextasks do', async () => {
+  it('German keys are "Strg", and the header names its parts as the other apps of the family do', async () => {
     await i18n.changeLanguage('de')
     expect(i18n.t('keys.ctrl')).toBe('Strg')
     expect(i18n.t('app.home')).toBe('Zur Startseite')
@@ -696,7 +696,7 @@ describe('the family', () => {
   })
 })
 
-// --- F28: two "Edit" on the client's page ----------------------------------------------------------------------------
+// --- two "Edit" on the client's page ----------------------------------------------------------------------------
 
 describe('the client page', () => {
   it('says what each of its two edit buttons edits', () => {
@@ -709,10 +709,10 @@ describe('the client page', () => {
   })
 })
 
-// --- Connecting: nexsuite's refusals of a pairing (nexsuite 3ef5282) --------------------------------------------------
+// --- Connecting: the directory service's refusals of a pairing --------------------------------------------------
 
 describe('the connect assistant', () => {
-  it('says what to do when nexsuite refuses for an older connection of this address', async () => {
+  it('says what to do when the directory service refuses for an older connection of this address', async () => {
     const { errorText } = await import('../lib/errors')
     for (const code of ['app_still_connected', 'app_not_reachable', 'invalid_characters', 'password_unchanged']) {
       expect(errorText(code)).toBe(i18n.t(`errors.${code}`))

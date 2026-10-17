@@ -3,7 +3,7 @@ projects, favourites, the trash and the export as code.
 
 Rights come from the client's own group of rights (``services/rights.py``): reading shows, writing changes and
 publishes, the trash takes writing to put in and take out, and managing to delete for good. While nexbrand is connected
-to nexsuite, clients are made, renamed and deleted there; here they get their design set.
+to the directory service, clients are made, renamed and deleted there; here they get their design set.
 """
 
 from __future__ import annotations
@@ -167,7 +167,7 @@ def project_view(db: DbSession, row: Project, client_current: BrandVersion | Non
         "version_id": row.version_id,
         "note": row.note,
         "current": current.label if current else None,
-        #: The version that holds today; one published to hold from a later day is not it yet (F2).
+        #: The version that holds today; one published to hold from a later day is not it yet.
         "current_id": current.id if current else None,
         "drafts": sum(1 for v in rows if v.status == DRAFT),
         "base_id": base.id if base else None,
@@ -218,7 +218,7 @@ def client_view(db: DbSession, account: AccountRow, client: Client) -> dict[str,
         "name": client.name,
         "color": space.color if space is not None else "#2f7bff",
         "managed": brands.managed(db, client),
-        #: nexsuite no longer gives nexbrand this client: only the operator sees it, and may put it away (B18).
+        #: the directory service no longer gives nexbrand this client: only the operator sees it, and may put it away.
         "dropped": brands.let_go(db, client),
         "sector": client.sector,
         "contact": client.contact,
@@ -231,7 +231,7 @@ def client_view(db: DbSession, account: AccountRow, client: Client) -> dict[str,
         "opened_at": visit.opened_at.isoformat() if visit else None,
         "role": rights.role_in(db, account, client.space_id),
         "current": current.label if current else None,
-        #: The version that holds today; one published to hold from a later day is not it yet (F2).
+        #: The version that holds today; one published to hold from a later day is not it yet.
         "current_id": current.id if current else None,
         "drafts": sum(1 for v in versions if v.status == DRAFT),
         "projects": int(projects or 0),
@@ -241,7 +241,7 @@ def client_view(db: DbSession, account: AccountRow, client: Client) -> dict[str,
     }
 
 
-@router.get("/clients/name-check", summary="Whether a client name is free (F15), before a form goes further")
+@router.get("/clients/name-check", summary="Whether a client name is free, before a form goes further")
 def name_check(
     account: Account, db: DbSession, name: Annotated[str, Query(min_length=1, max_length=120)],
     own: Annotated[str | None, Query(max_length=24)] = None,
@@ -343,8 +343,8 @@ def visited(client_id: ClientId, account: Account, db: DbSession) -> None:
 
 
 def _let_go(db: DbSession, account: AccountRow, client: Client) -> bool:
-    """A client nexsuite no longer gives nexbrand is put away, brought back and deleted for good by the operator in
-    the interface, nobody else (B18)."""
+    """A client the directory service no longer gives nexbrand is put away, brought back and deleted for good by the
+    operator in the interface, nobody else."""
     return brands.let_go(db, client) and rights.operator_powers(account)
 
 
@@ -368,7 +368,7 @@ def restore(client_id: ClientId, account: Account, db: DbSession) -> dict[str, A
 
 
 class PurgeIn(BaseModel):
-    #: The own password once more: deleting for good takes every version with it (B6). Asked of accounts with a
+    #: The own password once more: deleting for good takes every version with it. Asked of accounts with a
     #: password; one that signs in through the provider has none here.
     current_password: str = Field(default="", max_length=200)
 
@@ -445,7 +445,7 @@ def publish(
 def delete_version(client_id: ClientId, version_id: VersionId, account: Account, db: DbSession,
                    with_review: bool = False) -> None:
     """A draft before the client goes only when asked to take its review along (``with_review``): the client's page
-    closes and the comments on it go with the draft (F5)."""
+    closes and the comments on it go with the draft."""
     client = client_of(db, account, client_id, WRITE)
     row = _version(db, client, version_id)
     open_review = db.scalar(select(func.count()).select_from(Review).where(Review.version_id == row.id,

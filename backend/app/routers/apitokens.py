@@ -44,7 +44,7 @@ class TokensOut(BaseModel):
     tokens: list[TokenOut]
 
 
-#: How long a new token holds when nothing else is said (F26, decided 05.10.2026).
+#: How long a new token holds when nothing else is said.
 DEFAULT_DAYS = 90
 
 
@@ -52,11 +52,11 @@ class TokenIn(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     #: ``read``, or ``draft``: also proposes versions as drafts (MCP, ``/api/v1``).
     level: str = Field(default="read", max_length=8)
-    #: Ids of clients the token sees. Needed unless ``all_clients`` (F26: a new token is narrow from the start).
+    #: Ids of clients the token sees. Needed unless ``all_clients`` (a new token is narrow from the start).
     clients: list[str] | None = Field(default=None, max_length=1000)
     #: Every client the account may read, now and later, instead of ``clients``; asked for on purpose.
     all_clients: bool = False
-    #: 30, 90 or 365; ``null`` on purpose: never runs out; left out: 90 (F26).
+    #: 30, 90 or 365; ``null`` on purpose: never runs out; left out: 90.
     days: int | None = DEFAULT_DAYS
 
 

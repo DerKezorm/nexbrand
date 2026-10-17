@@ -1,6 +1,4 @@
-"""What the night check of 04.10.2026 found in nexbrand, each as it should be now (the numbers are those of the
-list in nexsuite/tools/pruefgang-2026-10-04/LISTE.md). The second part holds what the check of 05.10.2026 found
-missing of them in nexbrand (its numbers in brackets, from nexsuite/tools/pruefgang-2026-10-05/LISTE.md)."""
+"""Hardening regressions: accounts, sessions, links and backups, connected and alone, each as it should be."""
 
 from __future__ import annotations
 
@@ -184,21 +182,21 @@ def test_f5_the_operator_blocks_an_account_alone_too(client: TestClient, operato
     assert client.post(f"/api/accounts/{operator.id}/block", json={"current_password": PASSWORD}).status_code == 409
     assert client.post(f"/api/accounts/{rita.id}/block", json={"current_password": PASSWORD}).status_code == 204
     with new_client() as stranger:
-        # The right password hears that the account is blocked (A16, decided 05.10.2026).
+        # The right password hears that the account is blocked.
         assert stranger.post("/api/auth/login", json={"name": "rita", "password": PASSWORD}).status_code == 403
     assert client.post(f"/api/accounts/{rita.id}/unblock", json={"current_password": PASSWORD}).status_code == 204
     with SessionLocal() as db:
         assert db.get(Account, rita.id).blocked_at is None  # type: ignore[union-attr]
 
 
-# --- What the check of 05.10.2026 found missing -----------------------------------------------------------------------
+# --- Backups while connected -----------------------------------------------------------------------
 
 
 def test_connected_only_the_emergency_account_carries_a_backup_away(
     client: TestClient, operator: Account, world: dict, fake: FakeSuite
 ) -> None:
-    """(A1) The archive holds the emergency account's password hash and second factor with the key: an operator
-    coming through nexsuite, never asked for a password here, must not get it (the way A5 closed for passwords)."""
+    """ The archive holds the emergency account's password hash and second factor with the key: an operator
+    coming through the directory service, never asked for a password here, must not get it."""
     from app.services import backups
 
     name = backups.create().name
@@ -217,9 +215,9 @@ def test_connected_only_the_emergency_account_carries_a_backup_away(
 def test_d8_the_emergency_account_goes_with_the_person_and_comes_back_on_disconnecting(
     client: TestClient, operator: Account, world: dict, fake: FakeSuite
 ) -> None:
-    """(B1) Deleted in nexsuite, the emergency account is shut as when blocked there; disconnecting lets it in."""
+    """ Deleted in the directory service, the emergency account is shut as when blocked there; disconnecting lets it in."""
     connect(client, world, operator)
-    del fake.people["1"]  # the operator's person deleted in nexsuite
+    del fake.people["1"]  # the operator's person deleted in the directory service
     with SessionLocal() as db:
         suite.sync(db)
     with new_client() as browser:
@@ -235,7 +233,7 @@ def test_d8_the_emergency_account_goes_with_the_person_and_comes_back_on_disconn
 def test_d8_blocked_in_nexsuite_the_emergency_account_is_free_again_once_disconnected(
     client: TestClient, operator: Account, world: dict, fake: FakeSuite
 ) -> None:
-    """(B1) Blocked there, then nexsuite disconnects the app: the emergency account is the way in again."""
+    """ Blocked there, then the directory service disconnects the app: the emergency account is the way in again."""
     connect(client, world, operator)
     fake.people["1"]["blocked"] = True
     with SessionLocal() as db:
@@ -275,7 +273,7 @@ def test_b2_abort_still_gives_up_a_connection_half_way(
 def test_a11_the_plain_way_needs_nexsuite_and_the_emergency_report_waits_for_it(
     client: TestClient, operator: Account, world: dict, fake: FakeSuite
 ) -> None:
-    """(B3, B4) Out of reach, the plain way is refused; the emergency code's report waits and goes later."""
+    """ Out of reach, the plain way is refused; the emergency code's report waits and goes later."""
     fake.emergency = [hashlib.sha256(b"WXYZ23456789").hexdigest()]
     connect(client, world, operator)
     fake.down = True
@@ -328,7 +326,7 @@ def test_a11_an_emergency_sign_in_is_reported(
 def test_a11_the_emergency_sign_in_counts_after_the_second_factor(
     client: TestClient, operator: Account, world: dict, fake: FakeSuite, clock: Any, monkeypatch: Any
 ) -> None:
-    """(B5) The password alone is no sign-in yet: nexsuite hears of it after the second factor."""
+    """ The password alone is no sign-in yet: the directory service hears of it after the second factor."""
     import threading
 
     secret, _codes = test_totp.enrol(client)
@@ -342,7 +340,7 @@ def test_a11_the_emergency_sign_in_counts_after_the_second_factor(
 
 
 def test_b7_a_matched_address_goes_along(client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
-    """(B13) erik here has an address, erik in nexsuite none: it goes there instead of getting lost here."""
+    """ erik here has an address, erik in the directory service none: it goes there instead of getting lost here."""
     with SessionLocal() as db:
         erik = db.query(Account).filter_by(name="erik").one()
         erik.email = "erik@example.com"

@@ -1,10 +1,10 @@
-"""Clients and people while connected (Prüfgang 05.10.2026, block 4): deleting for good, connecting again, choices
+"""Clients and people while connected: deleting for good, connecting again, choices
 that hold, direct links through the sign-in, a person made a moment ago, names, invitations from before, and the
 browsers nexbrand knows.
 
-nexsuite is played by ``FakeSuite`` from ``test_suite``; its sign-in by the fake provider of the shared contract tests
-(``tests/oidc_helpers.py``), standing in for nexsuite's entry of the provider list. Nothing here waits for a clock.
-The page a sign-in started from (B10) is tested in ``test_oidc_app.py``.
+The directory service is played by ``FakeSuite`` from ``test_suite``; its sign-in by the fake provider of the shared contract tests
+(``tests/oidc_helpers.py``), standing in for the directory service's entry of the provider list. Nothing here waits for a clock.
+The page a sign-in started from is tested in ``test_oidc_app.py``.
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ def _purge(browser: TestClient, cid: str, password: str | None = PASSWORD) -> An
     return browser.request("DELETE", f"/api/clients/{cid}/purge", json=body)
 
 
-# --- B6: deleting for good ------------------------------------------------------------------------------------------
+# --- deleting for good ------------------------------------------------------------------------------------------
 
 
 def test_b6_a_client_nexsuite_keeps_is_not_deleted_for_good_here(client: TestClient, operator: Account, world: dict,
@@ -83,7 +83,7 @@ def test_b6_a_manager_who_is_no_operator_gives_the_password_too(client: TestClie
         assert _purge(browser, cid).status_code == 204
 
 
-# --- B8, B9, B23, B24: connecting -----------------------------------------------------------------------------------
+# --- connecting -----------------------------------------------------------------------------------
 
 
 def _start(client: TestClient) -> dict[str, Any]:
@@ -95,10 +95,10 @@ def _start(client: TestClient) -> dict[str, Any]:
 def test_b8_connecting_again_keeps_the_blocked_blocked_and_finds_the_own_person(
         client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
     connect(client, world, operator)  # cleo is left out, and blocked
-    # Another app brought a person "cleo" to nexsuite: the sync makes her an account here, beside the blocked one.
+    # Another app brought a person "cleo" to the directory service: the sync makes her an account here, beside the blocked one.
     fake.people["60"] = {"id": "60", "name": "cleo", "display_name": "Cleo Example", "email": "", "operator": False,
                          "blocked": False}
-    # anna is deleted in nexsuite: blocked here.
+    # anna is deleted in the directory service: blocked here.
     del fake.people["2"]
     client.post("/api/suite/sync")
     assert _person("cleo2") == "60" and _row("anna").blocked_at is not None
@@ -178,8 +178,8 @@ def test_b23_the_choices_so_far_are_kept_until_connected(client: TestClient, ope
 
 @pytest.mark.parametrize("answer", [
     suite.SuiteError("tab_missing", "Refused.", 409),  # another nex-app at that address
-    suite.SuiteError("suite_failed", "nexsuite refused.", 409),  # nexsuite under a path it does not have
-    {"ok": True},  # something that answers, but not as nexsuite
+    suite.SuiteError("suite_failed", "nexsuite refused.", 409),  # The directory service under a path it does not have
+    {"ok": True},  # something that answers, but not as the directory service
 ])
 def test_b24_an_address_that_is_not_nexsuite_is_named_as_such(client: TestClient, operator: Account,
                                                               monkeypatch: pytest.MonkeyPatch, answer: Any) -> None:
@@ -208,12 +208,12 @@ def test_b24_a_code_too_short_once_trimmed_is_a_wrong_code_not_another_app(clien
     assert _setting("suite_state") == ""
 
 
-# --- B20: the sign-in ------------------------------------------------------------------------------------------------
+# --- the sign-in ------------------------------------------------------------------------------------------------
 
 
 def _suite_signs_in(provider: FakeProvider) -> None:
-    """The fake provider stands in for nexsuite's sign-in: nexsuite's entry of the list takes its issuer and client
-    (the coupling made it with nexsuite's own)."""
+    """The fake provider stands in for the directory service's sign-in: the directory service's entry of the list takes its issuer and client
+    (the coupling made it with the directory service's own)."""
     with SessionLocal() as db:
         row = db.query(OidcProvider).filter_by(managed="nexsuite").one()
         row.issuer, row.client_id = provider.issuer.rstrip("/"), provider.client_id
@@ -222,7 +222,7 @@ def _suite_signs_in(provider: FakeProvider) -> None:
 
 
 def _sign_in(browser: TestClient, provider: FakeProvider, page: str | None = None, **person: Any) -> Any:
-    """``person`` signs in through nexsuite's button (the entry ``oidc``); the answer of the return."""
+    """``person`` signs in through the directory service's button (the entry ``oidc``); the answer of the return."""
     provider.person = person
     started = browser.get("/api/oidc/oidc/start", params={"next": page} if page else {})
     return come_back(browser, provider, location(started))
@@ -239,7 +239,7 @@ def test_b20_a_person_made_in_nexsuite_a_moment_ago_gets_in_at_once(
     assert back.status_code == 303 and location(back) == "/c/abc123XYZ"
     assert browser.get("/api/auth/me").json()["name"] == "dora"
     assert _person("dora") == "61"
-    # Somebody nexsuite does not list: refused with the reason for a connected app, no invitation offered.
+    # Somebody the directory service does not list: refused with the reason for a connected app, no invitation offered.
     stranger = _sign_in(fresh_browser(), provider, sub="999", email="x@example.com")
     assert location(stranger) == "/login?error=suite_no_account"
 
@@ -283,7 +283,7 @@ def test_b20_the_directory_is_fetched_off_the_server_loop_and_at_most_every_half
     assert location(_sign_in(fresh_browser(), provider, sub="62")) == "/" and fetched() == known
 
 
-# --- B21, B22, B26, G3 ------------------------------------------------------------------------------------------
+# --- Names, rename and where things live -----------------------------------------------------------------------------------------
 
 
 def _everything_by_name(client: TestClient, world: dict, fake: FakeSuite, shown: str) -> dict[str, Any]:
@@ -401,7 +401,7 @@ def test_b21_a_display_name_of_its_own_stays(client: TestClient, operator: Accou
 
 def test_b21_b8_an_account_left_out_keeps_its_name_and_its_own_link(client: TestClient, operator: Account,
                                                                     world: dict, fake: FakeSuite) -> None:
-    # The checker's r2 and r3: cleo signs in through authentik on her own and is left out when connecting.
+    # Cleo signs in through authentik on her own and is left out when connecting.
     own_link("cleo", "ak-cleo-uuid", own_provider())
     connect(client, world, operator)
     fake.people["60"] = {"id": "60", "name": "cleo", "display_name": "", "email": "", "operator": False,
@@ -421,7 +421,7 @@ def test_b21_b8_an_account_left_out_keeps_its_name_and_its_own_link(client: Test
 
 
 def _left_out_with_a_number(client: TestClient, world: dict, operator: Account) -> None:
-    """cleo signs in through another provider whose subject is "2", the id anna has in nexsuite, and is left out when
+    """cleo signs in through another provider whose subject is "2", the id anna has in the directory service, and is left out when
     connecting. Links belong to their provider: hers stays with authentik's entry, aside while connected."""
     own_link("cleo", "2", own_provider())
     connect(client, world, operator)
@@ -429,7 +429,7 @@ def _left_out_with_a_number(client: TestClient, world: dict, operator: Account) 
 
 def test_a_left_out_account_never_takes_the_sign_in_of_a_person_with_the_same_id(
         client: TestClient, operator: Account, world: dict, fake: FakeSuite, provider: FakeProvider) -> None:
-    # (A) from the nextasks checker: the blocked cleo was found first, anna got "account_blocked".
+    # The blocked cleo was found first, anna got "account_blocked".
     _left_out_with_a_number(client, world, operator)
     _suite_signs_in(provider)
     browser = fresh_browser()
@@ -440,7 +440,7 @@ def test_a_left_out_account_never_takes_the_sign_in_of_a_person_with_the_same_id
 
 def test_a_left_out_account_never_takes_what_a_person_with_the_same_id_has(
         client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
-    # (B) from the nextasks checker: the sync took the last account with subject "2", unblocked cleo and gave her
+    # The sync took the last account with subject "2", unblocked cleo and gave her
     # anna's address, name, person, teams and rights.
     _left_out_with_a_number(client, world, operator)
     assert client.post("/api/suite/sync").status_code in (200, 204)
@@ -459,7 +459,7 @@ def test_a_left_out_account_never_takes_what_a_person_with_the_same_id_has(
 
 def test_a_left_out_account_is_not_taken_for_a_new_person_with_its_number(
         client: TestClient, operator: Account, world: dict, fake: FakeSuite, provider: FakeProvider) -> None:
-    # (B) where nobody here knows the person yet: cleo's own subject "77" is the id of a person nexsuite makes later.
+    # Where nobody here knows the person yet: cleo's own subject "77" is the id of a person the directory service makes later.
     # The person gets an account of its own; cleo stays as she was.
     own_link("cleo", "77", own_provider())
     connect(client, world, operator)
@@ -479,7 +479,7 @@ def test_a_left_out_account_is_not_taken_for_a_new_person_with_its_number(
 
 def test_no_account_links_itself_to_a_provider_while_connected(
         client: TestClient, operator: Account, world: dict, fake: FakeSuite, provider: FakeProvider) -> None:
-    # From nextasks: the emergency account linked to a subject of its own would be nobody's to the next sync, and
+    # The emergency account linked to a subject of its own would be nobody's to the next sync, and
     # locked out. Started before connecting and coming back after, nothing is linked either.
     add_provider(client, provider, slug="sso")
     started = client.post("/api/oidc/sso/link", json={"password": PASSWORD})
@@ -500,7 +500,7 @@ def test_no_account_links_itself_to_a_provider_while_connected(
 
 def test_a_person_blocked_in_nexsuite_keeps_its_account(
         client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
-    # erik is blocked in nexsuite; the next syncs must not make "erik2" with erik's person, and unblocked in nexsuite,
+    # erik is blocked in the directory service; the next syncs must not make "erik2" with erik's person, and unblocked in the directory service,
     # erik works with his rights and history again.
     connect(client, world, operator)
     fake.people["3"]["blocked"] = True
@@ -519,7 +519,7 @@ def test_a_person_blocked_in_nexsuite_keeps_its_account(
 
 def test_a_person_renamed_in_nexsuite_keeps_its_blocked_account(
         client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
-    # erik blocked in nexsuite, his display name changed there meanwhile: no erik2.
+    # erik blocked in the directory service, his display name changed there meanwhile: no erik2.
     connect(client, world, operator)
     fake.people["3"]["blocked"] = True
     assert client.post("/api/suite/sync").status_code in (200, 204)
@@ -535,7 +535,7 @@ def test_a_person_renamed_in_nexsuite_keeps_its_blocked_account(
 def test_b8_a_connection_from_before_this_was_kept_is_known_too(client: TestClient, operator: Account, world: dict,
                                                                 fake: FakeSuite) -> None:
     connect(client, world, operator)
-    with SessionLocal() as db:  # the mark lost: the link at nexsuite's entry still says who is who
+    with SessionLocal() as db:  # the mark lost: the link at the directory service's entry still says who is who
         db.query(Account).update({"suite_person": ""})
         db.commit()
     assert client.post("/api/suite/disconnect", json={"current_password": PASSWORD}).status_code == 200
@@ -570,7 +570,7 @@ def test_b21_a_new_person_gets_the_name_a_deleted_one_had(client: TestClient, op
 
 def test_b21_r7_a_person_that_came_with_a_sync_is_renamed_when_deleted_there(
         client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
-    # The checker's r7: dora comes with a sync, not when connecting; nexsuite deletes her and makes a new dora.
+    # Dora comes with a sync, not when connecting; the directory service deletes her and makes a new dora.
     connect(client, world, operator)
     fake.people["50"] = {"id": "50", "name": "dora", "display_name": "", "email": "", "operator": False,
                          "blocked": False}
@@ -686,7 +686,7 @@ def test_the_same_password_or_block_set_again_keeps_the_browsers(client: TestCli
         assert browser.get("/api/auth/me").status_code == 200
 
 
-# --- B18: a client nexsuite no longer gives nexbrand ------------------------------------------------------------------
+# --- a client the directory service no longer gives nexbrand ------------------------------------------------------------------
 
 
 def _shown(browser: TestClient, cid: str) -> dict[str, Any]:

@@ -1,5 +1,4 @@
-"""Who has access to a client, invitations by name and by link, and what the sign-in answers (Prüfgang 05.10.2026,
-block 3: D4, D5, F4, F22, G4 and the invitation mail)."""
+"""Who has access to a client, invitations by name and by link, and what the sign-in answers and the invitation mail."""
 
 from __future__ import annotations
 
@@ -28,7 +27,7 @@ def _team(client: TestClient, name: str, people: list[Account]) -> int:
     return int(answer.json()["id"])
 
 
-# --- D4: everybody with access sees who has it, with the teams ------------------------------------------------------
+# --- everybody with access sees who has it, with the teams ------------------------------------------------------
 
 
 def test_readers_and_writers_see_who_has_access_with_the_teams_but_no_invitations(
@@ -72,7 +71,7 @@ def test_connected_the_teams_of_a_client_nexsuite_keeps_are_listed(
     assert [t["name"] for t in body["teams"]] == ["Design"] and body["teams"][0]["role"] == "read"
 
 
-# --- D5: invitations by name are seen and withdrawn; one link per address -------------------------------------------
+# --- invitations by name are seen and withdrawn; one link per address -------------------------------------------
 
 
 def _open_invite(name: str) -> SpaceNotice:
@@ -168,7 +167,7 @@ def test_a_second_invitation_to_the_same_address_replaces_the_first(client: Test
         assert db.query(Invite).count() == 3
 
 
-# --- G4: a link that does not hold says why -------------------------------------------------------------------------
+# --- a link that does not hold says why -------------------------------------------------------------------------
 
 
 def test_a_link_that_ran_out_says_so_and_a_withdrawn_one_says_it_is_not_valid(client: TestClient,
@@ -191,7 +190,7 @@ def test_a_link_that_ran_out_says_so_and_a_withdrawn_one_says_it_is_not_valid(cl
     assert withdrawn.status_code == 404 and withdrawn.json()["detail"]["code"] == "invite_invalid"
 
 
-# --- F4 and F22: the answer of an accepted invitation -------------------------------------------------------------
+# --- the answer of an accepted invitation -------------------------------------------------------------
 
 
 def test_accepting_an_invitation_answers_with_what_the_account_may_do(client: TestClient, operator: Account) -> None:
@@ -253,7 +252,7 @@ def test_the_invitation_mail_follows_the_receivers_own_language_first(client: Te
     assert sent[-1]["Subject"] == "tester invites you to nexbrand"
 
 
-# --- A5: behind a proxy nobody named, a stranger's guesses do not keep the known browsers out ------------------------
+# --- behind a proxy nobody named, a stranger's guesses do not keep the known browsers out ------------------------
 
 
 def _browser(host: str = "172.18.0.2") -> TestClient:
@@ -311,7 +310,7 @@ def test_the_operator_hears_of_a_proxy_nobody_named(client: TestClient, operator
     assert client.get("/api/settings", headers={"X-Forwarded-For": "198.51.100.4"}).json()["proxy_unknown"] is False
 
 
-# --- D5: a failed mail keeps the invitation it was to replace; old invitations by name drop off ----------------------
+# --- a failed mail keeps the invitation it was to replace; old invitations by name drop off ----------------------
 
 
 def test_a_replacement_whose_mail_fails_keeps_the_invitation_before(client: TestClient, operator: Account,
@@ -515,7 +514,7 @@ def test_blocking_unblocking_and_signing_out_everywhere_forget_the_browsers(clie
 
 
 def test_any_way_a_password_or_block_changes_forgets_the_browsers(client: TestClient, operator: Account) -> None:
-    """Also where no session is ended on the way (a block from nexsuite, a password set by a service)."""
+    """Also where no session is ended on the way (a block from the directory service, a password set by a service)."""
     from app.security import hash_password
 
     make_account("anna")

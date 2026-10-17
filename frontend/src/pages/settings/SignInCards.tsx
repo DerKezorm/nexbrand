@@ -1,15 +1,15 @@
 /**
  * Settings, Server, Sign-in: three cards one below the other, as the shared sign-in blueprint lays them out for every
- * nex app (part 04). Order, wording and behaviour come from there; the parts (card, switch, field, button, question)
+ * nex app. Order, wording and behaviour come from there; the parts (card, switch, field, button, question)
  * are nexbrand's own.
  *
  * 1. Sign-in: password sign-in (locked on while no provider is active), the public address, the second factor.
  * 2. Sign-in providers: the list with its marks, the drag handle, and the form as a dialog.
  * 3. authentik in one step: address, token, "Set up", the blueprint, and the steps with the reason of a failure.
  *
- * Coupled to nexsuite (blueprint 06), nexsuite is the provider: the list stays visible but read only (the own entries
- * set aside show as "off", nexsuite's entry with the mark "through the coupling"), and the authentik card is locked.
- * nexbrand does not name nexsuite on these cards.
+ * Coupled to the directory service, the directory service is the provider: the list stays visible but read only (the own entries
+ * set aside show as "off", the directory service's entry with the mark "through the coupling"), and the authentik card is locked.
+ * nexbrand does not name the directory service on these cards.
  */
 import { Download, GripVertical, KeyRound, ShieldCheck, Sparkles } from 'lucide-react'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
@@ -492,12 +492,12 @@ function AuthentikCard({
   const stale = authentikStale(address)
 
   const start = (confirm: boolean) => {
-    // What the last attempt said goes first: an old failure stood above the new answer (Prüfgang C4).
+    // What the last attempt said goes first: an old failure stood above the new answer.
     setSteps(null)
     setAsking(null)
     return run(async () => {
       const answer = await oidcApi.authentik(authentik.url, authentik.token, confirm, unset ? proposal : '')
-      // Not a failure: the button waits for the operator's yes (blueprint 04, card 3), nothing was changed.
+      // Not a failure: the button waits for the operator's yes, nothing was changed.
       const count = authentikIssuerChange(answer)
       if (count !== null) {
         setAsking(count)

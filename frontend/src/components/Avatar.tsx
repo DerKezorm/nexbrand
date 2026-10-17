@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react'
 import { avatarUrl } from '../api/client'
 import { personColor } from '../lib/person'
 
-/** A person as their picture, or a round letter in their colour, as nexlore shows accounts. */
+/** A person as their picture, or a round letter in their colour shows accounts. */
 export function Avatar({
   person,
   className = 'h-8 w-8 text-sm',

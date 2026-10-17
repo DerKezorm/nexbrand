@@ -77,7 +77,7 @@ export function CollectPage() {
   const { t, i18n } = useTranslation()
   useTitle(t('collect.title'))
   const { me } = useAuth()
-  // Websites and repositories wait for the operator's switch; said up front, not after a click (F19). PDFs need none.
+  // Websites and repositories wait for the operator's switch; said up front, not after a click. PDFs need none.
   const outsideOff = me?.collect_allowed === false
   const navigate = useNavigate()
   const [params] = useSearchParams()
@@ -146,7 +146,7 @@ export function CollectPage() {
     return { id: fresh.id, space_id: fresh.space_id }
   }
   // The version that holds today, as the server says (`current_id`): one published to hold from a later day is not
-  // what the CI is checked against, nor what a draft starts from (F2).
+  // what the CI is checked against, nor what a draft starts from.
   const current = whole?.versions.find((v) => v.id === whole.current_id) ?? null
   const ci = useMemo(() => current?.data.colors ?? [], [current])
 
@@ -186,7 +186,7 @@ export function CollectPage() {
           const media = await upload<MediaInfo>('/api/media', { space, name: source.file.name }, source.file)
           next[index] = { ...source, value: media.id, name: media.name }
         }
-        // With the switch off only files go; the page says so above (F19).
+        // With the switch off only files go; the page says so above.
         if (next[index].value.trim() && !(outsideOff && next[index].kind !== 'pdf')) sent.push({ kind: next[index].kind, value: next[index].value.trim() })
       }
       setSources(next)
@@ -448,7 +448,7 @@ export function CollectPage() {
               </ul>
             )}
             {/* "Nothing found, maybe JavaScript" only when a source was read: after a refused or unreachable address
-                it pointed the wrong way (F19). */}
+                it pointed the wrong way. */}
             {colors.length === 0 && fonts.length === 0 && !allFailed && <p className="text-sm text-mist-500">{t('collect.nothing')}</p>}
 
             {mode === 'draft' && colors.length > 0 && (

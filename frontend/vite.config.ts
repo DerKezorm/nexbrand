@@ -8,8 +8,8 @@ import tailwindcss from '@tailwindcss/vite'
 const apiTarget = process.env.NEXBRAND_API || 'http://127.0.0.1:8540'
 
 /** The tab's icon with its checksum in the address. A browser keeps a tab icon per address and does not ask again,
- * so an icon that changed under the same address stayed old in the tab (nextasks showed the nexcanvas shapes from its
- * start long after, found 06.10.2026). */
+ * so an icon that changed under the same address stayed old in the tab (one app showed the shapes of another from its
+ * start long after). */
 function iconWithChecksum(): Plugin {
   return {
     name: 'icon-with-checksum',

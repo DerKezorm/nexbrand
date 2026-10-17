@@ -41,7 +41,7 @@ export function ClientsPage() {
             <div>
               <h1 className="text-2xl font-bold tracking-tight">{bin ? t('clients.bin') : t('clients.title')}</h1>
               <p className="mt-1 max-w-2xl text-sm text-mist-500">{bin ? t('clients.binText') : t('clients.text')}</p>
-              {/* Connected, everybody reads where clients come from, not only on an empty list (B19). */}
+              {/* Connected, everybody reads where clients come from, not only on an empty list. */}
               {!bin && me?.suite === 'connected' && <p className="mt-1 max-w-2xl text-sm text-mist-500" data-testid="clients-from-suite">{t('clients.fromSuiteAll')}</p>}
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -62,7 +62,7 @@ export function ClientsPage() {
           {brands.loaded && list.length === 0 && (
             <div className="rounded-2xl border border-dashed border-ink-700 p-10 text-center">
               <p className="text-mist-300">{bin ? t('clients.binEmpty') : query ? t('search.nothing') : t('clients.empty')}</p>
-              {/* Whoever cannot make one learns how to get to a client (G5): from the managers here, or in nexsuite. */}
+              {/* Whoever cannot make one learns how to get to a client: from the managers here, or in the directory service. */}
               {!bin && !query && !canCreate && (
                 <p className="mx-auto mt-2 max-w-md text-sm text-mist-500" data-testid="clients-ask">
                   {t(me?.suite === 'connected' ? 'clients.askSuite' : 'clients.ask')}
@@ -137,12 +137,12 @@ function BinCard({ client }: { client: ClientInfo }) {
   return (
     <div className="space-y-3 rounded-2xl border border-ink-700 bg-ink-900 p-4" data-testid="bin-card">
       {/* The name on a line of its own, whole: beside two buttons it shrank to nothing, right next to "Delete for
-          good" (F6). The buttons name the client too, for whoever hears the page. */}
+          good". The buttons name the client too, for whoever hears the page. */}
       <h2 className="font-semibold break-words text-mist-100" data-testid="bin-name">
         {client.name}
       </h2>
-      {/* Deleted in nexsuite: brought back or deleted for good there, never here (B6, B14). One nexsuite let go is the
-          operator's to decide here (B18). */}
+      {/* Deleted in the directory service: brought back or deleted for good there, never here. One the directory service let go is the
+          operator's to decide here. */}
       {(!client.managed || client.dropped) && (
         <div className="flex flex-wrap items-center gap-2">
           <Button busy={restore.busy} label={t('clients.restoreThis', { name: client.name })} onClick={() => void restore.run(async () => {

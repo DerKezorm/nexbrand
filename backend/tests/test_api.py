@@ -89,7 +89,7 @@ def test_an_internal_font_never_leaves_through_a_token(client: TestClient, space
 
 
 def test_a_file_another_version_keeps_in_the_house_is_not_even_named(client: TestClient, space: int) -> None:
-    """(A4) The published version shows the file only as an example and a logo download; a draft keeps it as an
+    """ The published version shows the file only as an example and a logo download; a draft keeps it as an
     internal font. Neither the brand nor its files, over the API or MCP, name its id."""
     house = upload(client, space, "house.woff2", WOFF2)
     logo = upload(client, space, "logo.svg", SVG)

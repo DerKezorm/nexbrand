@@ -13,8 +13,8 @@ from ..models import MANAGE, Account, Membership, Space
 
 logger = logging.getLogger("nexbrand.spaces")
 
-#: The colours a client may have: those nexsuite also has, so a colour comes along when nexbrand connects (nexsuite
-#: refuses any other). ``lib/palette.ts`` holds the same list for the interface.
+#: The colours a client may have: those the directory service also has, so a colour comes along when nexbrand connects
+#: (the directory service refuses any other). ``lib/palette.ts`` holds the same list for the interface.
 COLORS = ("#60a5fa", "#38a9c4", "#4ade80", "#fbbf24", "#ff8a70", "#f472b6", "#a78bfa", "#a1a1aa")
 COLOR = re.compile(r"^#[0-9a-f]{6}$")
 MAX_NAME = 80
@@ -47,7 +47,8 @@ def clean_color(color: str | None, fallback: str) -> str:
 
 
 def create(db: Session, account: Account | None, name: str, color: str | None = None, *, commit: bool = True) -> Space:
-    """The group of rights for a new client; the account that made it manages it (none: brought by nexsuite)."""
+    """The group of rights for a new client; the account that made it manages it (none: brought by the directory
+    service)."""
     taken = db.scalar(select(Space.id).order_by(Space.id.desc()))
     fallback = COLORS[(taken or 0) % len(COLORS)]
     space = Space(name=clean_name(name[:MAX_NAME]), color=clean_color(color, fallback))

@@ -204,7 +204,7 @@ export function AccountPage() {
               </Section>
             )}
 
-            {/* Connected, password and second factor of whoever signs in through nexsuite live there, with the way to it (G3). */}
+            {/* Connected, password and second factor of whoever signs in through the directory service live there, with the way to it. */}
             {me.suite === 'connected' && me.sign_in !== 'password' && (
               <Section icon={KeyRound} title={t('me.password.title')}>
                 <Managed text={t('suite.managedPassword')} />
@@ -213,11 +213,11 @@ export function AccountPage() {
             )}
 
             <Section icon={ShieldCheck} title={t('twofactor.title')}>
-              {/* Connected: who signs in through nexsuite sets the second factor there; only the emergency account keeps its own here. */}
+              {/* Connected: who signs in through the directory service sets the second factor there; only the emergency account keeps its own here. */}
               {me.suite === 'connected' && me.sign_in !== 'password' ? <Managed text={t('suite.managedTwoFactor')} /> : <SecondFactor me={me} />}
             </Section>
 
-            {/* Connected, the sign-in is nexsuite's: nothing to link or unlink here. */}
+            {/* Connected, the sign-in is the directory service's: nothing to link or unlink here. */}
             {me.suite !== 'connected' && <MyProviders me={me} linked={params.get('linked')} />}
 
             <Section icon={Lock} title={t('me.sessions.title')}>
@@ -283,7 +283,7 @@ function SecondFactor({ me }: { me: Me }) {
 
   return (
     <div className="space-y-3 text-sm" data-testid="second-factor">
-      {/* The emergency codes are told apart only where there are any: connected to nexsuite. */}
+      {/* The emergency codes are told apart only where there are any: connected to the directory service. */}
       <p className="text-mist-400" data-testid="second-factor-lead">
         {me.suite === 'connected' ? `${t('twofactor.lead')} ${t('twofactor.leadSuite')}` : t('twofactor.lead')}
       </p>
@@ -409,7 +409,7 @@ function SecondFactor({ me }: { me: Me }) {
   )
 }
 
-/** The way to nexsuite, where what is kept there is changed (G3). */
+/** The way to the directory service, where what is kept there is changed. */
 function SuiteLink({ url }: { url?: string }) {
   const { t } = useTranslation()
   if (!url) return null

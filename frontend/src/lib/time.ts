@@ -11,7 +11,7 @@ export function ago(time: number, lang: string): string {
 }
 
 /** A moment as the app writes it everywhere: the day as the lists show days (4.10.2026), with hours and minutes, no
- * seconds (G11: three ways to write a moment before, one with seconds). */
+ * seconds (one way to write a moment). */
 export function moment(value: string | number | Date, lang: string): string {
   return new Date(value).toLocaleString(lang, { day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }

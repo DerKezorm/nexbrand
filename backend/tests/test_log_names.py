@@ -1,5 +1,5 @@
 """A person's name in the log stands under a key (``name=anna``, ``by=anna``), never as free text: only so does a
-rename (B21, ``logs.rename_actor``) reach it. Read from the code: every call to a logger, under whatever name it goes
+rename (``logs.rename_actor``) reach it. Read from the code: every call to a logger, under whatever name it goes
 (``logger``, ``log = logger``, ``logging.getLogger(...)``), every helper that hands a parameter on to one (``refuse``
 in the sign-in), and every way of putting a value into a text (``%s``, an f-string, ``"…" % …``, ``.format``), with the
 ``.name`` or ``.display_name`` of any object but those known to be no person, also through a variable (``who =

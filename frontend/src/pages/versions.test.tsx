@@ -1,5 +1,5 @@
-// A client's page and collecting with a version that holds only from a later day (F2), a link to a project that is
-// not there (F21), looking back (F29), and a logo the server took as a picture (F9). The server is a stub that answers
+// A client's page and collecting with a version that holds only from a later day, a link to a project that is
+// not there, looking back, and a logo the server took as a picture. The server is a stub that answers
 // by path.
 import { act, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
@@ -119,7 +119,7 @@ const chipOf = (page: HTMLElement, label: string) => {
   return card?.textContent ?? ''
 }
 
-describe('F2: a version that holds from a later day', () => {
+describe('a version that holds from a later day', () => {
   it('the version that holds today is current, the later one is upcoming', async () => {
     answering(whole([FIRST, SECOND], FIRST.id))
     const page = await mount(<ClientPage />, '/c/clientAAA1', '/c/:id')
@@ -147,7 +147,7 @@ describe('F2: a version that holds from a later day', () => {
   })
 })
 
-describe('F21: a link to a project that is not there', () => {
+describe('a link to a project that is not there', () => {
   it.each(['missing', 'malformed'] as const)('says so (%s) and leads to the projects', async (kind) => {
     answering(whole([FIRST], FIRST.id), kind)
     const page = await mount(<ClientPage />, '/c/clientAAA1/p/zzz', '/c/:id/p/:pid')
@@ -156,7 +156,7 @@ describe('F21: a link to a project that is not there', () => {
   })
 })
 
-describe('F29: looking back', () => {
+describe('looking back', () => {
   it('no "3 years ago" where nothing held then, and a day without a version is said in the page', async () => {
     const alert = vi.spyOn(window, 'alert').mockImplementation(() => undefined)
     answering(whole([FIRST], FIRST.id))
@@ -182,7 +182,7 @@ describe('F29: looking back', () => {
   })
 })
 
-describe('F9: a logo the server took', () => {
+describe('a logo the server took', () => {
   it('becomes a logo whatever picture kind it is (BMP too)', async () => {
     uploads.answer = { id: 'mediaAAAAAA1', name: 'logo.bmp', kind: 'bmp', mime: 'image/bmp', size: 10, width: 4, height: 4, pages: 0, removed: [], known: false } as unknown as MediaInfo
     const changed: BrandSet[] = []

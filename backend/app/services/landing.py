@@ -1,9 +1,9 @@
-"""The page a sign-in through a provider started from (B10): a direct link survives the trip to the provider.
+"""The page a sign-in through a provider started from: a direct link survives the trip to the provider.
 
 The shared sign-in module carries what the protocol needs in its attempt cookie; where nexbrand lands afterwards is
 nexbrand's own business. The page travels in a cookie of its own beside the attempt, signed with a key derived from
 the server secret, and is checked with ``safe_next`` going in and coming back: only a page of nexbrand's own, never
-another host, never the API (blueprint 06, "Verbund": ``next`` only to paths of the same app).
+another host, never the API.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from ..config import get_settings
 COOKIE = "nexbrand_oidc_next" + get_settings().cookie_name_suffix()
 MINUTES = 10
 
-#: A page of nexbrand's own to land on after the provider (B10): a path on this server with its query. Never another
+#: A page of nexbrand's own to land on after the provider: a path on this server with its query. Never another
 #: host (``//host``, ``/\host``, a scheme), never the API, nothing but printable characters without spaces.
 _NEXT = re.compile(r"/(?![/\\])[A-Za-z0-9\-._~!$&'()*+,;=:@%/?]{0,499}")
 

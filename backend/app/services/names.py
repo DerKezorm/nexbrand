@@ -1,4 +1,4 @@
-"""Names that tell things apart (F15, decided 05.10.2026): no two clients of one name, no two projects of one name in
+"""Names that tell things apart: no two clients of one name, no two projects of one name in
 a client, no two teams of one name. Names are compared without capitals, without spaces at the ends or doubled
 inside, without invisible signs and in one Unicode form (``key``: "Acme", " acme ", "ACME" and "Acme" with a
 zero-width space inside are one name).
@@ -6,8 +6,9 @@ zero-width space inside are one name).
 A client in the trash counts too: brought back, it would stand beside its double. Whoever names one gets a clear
 refusal (``client_name_taken``, ``client_name_in_bin``, ``project_name_taken``, ``team_name_taken``).
 
-Clients and teams nexsuite brings never fail on it: one whose name is taken here gets a number behind it, here only,
-and the log says so (``unique``). Doubles from before the rule get their number at start (``number_doubles``).
+Clients and teams the directory service brings never fail on it: one whose name is taken here gets a number behind it,
+here only, and the log says so (``unique``). Doubles from before the rule get their number at start
+(``number_doubles``).
 """
 
 from __future__ import annotations
@@ -65,8 +66,9 @@ def title(value: Any, most: int) -> str:
 
 
 def from_suite(value: Any, most: int, *, invisible: bool = False) -> str:
-    """A name nexsuite sends, by the rule for names typed here: control characters gone (and format characters, for a
-    display name: ``invisible``), blanks gathered, at most ``most`` characters. Never trusted to come checked."""
+    """A name the directory service sends, by the rule for names typed here: control characters gone (and format
+    characters, for a display name: ``invisible``), blanks gathered, at most ``most`` characters. Never trusted to come
+    checked."""
     drop = ("Cc", "Cf") if invisible else ("Cc",)
     text = "".join(char if unicodedata.category(char) not in drop else " " if char.isspace() else ""
                    for char in str(value or ""))
@@ -114,8 +116,8 @@ def check_team(db: Session, name: str, own_id: int | None = None) -> None:
 
 def unique(db: Session, kind: str, name: str, others: Iterable[str], most: int, source: Any = "",
            before: str = "") -> str:
-    """For what nexsuite brings: its name, or with a number when another here has it. Never refused; logged once,
-    when the number is new (``before``: the name it has here now), not with every sync."""
+    """For what the directory service brings: its name, or with a number when another here has it. Never refused; logged
+    once, when the number is new (``before``: the name it has here now), not with every sync."""
     found = free(name, others, most)
     if found != name and found != before:
         logger.warning("Name taken here, given a number kind=%s id=%s", kind, source)

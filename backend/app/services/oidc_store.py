@@ -4,7 +4,8 @@ configuration, and the migration from the single provider of the settings to the
 The module (the shared blueprint "Anmeldung mit OIDC und authentik") runs the protocol, decides who an identity is
 and keeps the provider list; it never sees a database. What is nexbrand's own lives here: accounts and their names,
 the rights an invitation brings into a client, the address an account takes from its provider, the encryption of
-the client secrets with the server secret, and the coupling to nexsuite as nexbrand keeps it (``services/suite.py``).
+the client secrets with the server secret, and the coupling to the directory service as nexbrand keeps it
+(``services/suite.py``).
 
 A ``SqlStore`` works inside one SQLAlchemy session, one request. The module commits when an outcome is settled and
 rolls back when it refuses after a write (a consumed invitation comes back that way). ``OneTransaction`` is the same
@@ -60,7 +61,8 @@ HOME = "/"
 #: Longest account name (``accounts.NAME_PATTERN``).
 NAME_MAX = 64
 _NUMBERED = re.compile(r"^(.*?)(-\d+)$")
-#: The setting that keeps the coupling to nexsuite (``coupling.Coupling.as_dict``) until nexbrand uncouples.
+#: The setting that keeps the coupling to the directory service (``coupling.Coupling.as_dict``) until nexbrand
+#: uncouples.
 COUPLING = "suite_coupling"
 
 
@@ -115,7 +117,7 @@ def has_links(db: Session, account_id: int) -> bool:
 
 def follows_provider(account: Account) -> bool:
     """An account that signs in through a provider only: its address is the provider's and follows it. Every other
-    account is only offered the provider's address (My account), never given it (blueprint 01)."""
+    account is only offered the provider's address (My account), never given it."""
     return account.sign_in == SIGN_IN_OIDC and not account.password_hash
 
 
@@ -271,7 +273,8 @@ class SqlStore:
 
     def _forget_provider_address(self, account_id: int) -> None:
         """No link left for the account: an address that came from a provider goes too; one of its own (from the
-        invitation, from nexsuite, set by hand) stays, and so does every address while another link holds."""
+        invitation, from the directory service, set by hand) stays, and so does every address while another link
+        holds."""
         if has_links(self.db, account_id):
             return
         account = self.db.get(Account, account_id)
@@ -293,8 +296,8 @@ class SqlStore:
 
     def _address(self, provider_id: int, account_id: int, email: str | None) -> None:
         """What the provider says about the address: an account through the provider only follows it, every other one
-        is offered it on its account page. While coupled the address of nexsuite's people is the directory's
-        (``services/suite.py``), never the token's."""
+        is offered it on its account page. While coupled the address of the directory service's people is the
+        directory's (``services/suite.py``), never the token's."""
         if not email or self._managed(provider_id) == MANAGED_NEXSUITE:
             return
         account = self.db.get(Account, account_id)
@@ -311,7 +314,8 @@ class SqlStore:
             id=row.id,
             name=row.name,
             blocked=row.blocked_at is not None,
-            # An account nexsuite signs in keeps its password for a disconnect, but cannot use it while connected.
+            # An account the directory service signs in keeps its password for a disconnect, but cannot use it while
+            # connected.
             has_password=row.sign_in == SIGN_IN_PASSWORD and bool(row.password_hash),
             has_second_factor=bool(row.totp_secret_enc),
         )
@@ -338,7 +342,7 @@ class SqlStore:
         from . import suite
 
         if suite.connected(self.db):
-            # Connected, accounts come from nexsuite: an old invitation is no way in (C9).
+            # Connected, accounts come from the directory service: an old invitation is no way in.
             return None
         row = accounts.find_invite(self.db, key)
         return Invite(key=key, id=row.id, rights=row) if row is not None else None
@@ -373,12 +377,12 @@ class OneTransaction(SqlStore):
 
 
 def coupled_entry(db: Session) -> Provider | None:
-    """The entry of nexsuite while nexbrand is coupled to it, else None."""
+    """The entry of the directory service while nexbrand is coupled to it, else None."""
     row = db.scalar(select(OidcProvider).where(OidcProvider.managed == MANAGED_NEXSUITE).limit(1))
     return SqlStore(db)._provider(row)
 
 
-# --- The migration from the single provider of the settings (blueprint 01 "Umstieg", 06 "Wanderung") --------------
+# --- The migration from the single provider of the settings --------------
 
 #: The settings of the single provider before the list. They stay readable for one version (the way back), then go.
 LEGACY_KEYS = ("oidc_issuer", "oidc_client_id", "oidc_client_secret_enc", "oidc_provider_name", "oidc_auto_create")
@@ -390,7 +394,7 @@ FINGERPRINT = "oidc_legacy_fingerprint"
 #: The issuer 0.1.1 knows, as it wrote it, or ``migrate.CLOSED`` (``migrate.way_back``, module 1.0.10): the module
 #: decides what the old settings show from the entry and this anchor; nexbrand only stores it.
 ANCHOR = "oidc_legacy_anchor"
-#: nexbrand asked no code after the provider before the list: the migrated entries keep that (blueprint 06).
+#: nexbrand asked no code after the provider before the list: the migrated entries keep that.
 TRUSTED_BEFORE = True
 
 
@@ -435,18 +439,19 @@ def _coupled_at_migration(db: Session) -> bool:
 def coupled_pairs(
     db: Session,
 ) -> tuple[list[tuple[int, str]], list[tuple[int, str]], list[int], dict[str, list[int]]]:
-    """For an instance connected to nexsuite before the list: which account is which person (``oidc_subject`` of the
-    accounts nexsuite knew), the own links set aside since connecting (``own_subject``, issued by the own provider),
-    the accounts that lose a person to another, and the persons that wait for the directory.
+    """For an instance connected to the directory service before the list: which account is which person
+    (``oidc_subject`` of the accounts the directory service knew), the own links set aside since connecting
+    (``own_subject``, issued by the own provider), the accounts that lose a person to another, and the persons that wait
+    for the directory.
 
-    ``oidc_subject`` of a connected instance is nexsuite's, never the own provider's: it becomes a link at nexsuite's
-    entry or nothing, never a link at an own entry (a subject only holds with its issuer; an authentik user with the
-    same ``sub`` would otherwise come in as that account). Per subject one account, in the order the sync before the
-    list settled them (``_settle_subjects`` of 0.1.1): an account whose ``suite_person`` names another person never
-    claims it; among the rest the one marked for exactly this person (the operator's choice when connecting) wins.
-    Without a mark the sign-in name of the person decided, and a blocked account could win by it; the name is
-    nexsuite's and unknown here. So an unmarked subject is settled here only when a single account not blocked holds
-    it; otherwise it waits, untouched and without a link, for the first sync, which has the names
+    ``oidc_subject`` of a connected instance is the directory service's, never the own provider's: it becomes a link at
+    the directory service's entry or nothing, never a link at an own entry (a subject only holds with its issuer; an
+    authentik user with the same ``sub`` would otherwise come in as that account). Per subject one account, in the order
+    the sync before the list settled them (``_settle_subjects`` of 0.1.1): an account whose ``suite_person`` names
+    another person never claims it; among the rest the one marked for exactly this person (the operator's choice when
+    connecting) wins. Without a mark the sign-in name of the person decided, and a blocked account could win by it; the
+    name is the directory service's and unknown here. So an unmarked subject is settled here only when a single account
+    not blocked holds it; otherwise it waits, untouched and without a link, for the first sync, which has the names
     (``suite._settle_waiting``). An account that loses a subject takes its own person instead when nobody holds that
     one, as before; the others lose it and are blocked, as the sync before the list blocked them."""
     rows = list(db.scalars(select(Account).order_by(Account.id)))
@@ -472,7 +477,7 @@ def coupled_pairs(
             continue
         own = row.suite_person if row.suite_person and row.suite_person != subject else ""
         if own and own not in owner and own not in holders:
-            owner[own] = row  # its own person in nexsuite, whose account it stays
+            owner[own] = row  # its own person in the directory service, whose account it stays
             continue
         losers.append(row.id)
     people = sorted(((row.id, subject) for subject, row in owner.items()), key=lambda pair: pair[0])
@@ -487,9 +492,10 @@ def migration_due(db: Session) -> bool:
 
 
 def _migrate_coupled(db: Session) -> Provider | None:
-    """Connected to nexsuite at the moment: the own provider from before the connection (kept for the way back in
-    ``suite_saved``) becomes the entry ``oidc`` with the own links, set aside at once (it waits as ``oidc-own``);
-    nexsuite becomes the coupled entry with the accounts' persons. One transaction with the settings."""
+    """Connected to the directory service at the moment: the own provider from before the connection (kept for the way
+    back in ``suite_saved``) becomes the entry ``oidc`` with the own links, set aside at once (it waits as
+    ``oidc-own``); the directory service becomes the coupled entry with the accounts' persons. One transaction with the
+    settings."""
     values = settings_service.get_all(db)
     saved = values.get("suite_saved") if isinstance(values.get("suite_saved"), dict) else {}
     own = _legacy({key: saved.get(key) for key in LEGACY_KEYS}) if isinstance(saved, dict) else None
@@ -526,9 +532,9 @@ def _migrate_coupled(db: Session) -> Provider | None:
 
 def migrate_settings(*, backup: bool = True) -> Provider | None:
     """Once, at the first start with the list: the provider of the settings becomes the entry ``oidc`` with a link
-    per stored subject; ``/api/oidc/callback`` keeps signing in. Connected to nexsuite, nexsuite becomes the coupled
-    entry and the own provider waits aside. A backup goes first (the way back). Nothing happens when there was no
-    provider or the list has entries already."""
+    per stored subject; ``/api/oidc/callback`` keeps signing in. Connected to the directory service, the directory
+    service becomes the coupled entry and the own provider waits aside. A backup goes first (the way back). Nothing
+    happens when there was no provider or the list has entries already."""
     with SessionLocal() as db:
         if not migration_due(db):
             if not settings_service.get(db, MIGRATED):
@@ -586,7 +592,7 @@ def take_over_way_back(db: Session, *, backup: bool = True) -> migrate.Resync:
     return done
 
 
-#: Subjects of nexsuite a coupled migration could not give an account without the person's sign-in name:
+#: Subjects of the directory service a coupled migration could not give an account without the person's sign-in name:
 #: ``{subject: [account ids]}``, settled by the first sync (``suite._settle_waiting``).
 WAITING = "suite_unsettled"
 
@@ -638,9 +644,9 @@ def _as_legacy(entry: Provider, issuer: str, old: dict[str, object]) -> dict[str
 
 
 def _own_legacy(old: dict[str, object], entry: Provider | None, on: bool) -> dict[str, object]:
-    """Only while coupled to nexsuite (nexbrand's own rule for that time; on its own ``migrate.way_back`` decides): the
-    old settings of the own provider waiting in ``suite_saved``, while it keeps the issuer 0.1.1 knew. Removed or
-    given another issuer, they are empty for good.
+    """Only while coupled to the directory service (nexbrand's own rule for that time; on its own ``migrate.way_back``
+    decides): the old settings of the own provider waiting in ``suite_saved``, while it keeps the issuer 0.1.1 knew.
+    Removed or given another issuer, they are empty for good.
 
     Switched off, or while the provider does not check the second factor itself (``trusts_second_factor`` off), the
     entry is off for 0.1.1: no client and no secret, no new people. The issuer, the name and the subjects stay, they
@@ -660,9 +666,9 @@ def keep_way_back(db: Session) -> None:
 
     On its own this is ``migrate.way_back`` (the entry ``oidc`` and the stored anchor decide, one rule for every app;
     nexbrand writes it in the form of 0.1.1 and stores the anchor that comes back). Coupled, as 0.1.1 kept it: the old
-    settings are nexsuite's, ``oidc_subject`` the person of each account linked at nexsuite's entry (``suite_person``
-    says the same, written by the coupling and every sync), the own provider waits in ``suite_saved`` and its links in
-    ``own_subject``; that stays nexbrand's own rule, and the anchor is left as it was.
+    settings are the directory service's, ``oidc_subject`` the person of each account linked at the directory service's
+    entry (``suite_person`` says the same, written by the coupling and every sync), the own provider waits in
+    ``suite_saved`` and its links in ``own_subject``; that stays nexbrand's own rule, and the anchor is left as it was.
     Runs when a transaction that changed an entry, a link or an account commits (``_changed``), at every start, and
     after the migration; then it stores the fingerprint of what stands there."""
     db.flush()
@@ -723,8 +729,8 @@ def keep_way_back(db: Session) -> None:
             row.oidc_subject = subject
         if row.own_subject != aside.get(row.id, ""):
             row.own_subject = aside.get(row.id, "")
-    # What stands there now, for ``migrate.resync`` at the next start: the settings the way back keeps (nexsuite's
-    # while coupled) and the subjects of the accounts, read as the migration reads them.
+    # What stands there now, for ``migrate.resync`` at the next start: the settings the way back keeps (the directory
+    # service's while coupled) and the subjects of the accounts, read as the migration reads them.
     stamp = migrate.fingerprint(
         _legacy({**current, **legacy}),
         [(row.id, row.oidc_subject) for row in db.scalars(select(Account).order_by(Account.id)) if row.oidc_subject],

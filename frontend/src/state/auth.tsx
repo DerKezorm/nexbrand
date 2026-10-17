@@ -4,8 +4,8 @@
  * so the sign-in can say why (blocked, signed out everywhere).
  *
  * While signed in, an open page asks after its session every five seconds (and when the tab comes back): a block here
- * or in nexsuite, or "sign out everywhere", ends the page within seconds instead of at the next refresh of the client
- * list half a minute later, and without a word (Prüfgang 05.10.2026 A8).
+ * or in the directory service, or "sign out everywhere", ends the page within seconds instead of at the next refresh of the client
+ * list half a minute later, and without a word.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 

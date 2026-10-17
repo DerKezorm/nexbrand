@@ -1,7 +1,7 @@
-// Versions, checks and export as the pages show them (Prüfgang 05.10.2026, block 5): comparing two versions in every
-// part (F10), the contrast calculator with colours as people type them (F16) and ratios as they are graded (F17), the
-// defaults and the list of API tokens (F12, F26), the place of a refused value (F11), and the type scale without its
-// name twice (F33). The server is a stub that answers by path.
+// Versions, checks and export as the pages show them: comparing two versions in every
+// part, the contrast calculator with colours as people type them and ratios as they are graded, the
+// defaults and the list of API tokens, the place of a refused value, and the type scale without its
+// name twice. The server is a stub that answers by path.
 import { act, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { MemoryRouter } from 'react-router-dom'
@@ -100,7 +100,7 @@ function version(id: string, data: Partial<BrandSet>): VersionInfo {
 
 const STEP = { name: 'Heading 1', use: 'h1' as const, size: 40, weight: 600, font: 'Inter', line_height: 1.15 }
 
-describe('F10: comparing two versions sees every part', () => {
+describe('comparing two versions sees every part', () => {
   it('a new type scale, a rule and a dark mode are differences, not "the same"', async () => {
     const colors = [{ name: 'Ink', hex: '#14141A', role: 'neutral' as const }, { name: 'White', hex: '#FFFFFF', role: 'neutral' as const }]
     const a = version('a', { colors, scale: [STEP] })
@@ -126,7 +126,7 @@ describe('F10: comparing two versions sees every part', () => {
   })
 })
 
-describe('F16, F17: the contrast calculator', () => {
+describe('the contrast calculator', () => {
   const fields = () => [...document.body.querySelectorAll<HTMLInputElement>('input:not([type=color])')]
 
   it('takes 000 and #000 while typing, and names a colour it cannot read', async () => {
@@ -155,7 +155,7 @@ describe('F16, F17: the contrast calculator', () => {
   })
 })
 
-describe('F12, F26: API tokens', () => {
+describe('API tokens', () => {
   const TOKEN = { id: 7, name: 'Pipeline', level: 'draft', prefix: 'nxb_abcd', created_at: '2026-10-04T18:45:00Z', last_used_at: '2026-10-04T18:45:00Z', expires_at: null, blocked: false, clients: null }
 
   it('lists the level and the day as the app writes it; a new one starts narrow and for 90 days', async () => {
@@ -227,7 +227,7 @@ describe('API tokens of an account let in by a provider (module 1.0.10)', () => 
   })
 })
 
-describe('F11: where a refused value sits', () => {
+describe('where a refused value sits', () => {
   const set: BrandSet = { ...emptySet(), colors: [{ name: 'Primary', hex: '#123456', role: 'primary' }, { name: 'Accent', hex: 'xyz', role: 'accent' }] }
   it('names the colour and the field', () => {
     expect(placeOf('colors.1.hex', set)).toEqual({ part: 'colors', index: 1, name: 'Accent', field: 'hex', twice: false })
@@ -237,7 +237,7 @@ describe('F11: where a refused value sits', () => {
   })
 })
 
-describe('F33: a step of the type scale', () => {
+describe('a step of the type scale', () => {
   it('shows what it is for only when that is not its name', async () => {
     expect(purposeBeside('Heading 1', 'Heading 1')).toBeNull()
     expect(purposeBeside('Title', 'Heading 1')).toBe('Heading 1')

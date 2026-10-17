@@ -90,12 +90,13 @@ class Space(Base):
     name: Mapped[str] = mapped_column(String(80))
     color: Mapped[str] = mapped_column(String(16), default="#2f7bff")
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utcnow)
-    #: The space's id in nexsuite while nexbrand is connected to it; its rights come from there then.
+    #: The space's id in the directory service while nexbrand is connected to it; its rights come from there then.
     external_id: Mapped[str] = mapped_column(String(40), default="")
     #: Set when a manager deleted the space; it lies in the trash with its clients for 30 days.
     deleted_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
-    #: Set when nexsuite no longer gives nexbrand this client (and has not binned it): only the operator sees it then,
-    #: and may put it away here (B18). Cleared when nexsuite gives it again or nexbrand disconnects.
+    #: Set when the directory service no longer gives nexbrand this client (and has not binned it): only the operator
+    #: sees it then, and may put it away here. Cleared when the directory service gives it again or nexbrand
+    #: disconnects.
     suite_dropped_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
 
@@ -116,12 +117,12 @@ class Account(Base):
     password_hash: Mapped[str] = mapped_column(String(255), default="")
     email: Mapped[str] = mapped_column(String(255), default="")
     #: The address came from a sign-in provider (an account through the provider only follows it, another one took
-    #: it when offered): it goes with the last link. An address of its own (invitation, nexsuite) stays.
+    #: it when offered): it goes with the last link. An address of its own (invitation, the directory service) stays.
     # A server default too: 0.1.1 (the way back) knows no such column and must still make accounts.
     email_from_provider: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
-    #: The single provider's subject before the provider list (or, while connected, the person in nexsuite): read
-    #: once by the migration into ``oidc_links`` (``services/oidc_store.py``), then for one version only the way back
-    #: to 0.1.1, written from the links (``oidc_store.keep_way_back``), then gone.
+    #: The single provider's subject before the provider list (or, while connected, the person in the directory
+    #: service): read once by the migration into ``oidc_links`` (``services/oidc_store.py``), then for one version only
+    #: the way back to 0.1.1, written from the links (``oidc_store.keep_way_back``), then gone.
     oidc_subject: Mapped[str] = mapped_column(String(255), default="")
     #: The interface language chosen in the account menu; empty: the browser's.
     language: Mapped[str] = mapped_column(String(16), default="")
@@ -129,7 +130,8 @@ class Account(Base):
     last_seen_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     failed_logins: Mapped[int] = mapped_column(Integer, default=0)
     locked_until: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
-    #: Set when nexsuite blocked the person (or does not know it any more): no sign-in, sessions end at once.
+    #: Set when the directory service blocked the person (or does not know it any more): no sign-in, sessions end at
+    #: once.
     blocked_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     #: The second factor (``services/totp.py``): the seed encrypted with the server secret, empty while off; the
     #: recovery codes as a JSON list of SHA-256 hashes; the time step of the last code taken (no replay).
@@ -151,12 +153,12 @@ class Account(Base):
     #: password, a block or unblock and "sign out everywhere", so no browser from before counts as known any more.
     #: Empty (accounts from before it existed): no device is known until the next sign-in.
     device_key: Mapped[str] = mapped_column(String(64), default="")
-    #: The moment nexsuite last said this person signed out everywhere (as nexsuite sent it), once it was applied
-    #: here: the browsers known before are forgotten once per new moment, not with every sync.
+    #: The moment the directory service last said this person signed out everywhere (as the directory service sent it),
+    #: once it was applied here: the browsers known before are forgotten once per new moment, not with every sync.
     suite_signed_out: Mapped[str] = mapped_column(String(64), default="")
-    #: The person in nexsuite this account belongs to while connected (its link at the coupled provider says the
-    #: same), and belonged to before the last disconnect (B8): connecting again to the same nexsuite suggests that
-    #: person first, so an account nexsuite once brought is not made a second time.
+    #: The person in the directory service this account belongs to while connected (its link at the coupled provider
+    #: says the same), and belonged to before the last disconnect: connecting again to the same directory service
+    #: suggests that person first, so an account the directory service once brought is not made a second time.
     suite_person: Mapped[str] = mapped_column(String(64), default="")
     #: Before the provider list: the own link (authentik) of an account left out when connecting, set aside while
     #: connected. Read once by the migration (it becomes a link of the set-aside own provider), then for one version
@@ -195,7 +197,7 @@ class OidcProvider(Base):
     auto_create: Mapped[bool] = mapped_column(Boolean, default=False)
     #: "The provider checks the second factor itself": on from the start.
     trusts_second_factor: Mapped[bool] = mapped_column(Boolean, default=True)
-    #: "" by hand, "authentik" made by the authentik button, "nexsuite" from the coupling.
+    #: "" by hand, "authentik" made by the authentik button, and the coupled value from the coupling.
     managed: Mapped[str] = mapped_column(String(20), default="")
     position: Mapped[int] = mapped_column(Integer, default=0)
     #: A callback path the provider knew before (a migration or the coupling sets it); "" is the standard one.
@@ -241,7 +243,7 @@ def _first_device_key(_mapper: Any, _connection: Any, target: Account) -> None:
 @event.listens_for(Account.blocked_at, "set")
 def _forget_devices(target: Account, value: Any, old: Any, _initiator: Any) -> None:
     """A new password, a block or an unblock: the browsers known before are not known any more (whatever the way
-    it happens: here, by the operator, or from nexsuite)."""
+    it happens: here, by the operator, or from the directory service)."""
     if value != old:
         target.device_key = new_device_key()
 
@@ -283,7 +285,7 @@ class Team(Base):
     """People who work together (planning, design, the shop floor …). A team is not a space: a space says who may see
     what, a team says who works together. A space can give a team a right, and then everybody in the team has it.
 
-    ``source`` says who keeps the members: nexbrand itself, or later the family's admin app (``external_id`` is its
+    ``source`` says who keeps the members: nexbrand itself, or later a separate admin app (``external_id`` is its
     id then). Only the source changes when that day comes, never the id. The same in every app of the family."""
 
     __tablename__ = "teams"
@@ -356,8 +358,8 @@ class SpaceNotice(Base):
 
 class Client(Base):
     """A client of the agency. Who sees it is decided by its own group of rights (``space_id``, one per client). A
-    client has a design set with versions (``BrandVersion``, none yet for a client nexsuite brought) and projects that
-    build on one of them."""
+    client has a design set with versions (``BrandVersion``, none yet for a client the directory service brought) and
+    projects that build on one of them."""
 
     __tablename__ = "clients"
 
@@ -369,7 +371,7 @@ class Client(Base):
     contact: Mapped[str] = mapped_column(String(255), default="")
     note: Mapped[str] = mapped_column(Text, default="")
     #: The client's addresses, for collecting with a click: ``[{"kind": "website"|"repo", "url", "label"}]``. nexbrand's
-    #: own, like the note: also for a client nexsuite keeps. None: none yet.
+    #: own, like the note: also for a client the directory service keeps. None: none yet.
     links: Mapped[Any] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utcnow)
     created_by: Mapped[int | None] = mapped_column(ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True)

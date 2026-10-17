@@ -47,7 +47,7 @@ def contrast(a: str, b: str) -> float:
 
 def shown_ratio(ratio: float) -> float:
     """A contrast ratio as it is shown: cut, never rounded up, to two places (one from 10:1). 4.4992 is shown as
-    4.49, not as 4.50 beside "fails" (F17): a ratio shown at or above a threshold has reached it."""
+    4.49, not as 4.50 beside "fails": a ratio shown at or above a threshold has reached it."""
     places = 10 if ratio >= 10 else 100
     return math.floor(ratio * places + 1e-9) / places
 

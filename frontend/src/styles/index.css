@@ -1,6 +1,6 @@
 @import 'tailwindcss';
 
-/* nexbrand: the same gray tones as nexlore, nexcanvas and nextasks; accent Dreiklang: cobalt leads, yellow and
+/* nexbrand: the same gray tones as nexlore and nexcanvas; accent Dreiklang: cobalt leads, yellow and
    magenta mark (proposals and older versions yellow, drafts and what stays in the house magenta). */
 @theme {
   --color-ink-950: #0b0b0f; /* page background */
@@ -74,7 +74,7 @@
   --color-gelb-text: #7a6000;
   --color-magenta-text: #9d17b0;
 
-  /* As text on white and on their own light wash (8 to 15 %) at least 4.5 to 1 (G7: "checked" was 2.5 to 1). */
+  /* As text on white and on their own light wash (8 to 15 %) at least 4.5 to 1 ("checked" was 2.5 to 1). */
   --color-ok-500: #166534;
   --color-warn-500: #92400e;
   --color-bad-500: #b91c3c;
@@ -112,7 +112,7 @@
 
 @layer components {
   /* A letter in the colour of a person or team (--tint) on a wash of it. The colour itself as text failed in light mode
-     (1.5 to 2.4 to 1, G7): there the letter is the colour darkened, in dark mode lightened, 4.5 to 1 for every colour
+     (1.5 to 2.4 to 1): there the letter is the colour darkened, in dark mode lightened, 4.5 to 1 for every colour
      of the palettes (lib/tint.test.ts measures it from this file). */
   .nc-tint {
     background: color-mix(in srgb, var(--tint) 24%, var(--color-ink-850));
@@ -153,7 +153,7 @@
   }
 }
 
-/* Outside the layers on purpose: these win over the utilities of the elements (as in nexlore). */
+/* Outside the layers on purpose: these win over the utilities of the elements. */
 
 /* A field's edge at 3:1 to its ground; a field in focus keeps the accent, one without a frame stays so. */
 :is(input:not([type='checkbox'], [type='radio'], [type='range'], [type='color']), select, textarea)[class*='border-ink-7']:not(:focus) {

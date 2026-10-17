@@ -1,7 +1,7 @@
 """MCP over HTTP (``POST /api/mcp``): an AI in an editor reads the client's design set while it builds, and writes a
 redesign back as a draft.
 
-The protocol is JSON-RPC 2.0 as MCP's "Streamable HTTP" transport has it, without streams (as in nexlore): every
+The protocol is JSON-RPC 2.0 as MCP's "Streamable HTTP" transport has it, without streams: every
 request gets its answer as ``application/json``, a notification gets 202. No session is kept; each request names its
 token (the same API tokens as ``/api/v1``, ``services/apitokens.py``).
 

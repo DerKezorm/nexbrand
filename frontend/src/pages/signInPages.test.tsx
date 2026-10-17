@@ -1,4 +1,4 @@
-// Sign-in through providers as the pages show it (blueprint 04): a button per active provider on the sign-in page,
+// Sign-in through providers as the pages show it: a button per active provider on the sign-in page,
 // below "or" and in the order of the list; with the password sign-in off only the buttons and the operator's way in;
 // the code step after an untrusted provider; only known codes from the address in words; "Continue with …" on the
 // invitation page; My account with a row per provider, its name after linking, the address offered; the operator's
@@ -143,7 +143,7 @@ describe('the sign-in page', () => {
     expect(assigned).toEqual(['/api/oidc/work/start'])
   })
 
-  it('takes the page asked for along to the provider (B10)', async () => {
+  it('takes the page asked for along to the provider', async () => {
     const page = await login('/login?next=%2Fc%2Fabc', { password: true, providers: TWO })
     await click(page.querySelector('[data-testid="provider-buttons"] button'))
     expect(assigned).toEqual(['/api/oidc/sso/start?next=%2Fc%2Fabc'])

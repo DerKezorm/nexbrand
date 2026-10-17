@@ -41,7 +41,7 @@ logger = logging.getLogger("nexbrand.auth")
 
 NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]{1,63}$")
 #: Enough to catch a typo, not a validation of the address: the mail server has the last word. No control character
-#: (NUL, ESC, DEL and C1 went through into the mail before, A13), and ``\Z``: ``$`` lets a closing line break pass.
+#: (NUL, ESC, DEL and C1 went through into the mail before), and ``\Z``: ``$`` lets a closing line break pass.
 _PART = r"[^@\s<>,;\x00-\x1f\x7f-\x9f]+"
 EMAIL_PATTERN = re.compile(rf"^{_PART}@{_PART}\.{_PART}\Z")
 #: How long an invitation may run, in days; the one who invites picks within this.
@@ -177,7 +177,7 @@ def authenticate(db: Session, name: str, password: str, device: int | None = Non
     Failures from that browser do not count towards the lock.
 
     A blocked account hears that it is blocked and whom to ask, but only after its right password; a wrong one answers
-    as for anybody (Prüfgang 05.10.2026 A16, as decided). The caller counts it for the brakes like a failure.
+    as for anybody. The caller counts it for the brakes like a failure.
     """
     account = by_name(db, name)
     if account is None or account.sign_in != SIGN_IN_PASSWORD:
@@ -193,7 +193,7 @@ def authenticate(db: Session, name: str, password: str, device: int | None = Non
             raise AccountError("wrong_credentials", "Name or password is wrong.", 401)
         if not verify_password(password, account.password_hash or _dummy_hash()) or not account.password_hash:
             # Blocked or not: every wrong password counts towards the lock, the one limit across all senders.
-            # Otherwise a blocked account would confirm a guessed password from ever new addresses (A16).
+            # Otherwise a blocked account would confirm a guessed password from ever new addresses.
             if not known_device:
                 note_failure(db, account)
             raise AccountError("wrong_credentials", "Name or password is wrong.", 401)
@@ -217,7 +217,7 @@ def change_password(db: Session, account: Account, current: str, new: str) -> No
     if not verify_password(current, account.password_hash):
         raise AccountError("wrong_password", "The current password is wrong.", 401)
     if new == current:
-        # Taken before, and it ended the other sessions as if something had changed (Prüfgang E25 in nextasks).
+        # Taken before, and it ended the other sessions as if something had changed.
         raise AccountError("password_unchanged", "The new password is the same as the current one.", 422)
     account.password_hash = hash_password(new)
     db.commit()

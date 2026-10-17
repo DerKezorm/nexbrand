@@ -1,6 +1,6 @@
-// Accounts, access and the session as the pages show them (Prüfgang 05.10.2026, block 3): the session check of an open
-// page (A8), the access dialog for readers and managers (D4, D5), blocking and the list while connected (F1, G1), the
-// mail box of an invitation (F23) and the pages behind a link that does not hold (G4). The server is a stub that
+// Accounts, access and the session as the pages show them: the session check of an open
+// page, the access dialog for readers and managers, blocking and the list while connected, the
+// mail box of an invitation and the pages behind a link that does not hold. The server is a stub that
 // answers by path; nothing waits for a clock except the session check, which runs on fake timers.
 import { act, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
@@ -123,7 +123,7 @@ afterEach(async () => {
   vi.unstubAllGlobals()
 })
 
-// --- A8: the open page notices an ended session within seconds ------------------------------------------------------
+// --- the open page notices an ended session within seconds ------------------------------------------------------
 
 describe('an open page whose session ends', () => {
   it('asks after its session every few seconds and sends the sign-in a reason', async () => {
@@ -153,7 +153,7 @@ describe('an open page whose session ends', () => {
     await act(async () => vi.advanceTimersByTime(SESSION_MS))
     await settle()
     expect(asked()).toBe(before + 1)
-    // Blocked in nexsuite, or signed out everywhere: the next check finds out, with nothing else loading.
+    // Blocked in the directory service, or signed out everywhere: the next check finds out, with nothing else loading.
     alive = false
     await act(async () => vi.advanceTimersByTime(SESSION_MS))
     await settle()
@@ -218,7 +218,7 @@ describe('an open page whose session ends', () => {
   })
 })
 
-// --- D4, D5: the access dialog ----------------------------------------------------------------------------------------
+// --- the access dialog ----------------------------------------------------------------------------------------
 
 const LISTING = {
   space: 'Studio',
@@ -289,7 +289,7 @@ describe('the access dialog', () => {
   })
 })
 
-// --- F1, G1: blocking, and the list while connected ------------------------------------------------------------------
+// --- blocking, and the list while connected ------------------------------------------------------------------
 
 const ACCOUNTS = [
   { ...ME, spaces: 1, locked: false, blocked: false, has_password: true, created_at: '2026-10-01T00:00:00Z', last_seen_at: null },
@@ -328,7 +328,7 @@ describe('the accounts', () => {
   })
 })
 
-// --- G4: pages behind a link that does not hold ----------------------------------------------------------------------
+// --- pages behind a link that does not hold ----------------------------------------------------------------------
 
 describe('a link that does not hold', () => {
   for (const [code, title, text] of [

@@ -108,7 +108,8 @@ def restore(name: BackupName, body: PasswordIn, request: Request, operator: Oper
     """Checks, keeps the current state as a backup, and restarts; the restore happens at the next start. Asks for
     the password again: going back brings back old passwords and keys (review before 1.0.0)."""
     with SessionLocal() as db:
-        # An older state would turn the connection back while nexsuite still holds the app (A9): disconnect first.
+        # An older state would turn the connection back while the directory service still holds the app: disconnect
+        # first.
         from ..services import suite
 
         suite.refuse_if_managed(db)
@@ -133,8 +134,8 @@ def download(name: BackupName, body: DownloadIn, request: Request, operator: Ope
     with SessionLocal() as db:
         from ..services import suite
 
-        # Refused before the password is asked: an operator from nexsuite gets the reason, not a password prompt
-        # (and a wrong guess never counts against an account that may not do this anyway).
+        # Refused before the password is asked: an operator from the directory service gets the reason, not a password
+        # prompt (and a wrong guess never counts against an account that may not do this anyway).
         suite.refuse_unless_keeper(db, operator, "backups_emergency_only",
                                    "Connected, backups are carried away or deleted by the emergency account.")
         confirm_operator(request, db, operator, body.password)
@@ -153,8 +154,8 @@ def delete(name: BackupName, body: PasswordIn, request: Request, operator: Opera
     with SessionLocal() as db:
         from ..services import suite
 
-        # Refused before the password is asked: an operator from nexsuite gets the reason, not a password prompt
-        # (and a wrong guess never counts against an account that may not do this anyway).
+        # Refused before the password is asked: an operator from the directory service gets the reason, not a password
+        # prompt (and a wrong guess never counts against an account that may not do this anyway).
         suite.refuse_unless_keeper(db, operator, "backups_emergency_only",
                                    "Connected, backups are carried away or deleted by the emergency account.")
         confirm_operator(request, db, operator, body.password)

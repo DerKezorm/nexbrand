@@ -1,9 +1,8 @@
 /**
- * My account, Security, Sign-in providers (blueprint 04): one row per active provider with its state and "Link" or
+ * My account, Security, Sign-in providers: one row per active provider with its state and "Link" or
  * "Unlink". Linking asks for the own password first and then goes to the provider; the way back lands on this page
  * with `?linked=<short name>`, said here by the provider's name. An account that signs in through a provider only
- * keeps its last link. Where the provider knows the account by another address, the row offers it (blueprint 01:
- * only an account through the provider only follows it by itself).
+ * keeps its last link. Where the provider knows the account by another address, the row offers it.
  */
 import { Shield } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'

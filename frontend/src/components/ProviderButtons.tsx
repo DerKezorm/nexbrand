@@ -27,7 +27,7 @@ export function ProviderButtons({
   providers: ProviderButton[]
   /** The invitation's key: the buttons say "Continue with" and take it along. */
   invite?: string
-  /** The page the sign-in is for (a direct link, B10): it goes along to the provider and back. */
+  /** The page the sign-in is for (a direct link): it goes along to the provider and back. */
   next?: string
   /** The line "or" above, when something stands before the buttons. */
   withOr?: boolean

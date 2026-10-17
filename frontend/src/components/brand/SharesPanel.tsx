@@ -30,7 +30,7 @@ export function SharesOff() {
 }
 
 /** The public pages of a client: for a printer, a photographer, a developer, the client. From write up a person makes
- *  one and sees the links; readers see that there are pages, not their addresses (A3). */
+ *  one and sees the links; readers see that there are pages, not their addresses. */
 /** `project`: the pages of one project; none: of the client's own design set. */
 export function SharesPanel({ client, versions, role, project }: { client: string; versions: VersionInfo[]; role: 'read' | 'write' | 'manage' | null; project?: string }) {
   const { t, i18n } = useTranslation()
@@ -63,7 +63,7 @@ export function SharesPanel({ client, versions, role, project }: { client: strin
             <span className="text-xs text-mist-500">
               {s.version_label ? t('shares.fixed', { label: s.version_label }) : t('shares.current')} · {s.expires_at ? t('shares.until', { date: new Date(s.expires_at).toLocaleDateString(i18n.language) }) : t('shares.forever')} · {t('shares.views', { count: s.views })}
             </span>
-            {/* In words, not a small lock alone (F14). */}
+            {/* In words, not a small lock alone. */}
             {s.password && (
               <span className="inline-flex items-center gap-1 rounded-full border border-ink-600 px-2 py-0.5 text-[11px] text-mist-400" data-testid="share-guarded" title={t('shares.guardedHint')}>
                 <Lock className="h-3 w-3" aria-hidden /> {t('shares.guarded')}

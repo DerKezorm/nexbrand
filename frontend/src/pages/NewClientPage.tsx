@@ -37,7 +37,7 @@ export function NewClientPage() {
   const [params] = useSearchParams()
   const names = useNames()
   const [step, setStep] = useState<Step>('who')
-  // A client without a design set yet (one nexsuite brought, or one made earlier): the wizard makes its first version.
+  // A client without a design set yet (one the directory service brought, or one made earlier): the wizard makes its first version.
   const presetId = params.get('client')
   const [existing, setExisting] = useState<ClientWhole | null>(null)
   // The client this wizard works for, once there is one: made when a logo is uploaded or at the end.
@@ -83,14 +83,14 @@ export function NewClientPage() {
   }
 
   const current = useMemo(() => setOf(bench.colors, bench.head, bench.body), [bench, name]) // eslint-disable-line react-hooks/exhaustive-deps
-  // Before the step with the logos, no hint about a logo: nobody has seen one yet (F24).
+  // Before the step with the logos, no hint about a logo: nobody has seen one yet.
   const logosShown = STEPS.indexOf(step) >= STEPS.indexOf('sizes')
   const hints = useMemo(() => (current.colors.length ? check(current).filter((h) => h.level !== 'info' && (logosShown || !h.logo)) : []), [current, logosShown])
   const allowed = presetId ? !!existing && (existing.role === 'write' || existing.role === 'manage') : !!me?.may_create_clients
   const canNext = step === 'who' ? !!name.trim() && allowed : step === 'start' ? true : step === 'colors' ? current.colors.length > 0 : true
-  // Why "Next" waits, said beside it instead of a grey button without a word (F25).
+  // Why "Next" waits, said beside it instead of a grey button without a word.
   const waitsFor = step === 'who' && !name.trim() ? t('wizard.needName') : step === 'colors' && !current.colors.length ? t('wizard.needColor') : null
-  // Whoever makes a client manages it; for one that exists, its right counts: from write up (A2).
+  // Whoever makes a client manages it; for one that exists, its right counts: from write up.
   const reviewRight = existing ? existing.role === 'write' || existing.role === 'manage' : true
   const reviewPossible = reviewRight && me?.shares_allowed !== false
 
@@ -126,7 +126,7 @@ export function NewClientPage() {
     }
   }
 
-  // From the first step on only with a name no other client has (F15): said there, not at the very end.
+  // From the first step on only with a name no other client has: said there, not at the very end.
   const [checking, setChecking] = useState(false)
   const nextBusy = useRef(false)
   const next = async () => {
@@ -151,7 +151,7 @@ export function NewClientPage() {
   const fileUrl = (id: string) => mediaUrl(id)
 
   if (!presetId && me && !me.may_create_clients) {
-    // Nothing can be made here, so no form to fill in for nothing (B19). Connected, the clients from nexsuite that
+    // Nothing can be made here, so no form to fill in for nothing. Connected, the clients from the directory service that
     // have no CI yet are offered instead; each opens the workbench for its first version.
     const open = me.suite === 'connected' ? brands.clients.filter((c) => !c.current && c.drafts === 0 && (c.role === 'write' || c.role === 'manage')) : []
     return (
@@ -402,7 +402,7 @@ export function NewClientPage() {
                 <ArrowLeft className="h-4 w-4" /> {t('wizard.back')}
               </button>
               {/* At the start the way on is the button of the chosen start: a second "Next" beside it went on without
-                  taking anything. Only with colours from before, it goes on with those, and says so (F25). */}
+                  taking anything. Only with colours from before, it goes on with those, and says so. */}
               {index < STEPS.length - 1 && (step !== 'start' || current.colors.length > 0) && (
                 <span className="ml-auto flex flex-wrap items-center justify-end gap-3">
                   {waitsFor && (
@@ -691,7 +691,7 @@ function StartStep({
 }
 
 /** A colour the client brought misses 4.5:1 on the light ground beside it: it stays as it is, and the nearest colour of
- * the same hue that reaches it is offered. Only the button changes the colour (decided 06.10.2026). */
+ * the same hue that reaches it is offered. Only the button changes the colour. */
 function ShortNote({ short, text, onUse }: { short: Shortfall; text: 'wizard.shortStart' | 'wizard.shortPicture'; onUse: (better: string) => void }) {
   const { t, i18n } = useTranslation()
   const better = short.better
@@ -729,7 +729,7 @@ function LogoUpload({ ensure, logo, onChange }: { ensure: () => Promise<number>;
             setProblem(null)
             ensure()
               .then((space) => mediaApi.upload(space, file, file.name, undefined, 'picture'))
-              // The server refuses what is no picture and keeps nothing of it (`expect`, F9).
+              // The server refuses what is no picture and keeps nothing of it (`expect`).
               .then((m) => onChange(m))
               .catch((error) => setProblem(error instanceof ApiError ? error.code : 'internal_error'))
               .finally(() => setBusy(false))

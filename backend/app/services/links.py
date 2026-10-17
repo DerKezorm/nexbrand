@@ -1,7 +1,7 @@
 """The open links a person made for clients: public pages and reviews.
 
-They stay when the person is blocked or deleted, because they serve the client (Prüfgang 05.10.2026 A15, as
-decided). The operator sees how many are open and withdraws them all at once.
+They stay when the person is blocked or deleted, because they serve the client. The operator sees how many are open and
+withdraws them all at once.
 """
 
 from __future__ import annotations

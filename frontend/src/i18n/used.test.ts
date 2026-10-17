@@ -89,7 +89,7 @@ describe('the shipped texts', () => {
   })
 
   it('speak English, not German word for word, on the page, in what is new, in the README and the API guide', async () => {
-    // "Angeben" is enter, "anlegen" is create, "enthalten" is contain (WORTLAUTE.md, nexbrand #job-159).
+    // "Angeben" is enter, "anlegen" is create, "enthalten" is contain.
     const stiff = /\bGive (a|the)\b|\bMake a new\b|\bholds\b|\bmak(e|es|ing) (a |an |its own |their own |read-only )?(clients?|accounts?|tokens?|drafts?|pages?|links?)\b|\b(is|are) made (there|here|in nexsuite)\b/i
     expect(stiff.test('Whoever makes a client manages it.') && stiff.test('The archive holds it.') && !stiff.test('Make operator')).toBe(true)
     const whatsNew = (await import('./whatsnew/en.json')).default as unknown as Record<string, unknown>
@@ -107,7 +107,7 @@ describe('the shipped texts', () => {
     expect(found).toEqual([])
   })
 
-  it('call the program version "Version" and keep "Fassung" for a CI (decided 06.10.2026)', async () => {
+  it('call the program version "Version" and keep "Fassung" for a CI', async () => {
     const whatsNew = (await import('./whatsnew/de.json')).default as unknown as Record<string, { lead: string }>
     const about = de.about as unknown as Record<string, string> & { updates: Record<string, string> }
     for (const text of [about.version, about.newer, about.updates.text, about.updates.current, de.errors.protocol_version, whatsNew['0.1.0'].lead])

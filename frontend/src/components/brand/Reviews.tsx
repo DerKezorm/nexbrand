@@ -51,7 +51,7 @@ export function ReviewsPanel({ client, versions, only, role, onChange }: { clien
 function ReviewCard({ client, review, newSince, version, role, locale, onChange }: { client: string; review: ReviewInfo; newSince?: string; version?: VersionInfo; role: Role; locale: string; onChange: () => void }) {
   const { t } = useTranslation()
   const [answer, setAnswer] = useState<Record<string, string>>({})
-  // Withdrawing asks with the family's dialog, not the browser's (F6).
+  // Withdrawing asks with the family's dialog, not the browser's.
   const [withdrawing, setWithdrawing] = useState(false)
   const may = linkRights(role, review.mine)
   const tone = review.status === 'open' ? 'border-magenta-500/50 text-magenta-text' : review.status === 'chosen' ? 'border-ok-500/40 text-ok-500' : 'border-ink-700 text-mist-500'
@@ -152,7 +152,7 @@ export function NewReview({ whole, version, versions = whole.versions, onClose, 
   const [days, setDays] = useState('30')
   const [email, setEmail] = useState('')
   const [along, setAlong] = useState<Record<string, boolean>>({})
-  // What the client reads about each direction: written for the client here, never the draft's own note (F30).
+  // What the client reads about each direction: written for the client here, never the draft's own note.
   const [why, setWhy] = useState<Record<string, string>>({})
   const [names, setNames] = useState<Record<string, string>>({})
   const [unsent, setUnsent] = useState<string | null>(null)

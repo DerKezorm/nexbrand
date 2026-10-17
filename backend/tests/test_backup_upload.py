@@ -1,5 +1,5 @@
 """A backup brought in from elsewhere: for a move to a new server, the downloaded archive goes up again and joins the
-list, to be checked and restored like any other. Connected to nexsuite nothing is restored here, so nothing goes up."""
+list, to be checked and restored like any other. Connected to the directory service nothing is restored here, so nothing goes up."""
 
 from __future__ import annotations
 
@@ -132,7 +132,7 @@ def test_an_archive_larger_than_an_ordinary_request_goes_up(client: TestClient, 
 def test_connected_nothing_goes_up_not_even_for_the_emergency_account(
     client: TestClient, operator: Account, world: dict, fake: FakeSuite
 ) -> None:
-    """Connected, nothing is restored here (B15), so there is nothing to upload for. Refused before the password is
+    """Connected, nothing is restored here, so there is nothing to upload for. Refused before the password is
     asked: a wrong one does not count, and the reason comes instead of a password prompt."""
     archive = _downloaded(client)
     connect(client, world, operator)

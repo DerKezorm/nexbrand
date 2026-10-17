@@ -34,7 +34,7 @@ class MailError(Exception):
 
 def status_of(exc: MailError) -> int:
     """The answer for a mail that did not go: 409 when no mail server is set up (a setting, nothing went wrong
-    outside, so no error in the log, G12), 502 when the mail server failed."""
+    outside, so no error in the log), 502 when the mail server failed."""
     return 409 if exc.code == "mail_off" else 502
 
 
@@ -75,8 +75,8 @@ def _send(db: Session, message: EmailMessage) -> None:
     logger.info("Mail sent host=%s", host)
 
 
-#: The invitation, in the language of whoever receives it (Prüfgang 05.10.2026, decision 8): the account that already
-#: has the address; else, as nexbrand has no language of its own, the inviter's account language, then the language
+#: The invitation, in the language of whoever receives it: the account that already
+#: has the address; else has no language of its own, the inviter's account language, then the language
 #: the inviter's page shows, else English.
 INVITE_MAIL = {
     "de": {
@@ -156,7 +156,7 @@ def send_review(db: Session, to: str, link: str, *, client: str, sender: str, me
     _send(db, mail)
 
 
-#: The operator's test mail, in the language of whoever receives it (as the invitation, decision 8 of 05.10.2026).
+#: The operator's test mail, in the language of whoever receives it (as the invitation).
 TEST_MAIL = {
     "de": {"subject": "nexbrand: Testmail", "body": "Der Mailserver in nexbrand funktioniert.\n"},
     "en": {"subject": "nexbrand test mail", "body": "The mail server in nexbrand works.\n"},

@@ -186,7 +186,7 @@ def sign_in(db: DbSession, request: Request, response: Response, account: Accoun
         known_device(db, request, response, account)
     logger.info("Signed in name=%s", account.name)
     # The whole answer of /auth/me: the page takes it as the signed-in account, and with the account view alone
-    # "New client" stayed away after accepting an invitation until a reload (Prüfgang 05.10.2026 F4).
+    # "New client" stayed away after accepting an invitation until a reload.
     return me(account, db)
 
 
@@ -233,12 +233,12 @@ def methods(db: DbSession) -> dict[str, Any]:
     values = settings_service.get_all(db)
     return {
         "password": bool(values["password_login"]),
-        # One button per active provider, in the order of the list (blueprint 04).
+        # One button per active provider, in the order of the list.
         "providers": providers.public_list(oidc_store.SqlStore(db)),
-        # Connected to nexsuite: people sign in there; the password form is the operator's emergency way.
+        # Connected to the directory service: people sign in there; the password form is the operator's emergency way.
         "suite": suite.connected(db),
-        # Where nexsuite opens, for "Sign in as someone else": signing out there first (B11). The button to sign in
-        # leads there anyway, so the address tells nobody more than that.
+        # Where the directory service opens, for "Sign in as someone else": signing out there first. The button to sign
+        # in leads there anyway, so the address tells nobody more than that.
         "suite_url": str(settings_service.get(db, "suite_url") or "") if suite.connected(db) else "",
     }
 
@@ -255,13 +255,13 @@ def login(payload: LoginIn, request: Request, response: Response, db: DbSession)
     # Two counts: per sender and name, and per sender alone with more room. The second is not reset by a sign-in that
     # works (whoever has an account would otherwise reset it between guesses at other names). It always counts: an
     # X-Forwarded-For nexbrand was not told to believe changes nothing about the sender (the connection counts), and
-    # before, any such header took this count away (Prüfgang 05.10.2026 A5). Behind a proxy the operator did not
+    # before, any such header took this count away. Behind a proxy the operator did not
     # name, all senders share it; the log and Settings, Server say so and name the setting.
     #
     # So that a stranger behind such a proxy cannot keep everybody out, a browser that signed in as this very name
     # before (its device cookie, signed by the server) is counted on its own: not per sender, and per name only
     # together with the browser (``login-dev``), so that guesses at that very name from the same address do not hold
-    # it either (decided 05.10.2026 and 07.10.2026, A5). Its own wrong passwords still slow it down. The emergency
+    # it either. Its own wrong passwords still slow it down. The emergency
     # account gets in that way while somebody guesses.
     ip = client_ip(request)
     behind_unknown_proxy(request)
@@ -308,8 +308,8 @@ def login(payload: LoginIn, request: Request, response: Response, db: DbSession)
 
 
 def tell_emergency(db: DbSession, account: AccountRow) -> None:
-    """Connected, a password sign-in is the emergency account's: nexsuite's log shows it, once the sign-in is complete
-    (after the second factor, not after the password alone, A11)."""
+    """Connected, a password sign-in is the emergency account's: the directory service's log shows it, once the sign-in
+    is complete (after the second factor, not after the password alone)."""
     if not suite.connected(db):
         return
     import threading
@@ -349,7 +349,7 @@ def me(account: Account, db: DbSession) -> dict[str, Any]:
     return {
         **account_view(account),
         "shares_allowed": bool(settings_service.get(db, "shares_allowed")),
-        # Collecting from websites and repositories: the operator's switch, said before anybody tries (F19).
+        # Collecting from websites and repositories: the operator's switch, said before anybody tries.
         "collect_allowed": bool(settings_service.get(db, "collect_allowed")),
         "mail": mailer.configured(db),
         # Mail with a link needs the public address (the request's own Host is never put into a mail).
@@ -362,12 +362,13 @@ def me(account: Account, db: DbSession) -> dict[str, Any]:
         "preferences": preferences_of(account.preferences),
         "suite": suite.state(db),
         "suite_mail": bool(settings_service.get(db, "suite_mail")),
-        # Where nexsuite opens, for the links to where password, second factor and profile are changed (G3).
+        # Where the directory service opens, for the links to where password, second factor and profile are changed.
         "suite_url": str(settings_service.get(db, "suite_url") or "") if suite.connected(db) else "",
-        # Whether "New client" makes one here: not while nexsuite keeps the clients, else by the operator's switch.
+        # Whether "New client" makes one here: not while the directory service keeps the clients, else by the operator's
+        # switch.
         "may_create_clients": not suite.connected(db) and brands.may_create(db, account),
-        # Whether the lead of a team changes its members here: never while nexsuite keeps the teams, else the operator
-        # always and a lead when the operator allows it (D3).
+        # Whether the lead of a team changes its members here: never while the directory service keeps the teams, else
+        # the operator always and a lead when the operator allows it.
         "may_edit_led_teams": not suite.connected(db)
         and (account.role == OPERATOR or bool(settings_service.get(db, "team_leads_edit"))),
         # Connected: this account is the emergency account (its password and second factor are for that only).
@@ -516,9 +517,9 @@ def list_accounts(_operator: OperatorAccount, db: DbSession) -> list[dict[str, A
     spaces: dict[int, int] = {}
     for account_id in db.scalars(select(Membership.account_id)):
         spaces[account_id] = spaces.get(account_id, 0) + 1
-    # Its public pages and reviews still open: the block and delete dialogs name them (A15).
+    # Its public pages and reviews still open: the block and delete dialogs name them.
     open_links = links.open_counts(db)
-    # The providers each account is linked to, as small marks with "Unlink" in its menu (blueprint 04).
+    # The providers each account is linked to, as small marks with "Unlink" in its menu.
     entries = {entry.id: entry for entry in oidc_store.SqlStore(db).list_providers()}
     linked: dict[int, list[dict[str, Any]]] = {}
     for link in db.scalars(select(OidcLink).order_by(OidcLink.id)):
@@ -566,7 +567,7 @@ def sign_out_account(account_id: int, operator: OperatorAccount, db: DbSession) 
 def block_account(
     account_id: int, payload: OperatorConfirmIn, request: Request, operator: OperatorAccount, db: DbSession,
 ) -> None:
-    """On its own too, as with a coupled directory (F5): blocked, the account gets in nowhere and its sessions end."""
+    """On its own too, as with a coupled directory: blocked, the account gets in nowhere and its sessions end."""
     suite.refuse_if_managed(db)
     confirm_operator(request, db, operator, payload.current_password)
     if account_id == operator.id:
@@ -584,7 +585,7 @@ def withdraw_links(
     account_id: int, payload: OperatorConfirmIn, request: Request, operator: OperatorAccount, db: DbSession,
 ) -> dict[str, int]:
     """Its links stay when an account is blocked or deleted, for the client's sake; the operator ends them all here,
-    with the own password as for blocking (A15, decided 05.10.2026). Connected too: the links are nexbrand's, not
+    with the own password as for blocking. Connected too: the links are nexbrand's, not
     the directory's, and a person blocked there keeps them as well."""
     confirm_operator(request, db, operator, payload.current_password)
     row = _row(db, account_id)
@@ -598,8 +599,7 @@ def unblock_account(
     account_id: int, payload: OperatorConfirmIn, request: Request, operator: OperatorAccount, db: DbSession,
 ) -> None:
     """Accounts blocked while nexbrand hung on a coupled directory (blocked or deleted there, or left out when
-    connecting) stay blocked after a disconnect, until the operator lets them in here again (Prüfgang 04.10.2026,
-    B4)."""
+    connecting) stay blocked after a disconnect, until the operator lets them in here again."""
     suite.refuse_if_managed(db)
     confirm_operator(request, db, operator, payload.current_password)
     row = _row(db, account_id)
@@ -629,7 +629,7 @@ def set_role(
 def set_password(
     account_id: int, payload: PasswordSetIn, request: Request, operator: OperatorAccount, db: DbSession,
 ) -> None:
-    # Connected: passwords are nexsuite's; the emergency account sets its own under its account only (A5).
+    # Connected: passwords are the directory service's; the emergency account sets its own under its account only.
     suite.refuse_if_managed(db)
     confirm_operator(request, db, operator, payload.current_password)
     check_password(payload.password)

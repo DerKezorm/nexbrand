@@ -9,7 +9,7 @@ it.
   person of the agency puts a draft before the client and comments from the agency's side; whoever made a review, or
   a manager, withdraws it.
 * **The link is the key**, as for public pages; a review that ran out or was withdrawn answers like none. Readers see
-  that there is a review and what was said, never the link: with it they could choose for the client (A2).
+  that there is a review and what was said, never the link: with it they could choose for the client.
 * **By mail if wanted**: with a mail server set up, the link goes to the address given, in the language of the person
   who puts the draft forward.
 * **Comments are brakes**: thirty an hour per page and sender, at most ``MAX_COMMENTS`` in all.
@@ -291,7 +291,7 @@ def _open(db: Any, token: str) -> tuple[Review, Client]:
         or space is None or space.deleted_at is not None
         or review.status == "closed"
         or not settings_service.get(db, "shares_allowed")
-        # Run out is run out, chosen too: withdrawing the links of a blocked person ends a chosen page this way (A15).
+        # Run out is run out, chosen too: withdrawing the links of a blocked person ends a chosen page this way.
         or (review.expires_at is not None and review.expires_at <= utcnow())
     ):
         raise error("not_found", "Not found.", 404)
@@ -388,7 +388,7 @@ def choose(token: Token, payload: ChooseIn, request: Request) -> dict[str, Any]:
         version.updated_at = utcnow()
         client.updated_at = utcnow()
         # Only while it is still open, decided by the database: a withdrawal at the same moment is never overwritten
-        # with "chosen", and then nothing of the choice is kept (A15).
+        # with "chosen", and then nothing of the choice is kept.
         taken = db.execute(update(Review).where(Review.id == review.id, Review.status == "open")
                            .values(status="chosen", chosen=variant["id"], chosen_by=who, chosen_at=utcnow())
                            .execution_options(synchronize_session=False))

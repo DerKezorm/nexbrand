@@ -157,7 +157,7 @@ export function AboutPage() {
           </dl>
         )}
 
-        {/* The family, as the about pages of the other apps show it (G11). */}
+        {/* The family, as the about pages of the other apps show it. */}
         <Card icon={Sparkles} title={t('about.family')} text={t('about.familyText')} id="about-family">
           <ul className="space-y-2">
             {FAMILY.map(({ name, Icon, color }) => (

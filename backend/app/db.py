@@ -96,9 +96,9 @@ def init_db() -> None:
         regroup.run(db)
         # Projects from before they had versions of their own get a first one.
         brands.adopt_projects(db)
-        # Files named as internal fonts before files carried that mark keep it from now on (A4).
+        # Files named as internal fonts before files carried that mark keep it from now on.
         brands.mark_kept_in_house(db)
-        # Clients, projects and teams that share a name from before names were unique get a number (F15).
+        # Clients, projects and teams that share a name from before names were unique get a number.
         names.number_doubles(db)
 
 

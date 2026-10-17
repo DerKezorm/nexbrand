@@ -1,6 +1,6 @@
-// Small things of block 6 that are rules, not pages: the letters in the circles of people and teams are readable in
-// both modes (G7, measured from the style sheet itself), a button's name is cut after a whole word (F32), a tab names
-// its page (F13), and a moment is written one way (G11).
+// Small things that are rules, not pages: the letters in the circles of people and teams are readable in
+// both modes (measured from the style sheet itself), a button's name is cut after a whole word, a tab names
+// its page, and a moment is written one way.
 import { describe, expect, it } from 'vitest'
 
 import { contrast } from './color'
@@ -97,7 +97,7 @@ describe('a moment', () => {
 })
 
 describe('asking before something goes', () => {
-  it('uses the family dialog everywhere, never the browser one (F6)', () => {
+  it('uses the family dialog everywhere, never the browser one', () => {
     type Dirs = { readdirSync: (dir: string, options: { recursive: true }) => string[] }
     const dirs = files as unknown as Dirs
     const sources = dirs.readdirSync('src', { recursive: true }).filter((name) => /\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name))

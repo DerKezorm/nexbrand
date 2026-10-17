@@ -1,4 +1,4 @@
-"""Comparing two versions in every part (F10), on the server and in the interface alike.
+"""Comparing two versions in every part, on the server and in the interface alike.
 
 ``tests/data/diff_cases.json`` holds pairs of sets and what the server finds between them; ``diff.test.ts`` holds the
 interface to the same file. After a deliberate change, write it anew with ``UPDATE_COLOR_CASES=1 pytest
@@ -53,7 +53,7 @@ def _pairs() -> list[tuple[str, dict[str, Any], dict[str, Any]]]:
             "on_primary": "Kruste"}
     return [
         ("the same", BASE, copy.deepcopy(BASE)),
-        ("only the type scale (the checker's case)", BASE, _changed(scale=scale)),
+        ("only the type scale", BASE, _changed(scale=scale)),
         ("a rule reworded and one added", BASE, _changed(rules=[*reworded, {"kind": "do", "text": "Warm photos."}])),
         ("a dark mode set", BASE, _changed(dark=dark)),
         ("a dark mode changed", _changed(dark=dark), _changed(dark={**dark, "primary": "Ofenrot"})),
@@ -80,7 +80,7 @@ def test_the_cases_file_is_what_the_server_finds() -> None:
 def test_a_type_scale_rules_and_a_dark_mode_are_differences() -> None:
     cases = {case["name"]: case["changes"] for case in _compute()["cases"]}
     assert cases["the same"] == []
-    scale = cases["only the type scale (the checker's case)"]
+    scale = cases["only the type scale"]
     assert [(c["part"], c["change"], c["name"]) for c in scale] == [("scale", "changed", "Überschrift 1"),
                                                                     ("scale", "changed", "Body")]
     assert [(f["field"], f["from"], f["to"]) for f in scale[0]["fields"]] == [

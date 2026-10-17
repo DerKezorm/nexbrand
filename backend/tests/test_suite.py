@@ -1,7 +1,6 @@
-"""nexbrand hung on nexsuite: connecting with the matches, keeping in step, what is kept there, the way back.
+"""nexbrand hung on the directory service: connecting with the matches, keeping in step, what is kept there, the way back.
 
-nexsuite is played by ``FakeSuite`` (its app API as ``docs/connect.md`` in nexsuite describes it); the whole round
-with both real servers runs in the browser check against the test instances.
+The directory service is played by ``FakeSuite``.
 """
 
 from __future__ import annotations
@@ -27,7 +26,7 @@ from app.services import oidc_store, settings_service, suite
 from .conftest import PASSWORD, client_of, make_account, new_client, new_group
 
 SUITE = "https://suite.example.com"
-#: The colours nexsuite takes for a client; any other is refused.
+#: The colours the directory service takes for a client; any other is refused.
 PALETTE = ("#f472b6", "#38a9c4", "#fbbf24", "#4ade80", "#ff8a70", "#60a5fa", "#a78bfa", "#a1a1aa")
 
 
@@ -46,7 +45,7 @@ class FakeSuite:
         self.clients: dict[str, dict[str, Any]] = {"10": {"id": "10", "name": "Ideen", "color": "#f472b6",
                                                            "sector": "Bakery", "contact": "",
                                                            "people": [{"id": "1", "role": "manage"}], "teams": []}}
-        #: The clients nexsuite lists (all of them, unless a test hides one).
+        #: The clients the directory service lists (all of them, unless a test hides one).
         self.ticked: set[str] = {"10"}
         self.connected = False
         self.known = True
@@ -54,18 +53,18 @@ class FakeSuite:
         self.emergency: list[str] = []
         self.clients_bin: list[dict[str, str]] = []
         self.pictures: dict[str, bytes] = {}
-        #: The next request to this path fails once (nexsuite going away in the middle of connecting).
+        #: The next request to this path fails once (the directory service going away in the middle of connecting).
         self.fail_on = ""
         self.fetched: list[str] = []
         self.clients_gone: list[str] = []
         self.calls: list[tuple[str, str]] = []
         self.next = 100
-        #: nexsuite out of reach for every call (A11).
+        #: the directory service out of reach for every call.
         self.down = False
         self.reports: list[dict[str, Any]] = []
-        #: nexsuite refuses the pairing with this code (an older connection of the address, nexsuite 3ef5282).
+        #: the directory service refuses the pairing with this code (an older connection of the address, the directory service).
         self.pair_refused = ""
-        #: nexsuite refuses to take a display name (taken by another person).
+        #: the directory service refuses to take a display name (taken by another person).
         self.name_refused = False
 
     def picture(self, url: str, token: str) -> bytes:
@@ -98,14 +97,14 @@ class FakeSuite:
                 raise suite.SuiteError("pair_code_invalid", "nexsuite refused.", 409)
             if self.pair_refused:
                 raise suite.SuiteError(self.pair_refused, "nexsuite refused.", 409)
-            self.connected = False  # a new app in nexsuite, connecting
+            self.connected = False  # a new app in the directory service, connecting
             return {"app_id": 1, "client_id": "nxs-client", "client_secret": "the-client-secret",
                     "token": self.token, "issuer": SUITE}
         if token != self.token or not self.known:
             raise suite.SuiteError("suite_refused", "nexsuite does not know this app any more.", 409)
         if self.connected and method == "POST" and (path in ("/people", "/teams", "/clients", "/finish") or path.endswith(
                 ("/email", "/name", "/join", "/tick"))):
-            # As nexsuite's ``apps._connecting``: what an app brings while connecting, and ``finish``, only until then.
+            # As the directory service's ``apps._connecting``: what an app brings while connecting, and ``finish``, only until then.
             raise suite.SuiteError("already_connected", "nexsuite refused.", 409)
         if path == "/directory":
             return {
@@ -126,7 +125,7 @@ class FakeSuite:
                                 "email": body["email"], "operator": False, "blocked": False}
             return {"id": pid, "name": body["name"], "password": "mailed" if body["email"] else "in_suite"}
         if path.startswith("/people/") and path.endswith("/name"):
-            # nexsuite 3ef5282: a person without a display name takes the app's, unless another goes by it.
+            # The directory service: a person without a display name takes the app's, unless another goes by it.
             person = self.people[path.split("/")[2]]
             if self.name_refused:
                 raise suite.SuiteError("name_taken", "nexsuite refused.", 409)
@@ -184,7 +183,7 @@ class FakeSuite:
             self.reports.append(body)
             return None
         if path == "/leave":
-            # nexsuite forgets the app; connecting again pairs a new one.
+            # The directory service forgets the app; connecting again pairs a new one.
             self.connected = False
             return None
         raise AssertionError(path)
@@ -212,7 +211,7 @@ def _setting(key: str) -> Any:
 
 
 def _person(name: str) -> str:
-    """The account's person in nexsuite: its link at nexsuite's entry of the provider list, "" without one."""
+    """The account's person in the directory service: its link at the directory service's entry of the provider list, "" without one."""
     with SessionLocal() as db:
         row = db.query(Account).filter_by(name=name).one()
         entry = oidc_store.coupled_entry(db)
@@ -223,7 +222,7 @@ def _person(name: str) -> str:
 
 
 def _own_links(name: str) -> list[tuple[str, str, bool]]:
-    """The account's links at the own providers (not nexsuite's): slug, subject, whether the provider is on."""
+    """The account's links at the own providers (not the directory service's): slug, subject, whether the provider is on."""
     with SessionLocal() as db:
         row = db.query(Account).filter_by(name=name).one()
         store = oidc_store.SqlStore(db)
@@ -262,7 +261,7 @@ def own_link(name: str, subject: str, provider_id: int) -> None:
 
 @pytest.fixture
 def world(client: TestClient, operator: Account) -> dict[str, Any]:
-    """Here, before connecting: the operator (address tester@example.com), anna (matches anna in nexsuite), ben (no
+    """Here, before connecting: the operator (address tester@example.com), anna (matches anna in the directory service), ben (no
     match), cleo (left out); a team Design (anna, ben); spaces Studio (anna writes, Design reads) and Ideen."""
     with SessionLocal() as db:
         db.get(Account, operator.id).email = "tester@example.com"  # type: ignore[union-attr]
@@ -386,7 +385,7 @@ def _row_space(space_id: int) -> Space:
 def test_what_nexsuite_keeps_cannot_be_changed_here(client: TestClient, operator: Account, world: dict,
                                                     fake: FakeSuite) -> None:
     connect(client, world, operator)
-    with SessionLocal() as db:  # a client the app keeps itself (connecting hands the existing ones to nexsuite)
+    with SessionLocal() as db:  # a client the app keeps itself (connecting hands the existing ones to the directory service)
         row = Space(name="Only here")
         db.add(row)
         db.flush()
@@ -413,7 +412,7 @@ def test_what_nexsuite_keeps_cannot_be_changed_here(client: TestClient, operator
         client.delete("/api/oidc/oidc/link"),
     ):
         assert answer.status_code == 409 and answer.json()["detail"]["code"] == "managed_by_suite", answer.text
-    # The provider list is nexsuite's while coupled: read only, the form refused at its own field.
+    # The provider list is the directory service's while coupled: read only, the form refused at its own field.
     listed = client.get("/api/oidc/admin/providers").json()
     assert [(item["slug"], item["managed"], item["editable"]) for item in listed] == [("oidc", "nexsuite", False)]
     refused = client.post("/api/oidc/admin/providers", json={"label": "Mine", "slug": "mine",
@@ -425,7 +424,7 @@ def test_only_the_emergency_account_signs_in_with_a_password(client: TestClient,
                                                              fake: FakeSuite) -> None:
     connect(client, world, operator)
     with new_client() as stranger:
-        # Ben signs in through nexsuite now: his old password is refused like a wrong one.
+        # Ben signs in through the directory service now: his old password is refused like a wrong one.
         assert stranger.post("/api/auth/login", json={"name": "ben", "password": PASSWORD}).status_code == 401
         assert stranger.post("/api/auth/login", json={"name": "tester", "password": PASSWORD}).status_code == 200
 
@@ -458,7 +457,7 @@ def test_disconnecting_restores_the_own_sign_in_and_keeps_everything(client: Tes
     fake.people["60"] = {"id": "60", "name": "fritz", "display_name": "Fritz", "email": "", "operator": False,
                          "blocked": False}
     client.post("/api/suite/sync")
-    # Connected: everybody signs in through nexsuite, only the emergency account (the operator) here.
+    # Connected: everybody signs in through the directory service, only the emergency account (the operator) here.
     assert _row("anna").sign_in == "oidc" and _row("tester").sign_in == "password"
     assert client.get("/api/auth/me").json()["suite_emergency"] is True
     assert client.post("/api/suite/disconnect", json={"current_password": "wrong"}).status_code == 401
@@ -553,7 +552,7 @@ def test_a_client_deleted_in_nexsuite_goes_into_the_bin_here_and_for_good_with_i
     assert ideen not in [c["id"] for c in client.get("/api/clients").json()], "gone for the operator too"
     refused = client.post(f"/api/clients/{ideen}/restore")
     assert refused.status_code == 409 and refused.json()["detail"]["code"] == "managed_by_suite"
-    # Brought back in nexsuite: back here, versions and all.
+    # Brought back in the directory service: back here, versions and all.
     fake.clients_bin, fake.ticked = [], {"10", *fake.ticked}
     client.post("/api/suite/sync")
     assert ideen in [c["id"] for c in client.get("/api/clients").json()]
@@ -608,7 +607,7 @@ def test_the_profile_picture_comes_from_nexsuite_once_per_change(client: TestCli
     fake.people["2"]["avatar"] = None
     client.post("/api/suite/sync")
     assert _picture("anna") is None
-    # Set here no more: nexsuite keeps it.
+    # Set here no more: the directory service keeps it.
     refused = client.put("/api/auth/avatar", content=png.getvalue())
     assert refused.status_code == 409 and refused.json()["detail"]["code"] == "managed_by_suite"
     assert client.delete("/api/auth/avatar").status_code == 409
@@ -630,14 +629,14 @@ def test_a_right_nexsuite_takes_away_closes_the_client_at_once(client: TestClien
 
 def test_connected_no_operator_takes_another_accounts_password_or_second_factor(
         client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
-    # Prüfgang 04.10.2026, A5: an operator coming through nexsuite is never asked for a password here.
+    # An operator coming through the directory service is never asked for a password here.
     connect(client, world, operator)
     anna = world["anna"]
     assert client.put(f"/api/accounts/{anna.id}/password",
                       json={"password": "a long new password", "current_password": PASSWORD}).status_code == 409
     reset = client.post(f"/api/accounts/{anna.id}/totp/reset", json={"current_password": PASSWORD})
     assert reset.status_code == 409 and reset.json()["detail"]["code"] == "managed_by_suite"
-    # Anna, operator in nexsuite, comes through nexsuite: she may not disconnect from here, with any password.
+    # Anna, operator in the directory service, comes through the directory service: she may not disconnect from here, with any password.
     fake.people["2"]["operator"] = True
     client.post("/api/suite/sync")
     from .conftest import sign_in
@@ -656,7 +655,6 @@ def test_connected_no_operator_takes_another_accounts_password_or_second_factor(
 
 def test_signing_out_everywhere_in_nexsuite_ends_the_sessions_here(client: TestClient, operator: Account,
                                                                     world: dict, fake: FakeSuite) -> None:
-    # Prüfgang 04.10.2026, A6.
     from datetime import timedelta
 
     from app.models import utcnow
@@ -681,14 +679,14 @@ def test_signing_out_everywhere_in_nexsuite_ends_the_sessions_here(client: TestC
 
 def test_no_person_space_or_team_is_matched_twice(client: TestClient, operator: Account, world: dict,
                                                   fake: FakeSuite) -> None:
-    # Prüfgang 04.10.2026, A7: two accounts on one person let a blocked person still sign in.
+    # Two accounts on one person let a blocked person still sign in.
     from .conftest import make_account
 
     twin = make_account("anna2")
     with SessionLocal() as db:
         db.get(Account, twin.id).email = "anna@example.com"  # type: ignore[union-attr]
         db.commit()
-    # A second client named like nexsuite's Ideen: from before names were unique (F15), straight into the database.
+    # A second client named like the directory service's Ideen: from before names were unique, straight into the database.
     from app.services import brands
 
     with SessionLocal() as db:
@@ -714,12 +712,11 @@ def test_no_person_space_or_team_is_matched_twice(client: TestClient, operator: 
 
 def test_a_matched_space_keeps_its_rights_and_a_matched_team_is_not_made_twice(
         client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
-    # Prüfgang 04.10.2026, B1 and B2.
     from .conftest import join
 
     fake.teams["70"] = {"id": "70", "name": "design", "color": "#123456", "lead": None, "members": ["1"]}
     join(client, world["ideen"], "anna", "write")
-    with SessionLocal() as db:  # a colour of its own nexsuite also has, and one it does not
+    with SessionLocal() as db:  # a colour of its own the directory service also has, and one it does not
         db.get(Space, world["studio"]).color = "#4ade80"  # type: ignore[union-attr]
         db.commit()
     found = client.post("/api/suite/start", json={"url": SUITE + "/", "code": "GOOD-CODE-1234"}).json()
@@ -761,7 +758,7 @@ def test_a_matched_space_keeps_its_rights_and_a_matched_team_is_not_made_twice(
 
 def test_new_people_hear_how_they_get_a_password(client: TestClient, operator: Account, world: dict,
                                                  fake: FakeSuite) -> None:
-    # Prüfgang 04.10.2026, B3: a person made new in nexsuite had no password, and nobody said so.
+    # A person made new in the directory service had no password, and nobody said so.
     found = client.post("/api/suite/start", json={"url": SUITE + "/", "code": "GOOD-CODE-1234"}).json()
     choices = {a["id"]: a["suggest"] for a in found["accounts"]}
     choices[world["cleo"].id] = "skip"
@@ -776,7 +773,7 @@ def test_new_people_hear_how_they_get_a_password(client: TestClient, operator: A
 
 def test_after_leaving_the_blocked_are_named_and_can_be_let_in_again(client: TestClient, operator: Account,
                                                                      world: dict, fake: FakeSuite) -> None:
-    # Prüfgang 04.10.2026, B4: left out or blocked in nexsuite, an account stayed blocked for good after a disconnect.
+    # Left out or blocked in the directory service, an account stayed blocked for good after a disconnect.
     connect(client, world, operator)
     cleo = world["cleo"]
     assert client.post(f"/api/accounts/{cleo.id}/unblock", json={"current_password": PASSWORD}).status_code == 409
@@ -793,7 +790,7 @@ def test_after_leaving_the_blocked_are_named_and_can_be_let_in_again(client: Tes
 
 def test_a_disconnect_waits_for_a_running_sync(client: TestClient, operator: Account, world: dict, fake: FakeSuite,
                                                monkeypatch: pytest.MonkeyPatch) -> None:
-    # Prüfgang 04.10.2026, B5: a disconnect during the fetch of a sync brought the links back and doubled everything.
+    # A disconnect during the fetch of a sync brought the links back and doubled everything.
     import threading
     import time
 
@@ -828,7 +825,7 @@ def test_a_disconnect_waits_for_a_running_sync(client: TestClient, operator: Acc
 
 def test_connecting_again_after_a_failure_makes_nothing_twice(client: TestClient, operator: Account, world: dict,
                                                               fake: FakeSuite) -> None:
-    # Prüfgang 04.10.2026, B6: a failed step left half a connection, and a retry made people, teams and spaces again.
+    # A failed step left half a connection, and a retry made people, teams and spaces again.
     found = client.post("/api/suite/start", json={"url": SUITE + "/", "code": "GOOD-CODE-1234"}).json()
     again = client.post("/api/suite/start", json={"url": SUITE + "/", "code": "GOOD-CODE-1234"})
     assert again.status_code == 409 and again.json()["detail"]["code"] == "connecting_already"
@@ -846,7 +843,7 @@ def test_connecting_again_after_a_failure_makes_nothing_twice(client: TestClient
 
 def test_connected_an_old_invitation_is_no_way_in_through_nexsuite(client: TestClient, operator: Account,
                                                                    world: dict, fake: FakeSuite) -> None:
-    # Prüfgang 04.10.2026, C9: the invitation page offers the provider now; connected, nexsuite is the only door.
+    # The invitation page offers the provider now; connected, the directory service is the only door.
     token = client.post("/api/invites", json={"days": 7}).json()["link"].rsplit("/", 1)[1]
     connect(client, world, operator)
     with new_client() as stranger:
@@ -856,7 +853,7 @@ def test_connected_an_old_invitation_is_no_way_in_through_nexsuite(client: TestC
 
 def test_a_colour_from_before_that_nexsuite_does_not_take_is_left_to_nexsuite(
         client: TestClient, operator: Account, world: dict, fake: FakeSuite) -> None:
-    with SessionLocal() as db:  # the cobalt clients had before the palette became nexsuite's
+    with SessionLocal() as db:  # the cobalt clients had before the palette became the directory service's
         db.get(Space, world["studio"]).color = "#2f7bff"  # type: ignore[union-attr]
         db.commit()
     connect(client, world, operator)

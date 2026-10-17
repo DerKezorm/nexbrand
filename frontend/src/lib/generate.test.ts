@@ -40,7 +40,7 @@ describe('directions from the AI', () => {
   })
 })
 
-describe('a new client starts without hints about what nexbrand made itself (F24)', () => {
+describe('a new client starts without hints about what nexbrand made itself', () => {
   const labels = { positive: 'Word mark', negative: 'Word mark negative', monogram: 'Monogram' }
   const scaleNames = { h1: 'H1', h2: 'H2', h3: 'H3', lead: 'Lead', body: 'Body', small: 'Small' }
   /** The set the workbench builds "with one colour", as `NewClientPage` does it: neutrals, white, word marks, sizes,
@@ -59,7 +59,7 @@ describe('a new client starts without hints about what nexbrand made itself (F24
     const about = (hint.colors ?? []).join('/')
     if (['white_on', 'ground_large_only', 'ground_unreadable'].includes(hint.code) && about === 'Primary') return true
     if (hint.code === 'primary_as_text' && about === 'Primary/White') return true
-    // On the off-white only where the workbench says so beside the colour, with the same number (decided 06.10.2026).
+    // On the off-white only where the workbench says so beside the colour, with the same number.
     const short = startShortfall(start, NAMES)
     return hint.code === 'primary_as_text' && about === 'Primary/Paper' && short !== null && hint.ratio === Math.floor(short.ratio * 100 + 1e-9) / 100
   }
@@ -108,7 +108,7 @@ describe('a new client starts without hints about what nexbrand made itself (F24
   })
 })
 
-describe('a colour the client brings stays as it is (decided 06.10.2026)', () => {
+describe('a colour the client brings stays as it is', () => {
   it('"with one colour" never changes the colour; where it misses 4.5:1 on the off-white, it says how far and what would reach', () => {
     let short = 0
     for (let hue = 0; hue < 360; hue += 5)

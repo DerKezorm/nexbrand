@@ -74,7 +74,7 @@ def _write_log_mode(mode: str, until: datetime | None) -> None:
 
 
 async def _suite_forever(stop: asyncio.Event) -> None:
-    """Connected to nexsuite: fetch the directory once a minute, whatever the notices did."""
+    """Connected to the directory service: fetch the directory once a minute, whatever the notices did."""
     from .services import suite
 
     while not stop.is_set():
@@ -110,7 +110,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     logs.setup()
     backups.apply_pending()
     init_db()
-    # The single provider of the settings becomes the provider list, once, after a backup (blueprint 01, 06).
+    # The single provider of the settings becomes the provider list, once, after a backup.
     oidc_store.migrate_settings()
     # The TLS context for the providers and authentik, read once outside the event loop.
     await nexoidc.warm()
@@ -194,7 +194,7 @@ async def _plain_http_error(request: Request, exc: StarletteHTTPException) -> JS
     if exc.status_code == 400 and isinstance(exc.detail, str):
         return JSONResponse(status_code=400, content={"detail": detail("invalid_input", "The input is not valid.")})
     # A file under /assets/ that is not there (an old page after an update), or a path no route knows: the same
-    # answer as every other "not found", not Starlette's bare text (H18).
+    # answer as every other "not found", not Starlette's bare text.
     if exc.status_code == 404 and isinstance(exc.detail, str):
         return JSONResponse(status_code=404, content={"detail": detail("not_found", "Not found.")})
     return await http_exception_handler(request, exc)

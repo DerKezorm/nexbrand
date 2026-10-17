@@ -21,12 +21,12 @@ export function harmonies(primary: string): Harmony[] {
 
 export type Names = { primary: string; accent: string; second: string; paper: string; stone: string; ink: string; white: string; light: string; dark: string }
 
-/** Apart from white so clearly that the checks never call the two "nearly the same" (they warn below ΔE 4; F24: a new
+/** Apart from white so clearly that the checks never call the two "nearly the same" (they warn below ΔE 4): a new
  * client met that hint about colours nexbrand had made itself). */
 const PAPER_FROM_WHITE = 4.5
 
 /** The off-white for a main colour: as light as it can be while apart from white, reached by more of the hue before
- * less light, so the main colour keeps reading on it as on white where it can (F24). */
+ * less light, so the main colour keeps reading on it as on white where it can. */
 function paperFor(primary: string): string {
   const [h] = hsl(primary)
   const holds = (paper: string) => contrast(primary, paper) >= 4.5 || contrast(primary, '#FFFFFF') < 4.5
@@ -42,7 +42,7 @@ function paperFor(primary: string): string {
 }
 
 /** A neutral at `light`, or the nearest lightness (in turns lighter and darker) apart from the main colour: a grey
- * main colour must not meet a stone or an ink "nearly the same" that nexbrand put beside it (F24). */
+ * main colour must not meet a stone or an ink "nearly the same" that nexbrand put beside it. */
 function apartFrom(primary: string, hue: number, saturation: number, light: number, low: number, high: number): string {
   for (let step = 0; step <= 40; step++) {
     const at = light + (step % 2 ? 1 : -1) * Math.ceil(step / 2)
@@ -64,7 +64,7 @@ export function neutralsFor(primary: string, names: Names): BrandColor[] {
 }
 
 /** "With one colour": the colour as it was entered, its neutrals and white. The colour is the client's and is never
- * changed here (decided 06.10.2026); where it misses 4.5:1 on the light ground, `startShortfall` says so beside it. */
+ * changed here; where it misses 4.5:1 on the light ground, `startShortfall` says so beside it. */
 export function oneColor(start: string, names: Names): BrandColor[] {
   const neutrals = neutralsFor(start, names)
   return [{ name: names.primary, hex: start.toUpperCase(), role: 'primary' }, ...neutrals, { name: names.white, hex: '#FFFFFF', role: 'neutral' }]
@@ -313,7 +313,7 @@ export function wordmarks(name: string, colors: BrandColor[], headFamily: string
   const { primary, light, dark } = pickColors(colors, luminance)
   const mark = { text: name || '?', font: headFamily }
   // The main colour as the accent only where it stands out from the ground by 3:1 (the logo check); otherwise the mark
-  // keeps one colour. A new client met "word mark negative: 2.38:1" about a logo nexbrand had made (F24).
+  // keeps one colour. A new client met "word mark negative: 2.38:1" about a logo nexbrand had made.
   const accentOn = (ground: string, plain: string) => (contrast(primary, ground) >= 3 ? primary : plain)
   return [
     { id: 'word-positive', name: labels.positive, wordmark: mark, fg: dark, accent: accentOn('#FFFFFF', dark), ground: '#FFFFFF', min_width: '30 mm / 120 px' },

@@ -1,9 +1,8 @@
-"""What leaves nexbrand through the client's links, and what comes in as a file (the check of 05.10.2026, its numbers
-from nexsuite/tools/pruefgang-2026-10-05/LISTE.md in brackets).
+"""What leaves nexbrand through the client's links, and what comes in as a file.
 
-* The links of reviews and public pages are keys: a reader sees that there are some, never the address (A2, A3).
-* A font kept in the house never leaves as a file, whatever part of the set names it (A4).
-* A file is refused when it could run something (SVG) or blow up in memory (pixels) (A7, A12).
+* The links of reviews and public pages are keys: a reader sees that there are some, never the address.
+* A font kept in the house never leaves as a file, whatever part of the set names it.
+* A file is refused when it could run something (SVG) or blow up in memory (pixels).
 """
 
 from __future__ import annotations
@@ -49,7 +48,7 @@ def _token(link: str) -> str:
     return link.rsplit("/", 1)[1]
 
 
-# --- A2, A3: the links are for those who write ----------------------------------------------------------------------
+# --- the links are for those who write ----------------------------------------------------------------------
 
 
 def test_a2_a_reader_never_gets_the_review_link_and_cannot_choose_for_the_client(
@@ -103,7 +102,7 @@ def test_a3_a_reader_sees_that_there_are_public_pages_but_not_their_links(
         assert writer.delete(f"/api/shares/{own.json()['id']}").status_code == 204
 
 
-# --- A4: a font kept in the house stays there -----------------------------------------------------------------------
+# --- a font kept in the house stays there -----------------------------------------------------------------------
 
 
 def test_a4_an_internal_font_file_never_leaves_as_an_example_or_a_logo_download(
@@ -138,7 +137,7 @@ def test_a4_an_internal_font_file_never_leaves_as_an_example_or_a_logo_download(
             assert visitor.get(f"/api/{kind}/{token}/media/{logo}").status_code == 200, kind
 
 
-# --- A6: a name cannot end the comment above the code ----------------------------------------------------------------
+# --- a name cannot end the comment above the code ----------------------------------------------------------------
 
 
 @pytest.mark.parametrize("fmt", ["css", "tailwind", "scss"])
@@ -156,7 +155,7 @@ def test_a6_the_export_route_keeps_the_comment_closed(client: TestClient, operat
     assert head.count("*/") == 1 and head.endswith(" */"), head
 
 
-# --- A7: pixels are counted before a picture is decoded --------------------------------------------------------------
+# --- pixels are counted before a picture is decoded --------------------------------------------------------------
 
 
 def _png(width: int, height: int) -> bytes:
@@ -189,7 +188,7 @@ def test_a7_a_picture_with_more_pixels_than_a_profile_picture_may_have_is_refuse
     assert small.status_code == 201 and small.json()["width"] == 40
 
 
-# --- A11: a key goes to its own host only ---------------------------------------------------------------------------
+# --- a key goes to its own host only ---------------------------------------------------------------------------
 
 
 def test_a11_a_redirect_to_another_host_drops_the_key(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -212,7 +211,7 @@ def test_a11_a_redirect_to_another_host_drops_the_key(monkeypatch: pytest.Monkey
                     ("elsewhere.example.org", None)]
 
 
-# --- A12: an SVG that could run something is refused -----------------------------------------------------------------
+# --- an SVG that could run something is refused -----------------------------------------------------------------
 
 
 HOSTILE_SVGS = {
@@ -251,7 +250,7 @@ def test_a12_a_plain_svg_with_styles_and_links_inside_comes_in(client: TestClien
     assert answer.status_code == 201 and answer.json()["kind"] == "svg", answer.text
 
 
-# --- A13: no control characters in a mail address --------------------------------------------------------------------
+# --- no control characters in a mail address --------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("address", ["anna\x00@example.com", "anna@example.com\n", "an\x1bna@example.com",
@@ -269,7 +268,7 @@ def test_a13_an_invitation_mail_to_such_an_address_is_refused(client: TestClient
     assert accounts.EMAIL_PATTERN.match("anna@example.com")
 
 
-# --- A14, F31: the client's name on a review ------------------------------------------------------------------------
+# --- the client's name on a review ------------------------------------------------------------------------
 
 
 def test_a14_a_name_on_the_review_page_holds_no_control_or_format_characters(client: TestClient,
@@ -288,7 +287,7 @@ def test_a14_a_name_on_the_review_page_holds_no_control_or_format_characters(cli
         assert said.status_code == 201 and said.json()["comments"][0]["author"] == ""
 
 
-# --- F5: a draft before the client is deleted on purpose only --------------------------------------------------------
+# --- a draft before the client is deleted on purpose only --------------------------------------------------------
 
 
 def test_f5_a_draft_before_the_client_is_deleted_only_when_the_review_goes_with_it(
@@ -310,7 +309,7 @@ def test_f5_a_draft_before_the_client_is_deleted_only_when_the_review_goes_with_
     assert client.delete(f"/api/clients/{cid}/versions/{third}").status_code == 204
 
 
-# --- F27: the public page as code, and the review link by mail ------------------------------------------------------
+# --- the public page as code, and the review link by mail ------------------------------------------------------
 
 
 def test_f27_the_public_page_gives_the_design_as_code(client: TestClient, operator: Account, space: int) -> None:
@@ -386,7 +385,7 @@ def test_f27_a_mail_that_fails_keeps_the_review_and_says_so(
     assert made.json()["mail_problem"] == "mail_failed" and made.json()["link"]
 
 
-# --- From the first block: an operator from nexsuite is refused before any password ----------------------------------
+# --- From the first block: an operator from the directory service is refused before any password ----------------------------------
 
 
 def test_connected_an_operator_who_is_not_the_emergency_account_is_refused_before_the_password(
@@ -413,7 +412,7 @@ def test_connected_an_operator_who_is_not_the_emergency_account_is_refused_befor
             assert answer.status_code == 403 and answer.json()["detail"]["code"] == "backups_emergency_only", answer.text
 
 
-# --- After the check of block 2: what one version keeps in the house, every other way keeps in too (A4) ----------------
+# --- what one version keeps in the house, every other way keeps in too ----------------
 
 
 def _font(media: str, license: str = "internal") -> dict[str, Any]:
@@ -491,7 +490,7 @@ def test_a4_a_newer_version_keeping_the_font_in_closes_an_older_fixed_page(
         assert visitor.get(f"/api/public/{token}/media/{house}").status_code == 404
 
 
-# --- A12: an SVG in another encoding than UTF-8 --------------------------------------------------------------------
+# --- an SVG in another encoding than UTF-8 --------------------------------------------------------------------
 
 
 WIDE = '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>alert(2)</script></svg>'
@@ -573,7 +572,7 @@ def test_a12_binaries_and_plain_text_are_not_taken_for_wide_blanks(client: TestC
         assert answer.status_code == 201 and answer.json()["kind"] == "file", answer.text
 
 
-# --- A4: once kept in the house, a file stays so ------------------------------------------------------------------
+# --- once kept in the house, a file stays so ------------------------------------------------------------------
 
 
 def test_a4_a_file_once_kept_in_the_house_stays_so_after_its_draft_is_gone(
@@ -652,7 +651,7 @@ def test_a4_files_named_before_the_mark_get_it_at_start(client: TestClient, oper
         assert db.get(Media, house).kept_in_house is True  # type: ignore[union-attr]
 
 
-# --- A7: every kind of picture is counted -------------------------------------------------------------------------
+# --- every kind of picture is counted -------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("kind", ["JPEG", "WEBP", "GIF"])

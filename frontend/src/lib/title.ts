@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 
-/** The browser tab says where one is: "Bäckerei Morgenrot · nexbrand" instead of "nexbrand" on every page (F13).
+/** The browser tab says where one is: "Bäckerei Morgenrot · nexbrand" instead of "nexbrand" on every page.
  * `alone`: the name without the app's, for the pages a client sees (a public page, a review). */
 export function pageTitle(text: string | null | undefined, alone = false): string {
   const name = (text ?? '').trim()

@@ -1,5 +1,5 @@
 /** A long text for a button's name: whole up to `most` characters, else cut after the last whole word with an
- * ellipsis. Cutting at a fixed count left "the height of the" as "the height de" (F32). */
+ * ellipsis. Cutting at a fixed count left "the height of the" as "the height de". */
 export function shorten(text: string, most = 48): string {
   const clean = text.replace(/\s+/g, ' ').trim()
   if (clean.length <= most) return clean

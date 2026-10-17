@@ -1,7 +1,7 @@
 """nexbrand's own side of sign-in through providers, around the shared contract tests (``tests/nexoidc``): the
-migration from the single provider of 0.1 (also of an instance coupled to nexsuite), the buttons of the sign-in page,
+migration from the single provider of 0.1 (also of an instance coupled to the directory service), the buttons of the sign-in page,
 the operator's account list, the code step after a provider that is not trusted with the second factor, invitations
-into a client, the address a provider knows, the page a sign-in started from (B10), the coupling, and the log.
+into a client, the address a provider knows, the page a sign-in started from, the coupling, and the log.
 """
 
 from __future__ import annotations
@@ -165,7 +165,7 @@ def test_without_a_provider_in_the_settings_nothing_is_made(client: TestClient, 
 
 
 def _coupled_before_the_list(suite_fake: FakeProvider, own: FakeProvider) -> None:
-    """nexbrand 0.1 connected to nexsuite: nexsuite's client in the settings, the own provider kept for the way back
+    """nexbrand 0.1 connected to the directory service: the directory service's client in the settings, the own provider kept for the way back
     in ``suite_saved``, each account's person in ``oidc_subject``, the own link of one left out in ``own_subject``."""
     for name in ("anna", "cleo", "erik", "fritz"):
         make_account(name)
@@ -189,11 +189,11 @@ def _coupled_before_the_list(suite_fake: FakeProvider, own: FakeProvider) -> Non
         rows["anna"].oidc_subject, rows["anna"].suite_person = "2", "2"
         # Left out when connecting: blocked, its own authentik link set aside.
         rows["cleo"].own_subject, rows["cleo"].blocked_at = "ak-cleo", suite.utcnow()
-        # Connected before ``suite_person`` was kept: a subject on an account nexsuite never knew (blocked).
+        # Connected before ``suite_person`` was kept: a subject on an account the directory service never knew (blocked).
         rows["erik"].oidc_subject, rows["erik"].blocked_at = "ak-erik", suite.utcnow()
-        # The same person twice (a mess from before c485f67): the account marked for it keeps it.
+        # The same person twice (a mess from an earlier version): the account marked for it keeps it.
         rows["fritz"].oidc_subject = "2"
-        # A person nexsuite brought: no password, its address from the directory.
+        # A person the directory service brought: no password, its address from the directory.
         db.add(Account(name="neu", role="member", sign_in=SIGN_IN_OIDC, oidc_subject="4", suite_person="4",
                        email="neu@example.com"))
         db.commit()
@@ -215,8 +215,8 @@ def test_a_coupled_instance_moves_to_the_list_with_nexsuite_as_its_provider_and_
     assert (listed["oidc-own"].label, listed["oidc-own"].enabled, listed["oidc-own"].managed) == (
         "authentik", False, "")
     assert listed["oidc-own"].redirect_path == "/api/oidc/callback", "parked, it keeps the address authentik knows"
-    # fritz held anna's person too (a connection from before c485f67): the account marked for it keeps it, fritz
-    # loses it and is blocked, as the sync before the list did. A subject of nexsuite's never becomes a link at an own
+    # fritz held anna's person too (a connection from an earlier version): the account marked for it keeps it, fritz
+    # loses it and is blocked, as the sync before the list did. A subject of the directory service's never becomes a link at an own
     # entry (erik's from before ``suite_person`` was kept neither): only cleo's own link, issued by her own provider.
     assert _links() == [("oidc", "1", "tester"), ("oidc", "2", "anna"), ("oidc", "4", "neu"),
                         ("oidc-own", "ak-cleo", "cleo")]
@@ -229,7 +229,7 @@ def test_a_coupled_instance_moves_to_the_list_with_nexsuite_as_its_provider_and_
         kept = settings_service.get(db, oidc_store.COUPLING)
         assert kept["provider_id"] == entry.id and settings_service.get(db, oidc_store.MIGRATED) is True
     assert oidc_store.migrate_settings(backup=False) is None, "once"
-    # nexsuite's people sign in at the address nexsuite was told, the own provider waits.
+    # The directory service's people sign in at the address the directory service was told, the own provider waits.
     suite_fake.person = {"sub": "2", "preferred_username": "anna"}
     browser = fresh_browser()
     target = location(browser.get("/api/oidc/oidc/start"))
@@ -237,13 +237,13 @@ def test_a_coupled_instance_moves_to_the_list_with_nexsuite_as_its_provider_and_
     assert location(come_back(browser, suite_fake, target)) == "/"
     assert browser.get("/api/auth/me").json()["name"] == "anna"
     assert error_in(fresh_browser().get("/api/oidc/oidc-own/start")) == "oidc_not_configured"
-    # The address of nexsuite's people is the directory's, never the token's, also for one through it only.
+    # The address of the directory service's people is the directory's, never the token's, also for one through it only.
     suite_fake.person = {"sub": "4", "email": "neu.token@example.com"}
     browser = fresh_browser()
     assert location(come_back(browser, suite_fake, location(browser.get("/api/oidc/oidc/start")))) == "/"
     assert browser.get("/api/auth/me").json()["name"] == "neu"
     assert accounts_row("neu").email == "neu@example.com"
-    # Disconnecting: nexsuite's entry goes with its links, the own entry is ``oidc`` again with cleo's link.
+    # Disconnecting: the directory service's entry goes with its links, the own entry is ``oidc`` again with cleo's link.
     with SessionLocal() as db:
         suite.disconnect(db, tell=False)
     listed = {row.slug: row for row in _entries()}
@@ -524,7 +524,7 @@ def test_names_from_a_provider_follow_the_rules_of_nexbrand(raw: str) -> None:
         assert cleaned.endswith("-2")
 
 
-# --- B10: the page a sign-in started from ----------------------------------------------------------------------------
+# --- the page a sign-in started from ----------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(("asked", "landing_page"), [
@@ -631,7 +631,7 @@ def test_two_instances_on_one_host_keep_their_attempt_cookies_apart(
     assert nexoidc.current().cookie_name == "nexbrand_oidc" + get_settings().cookie_name_suffix()
 
 
-# --- While coupled to nexsuite ---------------------------------------------------------------------------------------
+# --- While coupled to the directory service ---------------------------------------------------------------------------------------
 
 
 def test_while_coupled_nobody_links_or_unlinks_and_an_old_invitation_is_no_way_in(
@@ -659,7 +659,7 @@ def test_while_coupled_nobody_links_or_unlinks_and_an_old_invitation_is_no_way_i
                           json={"current_password": PASSWORD})
     assert gone.status_code == 409 and gone.json()["detail"]["code"] == "managed_by_suite"
     assert error_in(fresh_browser().get("/api/oidc/oidc/start", params={"invite": token})) == "invite_invalid"
-    # Somebody nexsuite does not give nexbrand is told so, not to ask for an invitation.
+    # Somebody the directory service does not give nexbrand is told so, not to ask for an invitation.
     suite_fake.person = {"sub": "999"}
     assert error_in(sign_in_via_oidc(fresh_browser(), suite_fake, slug="oidc")) == "suite_no_account"
     assert ("sso", "anna-1", "anna") in _links(), "anna's own link waits with its provider"

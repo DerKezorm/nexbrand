@@ -32,7 +32,7 @@ async def upload(
     account: Account,
     space: Annotated[int, Query(ge=1)],
     name: Annotated[str, Query(min_length=1, max_length=255)],
-    #: ``picture`` (a logo) or ``font``: a file of another kind is refused and not kept (F9).
+    #: ``picture`` (a logo) or ``font``: a file of another kind is refused and not kept.
     expect: Annotated[Literal["picture", "font"] | None, Query()] = None,
 ) -> dict[str, Any]:
     with SessionLocal() as db:

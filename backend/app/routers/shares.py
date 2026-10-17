@@ -3,7 +3,7 @@
 * **Closed until the operator opens it** (``shares_allowed``); from write up a person of the agency makes a page;
   whoever made it, or a manager, changes it or takes it down.
 * **The link is the key**: a long random token, kept so it can be copied again; it opens this one client only. Readers
-  see that there are pages, never their links: they could hand the client's design set out unnoticed (A3).
+  see that there are pages, never their links: they could hand the client's design set out unnoticed.
 * **As code too**: CSS, Tailwind, SCSS and design tokens, the same text as the export in the app, for a developer
   without an account.
 * **A version fixed, or always the current one**: a print job keeps what it was ordered with.
@@ -214,7 +214,7 @@ def _open(db: Any, token: str) -> tuple[Share, Client, BrandVersion]:
             version = brands.project_current(db, project) if project else brands.current(db, client)
     if (
         share is None or client is None or client.deleted_at is not None
-        # The space in the trash (here, or deleted in nexsuite): its clients are gone for everybody (A8).
+        # The space in the trash (here, or deleted in the directory service): its clients are gone for everybody.
         or space is None or space.deleted_at is not None
         or version is None or version.status != PUBLISHED
         or not settings_service.get(db, "shares_allowed")

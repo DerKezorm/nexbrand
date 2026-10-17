@@ -119,7 +119,7 @@ def create_client(
     color: str | None = None, label: str | None = "1", data: Any = None, origin: str = "hand", author: str = "",
 ) -> tuple[Client, BrandVersion | None]:
     """A client with its own group of rights (the account manages it) and, unless ``label`` is None, a first version as
-    a draft (empty, or the design set given). Its name is not taken by another client (F15)."""
+    a draft (empty, or the design set given). Its name is not taken by another client."""
     from . import names
 
     with names.lock:
@@ -161,7 +161,7 @@ def _create_client(
 
 
 def managed(db: Session, client: Client) -> bool:
-    """Whether nexsuite keeps this client (its name, sector, contact, colour and who may see it)."""
+    """Whether the directory service keeps this client (its name, sector, contact, colour and who may see it)."""
     from . import suite
 
     space = db.get(Space, client.space_id)
@@ -245,7 +245,7 @@ def touch(client: Client, account: Account) -> None:
 
 
 def let_go(db: Session, client: Client) -> bool:
-    """Whether nexsuite no longer gives nexbrand this client (B18): the operator puts it away here then."""
+    """Whether the directory service no longer gives nexbrand this client: the operator puts it away here then."""
     from . import suite
 
     return suite.dropped(db, db.get(Space, client.space_id))
@@ -269,8 +269,9 @@ def restore(db: Session, client: Client, *, let_go: bool = False) -> None:
 
 def purge(db: Session, client: Client, *, let_go: bool = False) -> None:
     """The client and its group of rights, with the files in it (their bytes go with the next clean-up). Not one
-    nexsuite keeps: deleted here for good, nexsuite would bring it back as an empty client under a new id (B6). One
-    nexsuite let go (``let_go``, B18) says nothing about it any more: the operator decides here."""
+    the directory service keeps: deleted here for good, the directory service would bring it back as an empty client
+    under a new id. One the directory service let go (``let_go``) says nothing about it any more: the operator decides
+    here."""
     if managed(db, client) and not let_go:
         raise BrandError("managed_by_suite", "Clients are deleted for good in nexsuite now.", 409)
     space = db.get(Space, client.space_id)
@@ -326,7 +327,7 @@ def project_versions(db: Session, project: Project) -> list[BrandVersion]:
 
 def _holding(rows: list[BrandVersion], when: str) -> BrandVersion | None:
     """Of versions in their order, the last published one whose day is not after ``when``: a version published to
-    hold from a later day holds from that day, not before (F2)."""
+    hold from a later day holds from that day, not before."""
     held = [v for v in rows if v.status == PUBLISHED and v.valid_from <= when]
     return held[-1] if held else None
 
@@ -394,7 +395,7 @@ def mark_kept_in_house(db: Session) -> int:
 def kept_in_house(db: Session, space_id: int) -> set[str]:
     """Every file of the client that is or ever was the file of a font kept in the house, by any version, draft,
     project or review direction. Such a file never goes out over a public page, a review or a token, whatever else
-    names it: an example, a logo download, an older version that called the same font free (A4)."""
+    names it: an example, a logo download, an older version that called the same font free."""
     clients = select(Client.id).where(Client.space_id == space_id)
     found: set[str] = set(db.scalars(select(Media.id).where(Media.space_id == space_id, Media.kept_in_house.is_(True))))
     for data in db.scalars(select(BrandVersion.data).where(BrandVersion.client_id.in_(clients))):
@@ -412,7 +413,7 @@ def for_public(db: Session, data: dict[str, Any], space_id: int) -> dict[str, An
 
 
 def current(db: Session, client: Client) -> BrandVersion | None:
-    """The client's version that holds today; one published to hold from a later day is not it yet (F2)."""
+    """The client's version that holds today; one published to hold from a later day is not it yet."""
     return _holding(versions(db, client), today())
 
 
@@ -564,7 +565,7 @@ def create_project(
 ) -> Project:
     """A project on a version of the client's, with a first draft that takes everything from it (or the set given,
     in the shape of ``services/inherit.py``); ``own``: colours of its own on top, as projects had them before. Its
-    name is not taken by another project of the client (F15)."""
+    name is not taken by another project of the client."""
     from . import names
 
     with names.lock:

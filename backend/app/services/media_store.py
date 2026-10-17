@@ -45,7 +45,7 @@ SHOWN = {
     "ttf": "font/ttf",
 }
 IMAGES = {"jpeg", "png", "gif", "webp", "avif", "bmp"}
-#: What an upload for a logo, or for a font, has to be (F9): anything else is refused, not stored as a stray file.
+#: What an upload for a logo, or for a font, has to be: anything else is refused, not stored as a stray file.
 #: A logo is what a browser shows: a HEIC counts once it became a WebP. The interface takes whatever the server took
 #: (``expect``), so this is the one list.
 PICTURES = IMAGES | {"svg"}
@@ -211,7 +211,7 @@ def _pixels(path: Path, kind: str) -> int:
 
 
 def svg_problem(data: bytes) -> str | None:
-    """Why an SVG may not come in, or None. Refused, never mended (A12): a script, an event attribute (``on…``), a
+    """Why an SVG may not come in, or None. Refused, never mended: a script, an event attribute (``on…``), a
     ``javascript:`` address, embedded HTML (``foreignObject``), a DOCTYPE or entity, or XML that does not read.
     A logo travels into the client's websites and design systems; there it would run."""
     from xml.etree import ElementTree
@@ -271,7 +271,7 @@ def wide_markup(head: bytes) -> bool:
     allowed before it), or as nothing but blanks in such an encoding: such an SVG, stored as a plain file, would still
     open as one elsewhere and its script would run, while the byte checks here read past it. Blanks to the end of the
     head count as markup: the head is all that is read (``WIDE_HEAD``), and an archive or a font with zero bytes in it
-    is never read further for this (A12)."""
+    is never read further for this."""
     head = head[:WIDE_HEAD].lstrip(b" \t\r\n")
     for encoding, mark in WIDE_MARKS:
         if head.startswith(mark):
@@ -328,7 +328,7 @@ def finish(
         _, code, text = EXPECTED[expect]
         raise MediaError(code, text, 422)
     digest = _hash(received)
-    # A file once kept in the house stays so; the same bytes uploaded anew come as a file of their own, free (A4).
+    # A file once kept in the house stays so; the same bytes uploaded anew come as a file of their own, free.
     existing = db.scalar(select(Media).where(Media.space_id == space_id, Media.sha256 == digest,
                                              Media.kept_in_house.is_(False)))
     if existing is not None and path_of(existing.id).is_file():

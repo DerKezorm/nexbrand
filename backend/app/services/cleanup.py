@@ -38,10 +38,10 @@ def used_media(space_id: int) -> set[str]:
 def run_once() -> None:
     now = utcnow()
     with SessionLocal() as db:
-        # A client from nexsuite goes when nexsuite says so ("clients_gone"): by the clock here it went up to a day
-        # early, and a restore there then brought back an empty client (E3). Its group of rights goes with it. One
-        # nexsuite no longer gives nexbrand was put into the trash here by the operator (B18): nexsuite says nothing
-        # about it, so the clock here counts.
+        # A client from the directory service goes when the directory service says so ("clients_gone"): by the clock
+        # here it went up to a day early, and a restore there then brought back an empty client. Its group of rights
+        # goes with it. One the directory service no longer gives nexbrand was put into the trash here by the operator:
+        # the directory service says nothing about it, so the clock here counts.
         expired = db.execute(select(Client, Space).join(Space, Space.id == Client.space_id).where(
             Client.deleted_at < now - timedelta(days=BIN_DAYS),
             or_(Space.external_id == "", Space.suite_dropped_at.is_not(None)))).all()

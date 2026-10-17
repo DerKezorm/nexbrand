@@ -3,7 +3,7 @@
 The protocol, who an identity is, the provider list and the button live in the shared module ``vendor/nexoidc``
 (the blueprint "Anmeldung mit OIDC und authentik", the same in every nex app); this router puts nexbrand around it:
 sessions, the sign-in brake, the password asked again before linking, the second factor, the page a sign-in started
-from (``services/landing.py``), the coupling to nexsuite (``services/suite.py``), and the error answers.
+from (``services/landing.py``), the coupling to the directory service (``services/suite.py``), and the error answers.
 
 The return leg is a browser redirect, not an API answer: the provider sends the browser back with GET, and a human
 sees whatever comes out. So every outcome of a callback ends in a redirect: to ``/`` (or the page the sign-in started
@@ -151,8 +151,8 @@ def _landing_cookie(response: Response, request: Request, page: str | None) -> N
 
 
 class AppRefusal(Exception):
-    """A refusal only nexbrand has, beside the module's fixed codes: ``suite_no_account`` while coupled to nexsuite.
-    It travels like the module's ``like`` code (same page, the cookie goes), under its own code."""
+    """A refusal only nexbrand has, beside the module's fixed codes: ``suite_no_account`` while coupled to the directory
+    service. It travels like the module's ``like`` code (same page, the cookie goes), under its own code."""
 
     def __init__(self, code: str, like: str, message: str) -> None:
         super().__init__(message)
@@ -163,7 +163,7 @@ def _refused(
     error_: OidcError | AppRefusal, cookie: str | None, request: Request, page: str | None
 ) -> RedirectResponse:
     """The module's way back after a failure; the sign-in page keeps the page asked for, so a second try still lands
-    there (B10)."""
+    there."""
     if isinstance(error_, AppRefusal):
         target = flow.refused(OidcError(error_.like, error_.message), cookie)
         location = target.location.replace(f"error={error_.like}", f"error={quote(error_.code)}", 1)
@@ -269,8 +269,8 @@ def authentik_address(_operator: OperatorAccount, request: Request) -> dict[str,
 
 @router.post("/authentik/address", summary="Use the address as nexbrand's public address, without setting up")
 def authentik_save_address(payload: AddressIn, operator: OperatorAccount, request: Request) -> dict[str, Any]:
-    # "Use it only" in the card. While connected, the address is nexsuite's to know (it knows the app by it): the same
-    # refusal as in the settings.
+    # "Use it only" in the card. While connected, the address is the directory service's to know (it knows the app by
+    # it): the same refusal as in the settings.
     with store() as s:
         suite.refuse_if_managed(s.db)
         try:
@@ -302,7 +302,7 @@ async def start(
     next_page: Annotated[str | None, Query(alias="next")] = None,
 ) -> RedirectResponse:
     # Public: this is the sign-in button. Failures land on the sign-in page with a code. ``next`` is the page the
-    # button was pressed for (a direct link); only a page of nexbrand's own goes along (B10).
+    # button was pressed for (a direct link); only a page of nexbrand's own goes along.
     page = landing.safe_next(next_page)
     with store() as s:
         try:
@@ -317,8 +317,8 @@ async def start(
 
 
 def _no_account(exc: OidcError, provider_managed: str) -> OidcError | AppRefusal:
-    """Coupled to nexsuite, an identity without an account is a person nexsuite does not give nexbrand: said as such,
-    with no invitation or linking offered (both are nexsuite's while coupled)."""
+    """Coupled to the directory service, an identity without an account is a person the directory service does not give
+    nexbrand: said as such, with no invitation or linking offered (both are the directory service's while coupled)."""
     if exc.code == "oidc_no_account" and provider_managed == MANAGED_NEXSUITE:
         return AppRefusal("suite_no_account", exc.code, exc.message)
     return exc
@@ -339,15 +339,15 @@ async def _returned(slug: str, request: Request) -> RedirectResponse:
             managed = arrival.provider.managed
             if arrival.started.purpose == "link":
                 # Coupled, nothing links: the start is refused, and an attempt from before the coupling comes back
-                # to an entry that is off (its own) or another one (nexsuite's), which the module refuses.
+                # to an entry that is off (its own) or another one (the directory service's), which the module refuses.
                 current_account = session_account(s.db, request.cookies.get(SESSION_COOKIE))
                 oidc_accounts.link(s, arrival, current_account.id if current_account else None)
                 brake.succeeded(key)
                 return _redirect(flow.arrived(arrival, flow.linked_page(slug)), request)
             if managed == MANAGED_NEXSUITE and s.find_link(arrival.provider.id, arrival.identity.subject) is None:
-                # A person made in nexsuite a moment ago may not be here yet: the directory is fetched once, in a
-                # worker thread so the server goes on meanwhile, and at most every half minute for the same person
-                # (B20).
+                # A person made in the directory service a moment ago may not be here yet: the directory is fetched
+                # once, in a worker thread so the server goes on meanwhile, and at most every half minute for the same
+                # person.
                 await run_in_threadpool(suite.catch_up, arrival.identity.subject)
                 s.db.expire_all()
             signed = oidc_accounts.sign_in(s, arrival)
@@ -401,7 +401,7 @@ def my_providers(account: Account) -> list[dict[str, Any]]:
             if not entry.enabled:
                 continue
             link = links.get(entry.id)
-            # The address the provider knows, offered when it is not the account's own (blueprint 01): an account
+            # The address the provider knows, offered when it is not the account's own: an account
             # through the provider only follows it anyway.
             offered = link.email if link is not None and link.email and link.email.strip().lower() != own else None
             out.append({"slug": entry.slug, "label": entry.label, "linked": link is not None, "address": offered})
@@ -409,8 +409,9 @@ def my_providers(account: Account) -> list[dict[str, Any]]:
 
 
 def _refuse_while_coupled(s: SqlStore) -> None:
-    """Coupled to nexsuite, the link is the person in nexsuite: linking another or unlinking it would give an account
-    (the emergency one) a way in nexsuite does not know, or make the next sync bring the person a second time."""
+    """Coupled to the directory service, the link is the person in the directory service: linking another or unlinking
+    it would give an account (the emergency one) a way in the directory service does not know, or make the next sync
+    bring the person a second time."""
     if providers.coupled(s):
         raise error("managed_by_suite", "This is kept in nexsuite now.", 409)
 
@@ -426,7 +427,7 @@ async def link_start(
         _refuse_while_coupled(s)
         row = s.db.get(AccountRow, account.id)
         assert row is not None
-        # The same brake as before start and return (blueprint 02, "Ablauf" 4): a braked sender links nothing.
+        # The same brake as before start and return: a braked sender links nothing.
         wait = brake.wait_seconds(_brake_key(request))
         if wait:
             raise error("too_many_attempts", "Too many attempts. Try again later.", 429, retry_after=wait)
@@ -465,8 +466,8 @@ def unlink(slug: Annotated[str, Path(max_length=40)], account: Account) -> None:
 # for the entry the authentik button makes (its slug is ``authentik``).
 @router.post("/me/address", summary="Take the address the provider knows as the own one")
 def take_provider_address(payload: TakeAddressIn, account: Account) -> dict[str, str]:
-    """Offered on the account page when the provider knows the account by another address (blueprint 01: only an
-    account through the provider only follows it by itself). It goes again with the last link."""
+    """Offered on the account page when the provider knows the account by another address. It goes again with the last
+    link."""
     with store() as s:
         entry = s.provider_by_slug(payload.slug)
         link = next((item for item in s.links_of_account(account.id) if entry and item.provider_id == entry.id), None)
@@ -503,7 +504,7 @@ def operator_unlink(
         if not removed:
             raise error("not_found", "Not found.", 404)
         if account_id != operator.id:
-            # Never unseen (blueprint 01): the account finds it under "New", with the provider's name.
+            # Never unseen: the account finds it under "New", with the provider's name.
             s.db.add(SpaceNotice(account_id=account_id, space_id=None, space_name=entry.label, kind=NOTICE_UNLINKED,
                                  actor=operator.name, actor_id=operator.id, subject=target.name))
             s.db.commit()

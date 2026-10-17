@@ -1,6 +1,5 @@
-// Clients and people while connected (Prüfgang 05.10.2026, block 4), as the pages show them: the bin (B6, B14), where
-// clients come from (B19), the connect assistant (B8, B9, B16, B23, B24, B25), the sign-in and invitation pages (B12,
-// B26), the way to nexsuite (G3) and the mail card (G8). The server is a stub that answers by path; nothing waits for a
+// Clients and people while connected, as the pages show them: the bin, where
+// clients come from, the connect assistant, the sign-in and invitation pages, the way to the directory service and the mail card. The server is a stub that answers by path; nothing waits for a
 // clock.
 import { act, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
@@ -157,10 +156,10 @@ afterEach(async () => {
   vi.unstubAllGlobals()
 })
 
-// --- B6, B14: the bin ----------------------------------------------------------------------------------------------
+// --- the bin ----------------------------------------------------------------------------------------------
 
 describe('the bin', () => {
-  it('offers nothing for a client deleted in nexsuite and says where it goes back', async () => {
+  it('offers nothing for a client deleted in the directory service and says where it goes back', async () => {
     auth.me = { ...ME, suite: 'connected' } as Me
     brands.bin = [client({ managed: true, deleted_at: '2026-10-04T10:00:00Z' })]
     const { ClientsPage } = await import('./ClientsPage')
@@ -203,9 +202,9 @@ describe('the bin', () => {
   })
 })
 
-// --- B19: where clients come from ----------------------------------------------------------------------------------
+// --- where clients come from ----------------------------------------------------------------------------------
 
-describe('clients from nexsuite', () => {
+describe('clients from the directory service', () => {
   it('are named so for everybody, not only on an empty list', async () => {
     auth.me = { ...ME, role: 'member', suite: 'connected', may_create_clients: false } as Me
     brands.clients = [client({ current: '1.0' })]
@@ -237,7 +236,7 @@ describe('clients from nexsuite', () => {
   })
 })
 
-// --- B8, B9, B16, B23, B24, B25: the connect assistant -------------------------------------------------------------
+// --- the connect assistant -------------------------------------------------------------
 
 const PROPOSAL = {
   people: [
@@ -272,7 +271,7 @@ describe('the connect assistant', () => {
       if (method === 'PUT' && path === '/api/suite/choices') return { status: 204 }
     }
     await wizard()
-    // robin's person has no display name there: connecting gives it the one from here (B16), so nothing changes.
+    // robin's person has no display name there: connecting gives it the one from here, so nothing changes.
     const robin = document.body.querySelector('[data-testid="suite-row-robin"]')
     expect(robin?.textContent).not.toContain(i18n.t('suite.changesName', { name: 'robin' }))
     const cleo = document.body.querySelector('[data-testid="suite-row-cleo"]')!
@@ -286,7 +285,7 @@ describe('the connect assistant', () => {
     const anna = document.body.querySelector('[data-testid="suite-row-anna"]')!
     expect(anna.textContent).toContain(i18n.t('suite.rowGone'))
     expect(anna.textContent).toContain(i18n.t('suite.rowFromSuite'))
-    // Every choice is kept on the server as it is made (B23).
+    // Every choice is kept on the server as it is made.
     const kept = server.calls.filter((c) => c.method === 'PUT' && c.path === '/api/suite/choices').at(-1)
     expect(kept?.body).toEqual({ accounts: { 1: '1', 4: '60', 5: 'skip' }, clients: {}, teams: {}, step: 2 })
   })
@@ -303,7 +302,7 @@ describe('the connect assistant', () => {
     const cleo = document.body.querySelector('[data-testid="suite-row-cleo"] select') as HTMLSelectElement
     const anna = document.body.querySelector('[data-testid="suite-row-anna"] select') as HTMLSelectElement
     expect(cleo.value).toBe('new')
-    expect(anna.value).toBe('skip') // a person nexsuite no longer has is not taken over
+    expect(anna.value).toBe('skip') // a person the directory service no longer has is not taken over
   })
 
   it('connects once however often it is clicked, saying it is at work', async () => {
@@ -348,7 +347,7 @@ describe('the connect assistant', () => {
     expect(cleo.value).toBe('skip')
   })
 
-  it('says when the address is not nexsuite', async () => {
+  it('says when the address is not the directory service', async () => {
     server.handler = (method, path) => {
       if (path === '/api/suite') return { status: 200, body: { state: '', url: '' } }
       if (method === 'POST' && path === '/api/suite/start') return { status: 409, body: { detail: { code: 'not_suite' } } }
@@ -373,7 +372,7 @@ describe('the connect assistant after a failed last step', () => {
       if (method === 'PUT' && path === '/api/suite/choices') return { status: 204 }
     }
     await wizard()
-    // robin's person has no display name in nexsuite: finishing sends "Robin Example" along (B16), nothing changes.
+    // robin's person has no display name in the directory service: finishing sends "Robin Example" along, nothing changes.
     const robin = document.body.querySelector('[data-testid="suite-row-robin"]')!
     expect(robin.textContent).not.toContain('Display name becomes')
     // A person with a display name of its own still names the change.
@@ -382,7 +381,7 @@ describe('the connect assistant after a failed last step', () => {
     expect(cleo.textContent).toContain('Display name becomes “Cleo Example”')
   })
 
-  it('says what stays in nexsuite on giving up, only once something was created there', async () => {
+  it('says what stays in the directory service on giving up, only once something was created there', async () => {
     let made = 0
     server.handler = (method, path) => {
       if (path === '/api/suite') return CONNECTING
@@ -403,7 +402,7 @@ describe('the connect assistant after a failed last step', () => {
     )
   })
 
-  it('locks the choices once the connection went out to nexsuite, and says so', async () => {
+  it('locks the choices once the connection went out to the directory service, and says so', async () => {
     let sent = false
     server.handler = (method, path) => {
       if (path === '/api/suite') return CONNECTING
@@ -428,7 +427,7 @@ describe('the connect assistant after a failed last step', () => {
     expect(selects.every((select) => select.disabled)).toBe(true)
   })
 
-  it('shows after a reload exactly the choices that went out, locked, though nexsuite offers no client any more', async () => {
+  it('shows after a reload exactly the choices that went out, locked, though the directory service offers no client any more', async () => {
     server.handler = (method, path) => {
       if (path === '/api/suite') return CONNECTING
       if (path === '/api/suite/proposal')
@@ -458,7 +457,7 @@ describe('the connect assistant after a failed last step', () => {
     expect(server.calls.filter((c) => c.method === 'PUT' && c.path === '/api/suite/choices')).toHaveLength(0)
   })
 
-  it('says after giving up when nexsuite may still list nexbrand, and only then', async () => {
+  it('says after giving up when the directory service may still list nexbrand, and only then', async () => {
     let kept = true
     server.handler = (method, path) => {
       if (path === '/api/suite') return CONNECTING
@@ -482,10 +481,10 @@ describe('the connect assistant after a failed last step', () => {
   })
 })
 
-// --- B12, B26: sign-in and invitation ------------------------------------------------------------------------------
+// --- sign-in and invitation ------------------------------------------------------------------------------
 
 describe('the pages before signing in', () => {
-  it('name a new password in nexsuite among the reasons a session ended', async () => {
+  it('name a new password in the directory service among the reasons a session ended', async () => {
     auth.me = null
     server.handler = (_m, path) => {
       if (path === '/api/setup') return { status: 200, body: { needs_setup: false, signed_in: false } }
@@ -545,10 +544,10 @@ describe('the pages before signing in', () => {
   })
 })
 
-// --- G3, G8 --------------------------------------------------------------------------------------------------------
+// --- Where things live --------------------------------------------------------------------------------------------------------
 
 describe('while connected', () => {
-  it('the own account leads to nexsuite for password and second factor', async () => {
+  it('the own account leads to the directory service for password and second factor', async () => {
     auth.me = { ...ME, role: 'member', sign_in: 'oidc', suite: 'connected', suite_url: 'https://suite.example.com' } as Me
     server.handler = (_m, path) => {
       if (path === '/api/auth/methods') return { status: 200, body: { password: false, providers: [{ slug: 'oidc', label: 'nexsuite' }], suite: true } }
@@ -559,7 +558,7 @@ describe('while connected', () => {
     expect(page.querySelector('[data-testid="suite-link"]')?.getAttribute('href')).toBe('https://suite.example.com')
   })
 
-  it('the second factor names the emergency codes from nexsuite only while connected', async () => {
+  it('the second factor names the emergency codes from the directory service only while connected', async () => {
     server.handler = (_m, path) => {
       if (path === '/api/auth/methods') return { status: 200, body: { password: true, providers: [] } }
     }
@@ -577,7 +576,7 @@ describe('while connected', () => {
     expect(lead(connected)).toContain('emergency codes from nexsuite')
   })
 
-  it('the mail card shows what came from nexsuite, in words of the page', async () => {
+  it('the mail card shows what came from the directory service, in words of the page', async () => {
     auth.me = { ...ME, suite: 'connected', suite_mail: true } as Me
     const { MailCard } = await import('./settings/ServerCards')
     const settings = { smtp_host: 'smtp.example.com', smtp_port: 25, smtp_security: 'none', smtp_user: '', smtp_from: 'brand@example.com' }
@@ -588,7 +587,7 @@ describe('while connected', () => {
     expect(page.querySelector('input')).toBeNull()
   })
 
-  it('the mail card says once that nexsuite has no mail server', async () => {
+  it('the mail card says once that the directory service has no mail server', async () => {
     auth.me = { ...ME, suite: 'connected', suite_mail: true } as Me
     const { MailCard } = await import('./settings/ServerCards')
     const settings = { smtp_host: '', smtp_port: 587, smtp_security: 'starttls', smtp_user: '', smtp_from: '' }
@@ -599,7 +598,7 @@ describe('while connected', () => {
     expect(page.querySelector('[data-testid="mail-from-suite"]')).toBeNull()
   })
 
-  it('every client and its access is only looked at where nexsuite keeps the rights', async () => {
+  it('every client and its access is only looked at where the directory service keeps the rights', async () => {
     auth.me = { ...ME, suite: 'connected' } as Me
     server.handler = (_m, path) => {
       if (path === '/api/admin/spaces') return { status: 200, body: [{ id: 7, name: 'Example Bakery', members: 1, managers: ['robin'], role: 'manage', managed: true }] }

@@ -71,7 +71,7 @@ def _own(idp: FakeProvider) -> dict[str, Any]:
             "oidc_provider_name": "Company", "oidc_auto_create": False}
 
 
-# --- B2: removed, another issuer, unlinked --------------------------------------------------------------------------
+# --- removed, another issuer, unlinked --------------------------------------------------------------------------
 
 
 def test_the_migration_keeps_the_old_settings_and_subjects_as_they_were(
@@ -200,7 +200,7 @@ def test_unlinking_takes_the_subject_from_the_old_column_and_a_new_link_comes_in
     assert _columns()["anna"] == ("anna-2", "")
 
 
-# --- B1: coupling and uncoupling --------------------------------------------------------------------------------
+# --- coupling and uncoupling --------------------------------------------------------------------------------
 
 
 def test_coupling_writes_the_old_settings_as_0_1_1_did_and_uncoupling_gives_the_own_back(
@@ -211,7 +211,7 @@ def test_coupling_writes_the_old_settings_as_0_1_1_did_and_uncoupling_gives_the_
     connect(client, world, operator)
     with SessionLocal() as db:
         values = settings_service.get_all(db)
-    # nexsuite is the provider 0.1.1 finds, its persons are the accounts' subjects ...
+    # The directory service is the provider 0.1.1 finds, its persons are the accounts' subjects ...
     assert _old_settings(values) == {"oidc_issuer": SUITE, "oidc_client_id": "nxs-client",
                                      "oidc_client_secret": "the-client-secret", "oidc_provider_name": "nexsuite",
                                      "oidc_auto_create": False}
@@ -223,7 +223,7 @@ def test_coupling_writes_the_old_settings_as_0_1_1_did_and_uncoupling_gives_the_
     assert _old_settings(values["suite_saved"]) == _own(provider)
     assert columns["cleo"] == ("", "ak-cleo") and columns["anna"][1] == "ak-anna"
     assert {own for name, (_, own) in columns.items() if name not in ("anna", "cleo")} == {""}
-    # A sync keeps it so; a person made in nexsuite comes into the old column too.
+    # A sync keeps it so; a person made in the directory service comes into the old column too.
     fake.people["60"] = {"id": "60", "name": "fritz", "display_name": "Fritz", "email": "fritz@example.com",
                          "operator": False, "blocked": False}
     assert client.post("/api/suite/sync").status_code in (200, 204)
@@ -269,7 +269,7 @@ def test_coupling_without_an_own_provider_leaves_nothing_to_give_back(
     assert {subjects for subjects in _columns().values()} == {("", "")}
 
 
-# --- B4: the old order of 0.1.1, the sign-in name included -------------------------------------------------------
+# --- the old order of 0.1.1, the sign-in name included -------------------------------------------------------
 
 
 def _as_0_1_1_left_it(change: Any) -> None:
@@ -334,7 +334,7 @@ def test_migrated_the_operators_choice_when_connecting_goes_before_the_name(
 def test_a_waiting_subject_nobody_may_claim_goes_from_the_old_column_too(
     client: TestClient, operator: Account, world: dict, fake: FakeSuite
 ) -> None:
-    # cleo, left out (blocked, unmarked), holds a subject nexsuite has no person for: as 0.1.1's sync, nobody claims
+    # cleo, left out (blocked, unmarked), holds a subject the directory service has no person for: as 0.1.1's sync, nobody claims
     # it, and it never turns into a link; she stays blocked.
     connect(client, world, operator)
 
@@ -405,7 +405,7 @@ def test_waiting_persons_get_no_link_when_disconnected_before_a_sync(
         assert settings_service.get(db, oidc_store.WAITING) is None
 
 
-# --- B5: 0.1.1 makes accounts on a database this version made ------------------------------------------------------
+# --- 0.1.1 makes accounts on a database this version made ------------------------------------------------------
 
 
 def test_an_account_made_without_the_new_column_gets_its_default(client: TestClient, operator: Account) -> None:

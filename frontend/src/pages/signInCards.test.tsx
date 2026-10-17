@@ -1,5 +1,5 @@
-// Settings, Server, Sign-in (blueprint 04): three cards. The authentik steps after "Set up", each by its name, a failed
-// one with its reason in words (Prüfgang C4), a line while authentik is asked; the provider list with its marks, read
+// Settings, Server, Sign-in: three cards. The authentik steps after "Set up", each by its name, a failed
+// one with its reason in words, a line while authentik is asked; the provider list with its marks, read
 // only while coupled; the form in the blueprint's order; the confirmations with their numbers. The step keys come from
 // the server's own list (`STEP_KEYS` in the shared module), so a step without a name shows up here instead of as a
 // bare key on the operator's screen.

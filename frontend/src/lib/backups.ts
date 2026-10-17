@@ -1,7 +1,7 @@
 import type { Me } from '../api/client'
 
-/** What the backup list offers this account. Connected to nexsuite, only the emergency account downloads or deletes
- *  a backup (the archive holds its password and second factor), and restoring waits for a disconnect: nexsuite keeps
+/** What the backup list offers this account. Connected to the directory service, only the emergency account downloads or deletes
+ *  a backup (the archive holds its password and second factor), and restoring waits for a disconnect: the directory service keeps
  *  the accounts then, and the server refuses it anyway; so does an upload, which is only ever brought in to be
  *  restored. */
 export function backupActions(me: Pick<Me, 'suite' | 'suite_emergency'> | null | undefined): {

@@ -43,7 +43,7 @@ class NoticeView:
     actor: str
     subject: str
     created_at: datetime
-    #: The notice is about the account reading it: the page says "you" instead of its name (H5).
+    #: The notice is about the account reading it: the page says "you" instead of its name.
     mine: bool = False
 
 
@@ -144,7 +144,7 @@ def answer(db: Session, account: Account, notice_id: int, *, accept: bool) -> st
     """Accept or decline an invitation; the space's name when accepted. Anything else: seen.
 
     Taking it is one statement that only succeeds while the notice is open and the account's: a manager who withdraws
-    it, or a second answer, between reading and writing finds nothing (Prüfgang 05.10.2026 D5)."""
+    it, or a second answer, between reading and writing finds nothing."""
     row = _own(db, account, notice_id)
     taken = db.execute(
         update(SpaceNotice)

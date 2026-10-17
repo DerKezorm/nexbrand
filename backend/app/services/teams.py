@@ -1,6 +1,6 @@
-"""Teams: who works together. The same in every app of the family (nextasks has them too).
+"""Teams: who works together. The same in every app of the family.
 
-A team is kept by nexbrand itself (``local``) or later by the family's admin app (``admin``). nexbrand changes the
+A team is kept by nexbrand itself (``local``) or later by a separate admin app (``admin``). nexbrand changes the
 members of a local team only; an ``admin`` team follows its source.
 """
 
@@ -61,7 +61,7 @@ def is_member(db: Session, team_id: int, account_id: int) -> bool:
 
 def may_change(account: Account, team: Team, leads_edit: bool) -> bool:
     """The operator changes every team; the lead the members of a local team, when the operator allows leads to
-    (``team_leads_edit``, off from the start as in nexsuite, Prüfgang 05.10.2026 D3)."""
+    (``team_leads_edit``, off from the start)."""
     return account.role == OPERATOR or (leads_edit and team.lead_id == account.id and team.source == TEAM_LOCAL)
 
 
@@ -79,7 +79,7 @@ def view(db: Session, team: Team) -> dict:
 
 
 def _name_free(db: Session, name: str, own_id: int | None = None) -> str:
-    """``name`` cleaned, when no other team has it (F15: without capitals and spaces at the ends)."""
+    """``name`` cleaned, when no other team has it (without capitals and spaces at the ends)."""
     from . import names
 
     clean = clean_name(name)

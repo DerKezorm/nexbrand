@@ -96,7 +96,7 @@ function ServerPart({ part }: { part: Part }) {
         </>
       )
     case 'signin':
-      // Coupled, the sign-in comes through the coupling: the cards stay visible, read only (blueprint 06).
+      // Coupled, the sign-in comes through the coupling: the cards stay visible, read only.
       return (
         <>
           {connected && <ManagedCard title={t('settings.parts.signin')} text={t('suite.managedSignIn')} />}

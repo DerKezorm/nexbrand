@@ -41,8 +41,8 @@ export function useNames(): Names {
   }
 }
 
-/** Uploads one file after another. `first`: the first of a choice (an earlier problem goes). `expect`: the server refuses a file of another kind (a text named `.png` as a logo,
- * F9) and the editor says which file it was; the others still come. */
+/** Uploads one file after another. `first`: the first of a choice (an earlier problem goes). `expect`: the server refuses a file of another kind (a text named `.png` as a logo)
+ * and the editor says which file it was; the others still come. */
 function useUpload(ctx: Ctx) {
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
@@ -88,7 +88,7 @@ function FileButton({ label, accept, onFiles, busy = false, multiple = false }: 
 }
 
 /** A colour picker beside its value as text. `lenient`: whatever `parseColor` reads counts already while typing
- * (`000`, `#000`, `rgb(…)`), not only after leaving the field; `invalid` says what is wrong (F16). */
+ * (`000`, `#000`, `rgb(…)`), not only after leaving the field; `invalid` says what is wrong. */
 export function ColorField({ value, onChange, label, transparent = false, lenient = false, invalid }: { value: string; onChange: (v: string) => void; label: string; transparent?: boolean; lenient?: boolean; invalid?: string }) {
   const read = lenient ? parseColor(value) : isHex(value) ? value : null
   const fine = read !== null || (transparent && value === 'transparent')
@@ -253,7 +253,7 @@ function FontsEditor({ fonts, onChange, ctx }: { fonts: BrandFont[]; onChange: (
     const ids: string[] = []
     for (const [n, file] of files.entries()) {
       const made = await upload.send(file, n === 0, 'font')
-      // The server took it as a font (`expect`): its list is the one that counts (F9).
+      // The server took it as a font (`expect`): its list is the one that counts.
       if (made) ids.push(made.id)
     }
     if (!ids.length) return
@@ -371,7 +371,7 @@ function LogosEditor({ logos, colors, fonts, name, onChange, ctx }: { logos: Bra
     const made: BrandLogo[] = []
     for (const [n, file] of files.entries()) {
       const m = await upload.send(file, n === 0, 'picture')
-      // The server took it as a picture (`expect`, a HEIC as WebP): its list is the one that counts (F9).
+      // The server took it as a picture (`expect`, a HEIC as WebP): its list is the one that counts.
       if (m)
         made.push({ id: newId('logo-' + (logos.length + made.length + 1)), name: file.name.replace(/\.[^.]+$/, ''), media: m.id, fg: '#000000', accent: '#000000', ground: '#FFFFFF', files: [] })
     }
@@ -569,7 +569,7 @@ function RulesEditor({ value, hints, onChange }: { value: BrandSet; hints: Hint[
       <p className="text-sm text-mist-400">{t('rules.intro')}</p>
       {rules.map((r, i) => {
         const mine = hints.filter((h) => h.rule === i)
-        // Numbered, and cut after a whole word: two rules may start alike, and a name cut mid-word reads as nonsense (F32).
+        // Numbered, and cut after a whole word: two rules may start alike, and a name cut mid-word reads as nonsense.
         const label = t('rules.numbered', { number: i + 1, text: shorten(words.sentence(r, value.logos)) })
         return (
           <Row key={i} label={label} onRemove={() => onChange(rules.filter((_, j) => j !== i))} onUp={i ? () => onChange(move(rules, i, i - 1)) : undefined} onDown={i < rules.length - 1 ? () => onChange(move(rules, i, i + 1)) : undefined}>
@@ -988,7 +988,7 @@ export function SetEditor({ value, onChange, name, ctx, inherit }: { value: Bran
             <h3 className="text-sm font-semibold">{t('editor.live')}</h3>
             <span className={'rounded-full border px-2 py-0.5 text-[11px] ' + (serious.length || unread.length ? 'border-warn-500/40 text-warn-500' : 'border-ok-500/40 text-ok-500')}>{serious.length || unread.length ? t('editor.hints', { count: serious.length + unread.length }) : t('editor.allGood')}</span>
           </div>
-          {/* A colour that cannot be read is left out of the checks: "all good" would not be true (F11). */}
+          {/* A colour that cannot be read is left out of the checks: "all good" would not be true. */}
           {unread.length > 0 && (
             <p role="status" className="mb-2 flex gap-2 rounded-xl border border-warn-500/40 bg-warn-500/8 px-3 py-2 text-sm text-mist-200" data-testid="unread-colors">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warn-500" aria-hidden />

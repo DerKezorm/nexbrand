@@ -28,7 +28,7 @@ import { Button, Confirm, Feedback, Input, Select, useAction } from './settings/
 import { useTitle } from '../lib/title'
 import { useBrands } from '../state/brands'
 
-/** A value the server refused, with the item and field it is in (F11). */
+/** A value the server refused, with the item and field it is in. */
 function placeText(t: TFunction, place: Place): string {
   const what = t(`where.part.${place.part}`, { defaultValue: place.part })
   const name = place.name ? t('where.named', { what, name: place.name }) : place.index !== null ? t('where.numbered', { what, n: place.index + 1 }) : what
@@ -62,7 +62,7 @@ export function ClientPage() {
 
   const load = useCallback(async () => {
     try {
-      // A project that is not there (deleted, a link typed wrong) is said as such, under its client (F21).
+      // A project that is not there (deleted, a link typed wrong) is said as such, under its client.
       const asked = pid
         ? clientsApi.project(id, pid).catch((error: unknown) => {
             if (error instanceof ApiError && (error.status === 404 || error.status === 422)) return 'missing' as const
@@ -95,7 +95,7 @@ export function ClientPage() {
   // A project's versions are shown as they look (resolved); edited as what is their own.
   const versions: VersionInfo[] = useMemo(() => (pid ? (project?.versions ?? []).map((v) => ({ ...v, data: v.resolved })) : (whole?.versions ?? [])), [pid, project, whole])
   const published = versions.filter((v) => v.status === 'published')
-  // The one that holds today, as the server says: a version published to hold from a later day is not it yet (F2).
+  // The one that holds today, as the server says: a version published to hold from a later day is not it yet.
   const currentId = pid ? project?.current_id : whole?.current_id
   const current = published.find((v) => v.id === currentId)
   const chosenId = params.get('v')
@@ -144,7 +144,7 @@ export function ClientPage() {
       try {
         await clientsApi.saveDraft(whole.id, shown.id, { data: kept ? { ...draft, inherit: kept } : draft })
       } catch (error) {
-        // Which colour, which field: the server says where (F11).
+        // Which colour, which field: the server says where.
         if (error instanceof ApiError && error.code === 'invalid_set' && typeof error.values.where === 'string') setRefused(placeOf(error.values.where, draft))
         throw error
       }
@@ -195,7 +195,7 @@ export function ClientPage() {
   const face = project ? project.face : whole.face
   const clientCurrent = whole.versions.find((v) => v.id === whole.current_id)
   // The project stands on a published client version older than the one that holds today: lifting it is a step
-  // forward. On the one that holds, or on one that holds only from a later day, nothing to lift (F2).
+  // forward. On the one that holds, or on one that holds only from a later day, nothing to lift.
   const order = whole.versions.map((v) => v.id)
   const behind = !!(clientCurrent && own && base?.status === 'published' && order.indexOf(base.id) < order.indexOf(clientCurrent.id))
   // Published to hold from a later day than the one that holds now.
@@ -272,7 +272,7 @@ export function ClientPage() {
               <History className="h-4 w-4 text-accent-400" /> {t('client.timeline')}
             </h2>
             <div className="flex flex-wrap items-center gap-2 text-xs text-mist-500">
-              {/* Looking back only where there is something to see, said in the page, not in a browser alert (F29). */}
+              {/* Looking back only where there is something to see, said in the page, not in a browser alert. */}
               {published.length > 0 && (
                 <>
                   <CalendarClock className="h-3.5 w-3.5" />
@@ -447,7 +447,7 @@ export function ClientPage() {
               ) : (
                 <Feedback problem={save.problem} />
               )}
-              {/* Unsaved changes: asked with the family's dialog, not the browser's (F6). */}
+              {/* Unsaved changes: asked with the family's dialog, not the browser's. */}
               <button type="button" className="nc-btn nc-btn-ghost" onClick={() => (dirty ? setDialog('leave') : choose(shown.id))}>
                 {t('client.doneEditing')}
               </button>
@@ -534,7 +534,7 @@ export function ClientPage() {
   )
 }
 
-/** What goes with a draft that is or was before the client (F5): an open review closes, the client's comments go. */
+/** What goes with a draft that is or was before the client: an open review closes, the client's comments go. */
 function deleteDraftWarning(reviews: ClientWhole['reviews'], version: string, t: TFunction): string {
   const own = reviews.filter((r) => r.version_id === version)
   const said = own.reduce((sum, r) => sum + r.comments, 0)
@@ -542,7 +542,7 @@ function deleteDraftWarning(reviews: ClientWhole['reviews'], version: string, t:
   return said ? t('client.deleteDraftComments', { count: said }) : ''
 }
 
-/** Who has access: the people (with invitations) and the teams. A client nexsuite keeps shows them, changed there. */
+/** Who has access: the people (with invitations) and the teams. A client the directory service keeps shows them, changed there. */
 export function AccessButtons({ space }: { space: NonNullable<ReturnType<ReturnType<typeof useBrands>['space']>> }) {
   const { t } = useTranslation()
   const [open, setOpen] = useState<'people' | 'teams' | null>(null)
@@ -564,7 +564,7 @@ export function AccessButtons({ space }: { space: NonNullable<ReturnType<ReturnT
   )
 }
 
-/** A client nexsuite brought, or one made without a design set: three ways to its first version. */
+/** A client the directory service brought, or one made without a design set: three ways to its first version. */
 function NoDesignYet({ whole, reload, onMade }: { whole: ClientWhole; reload: () => Promise<unknown>; onMade: (v: VersionInfo) => void }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -658,7 +658,7 @@ function EditClient({ whole, onClose, onSaved }: { whole: ClientWhole; onClose: 
   const [note, setNote] = useState(whole.note)
   const [links, setLinks] = useState<ClientLink[]>(whole.links)
   const { busy, problem, run } = useAction()
-  // Kept in nexsuite: name, sector, contact and colour are changed there; the note and the addresses are nexbrand's.
+  // Kept in the directory service: name, sector, contact and colour are changed there; the note and the addresses are nexbrand's.
   const kept = whole.managed
   const usable = links.filter((l) => l.url.trim())
   const change = kept ? { note, links: usable } : { name, sector, contact, note, links: usable, ...(CLIENT_COLORS.includes(color) ? { color } : {}) }
@@ -848,7 +848,7 @@ function NewProject({ whole, onClose, onMade }: { whole: ClientWhole; onClose: (
   const { t } = useTranslation()
   const published = whole.versions.filter((v) => v.status === 'published')
   const [name, setName] = useState('')
-  // The version that holds today first; one that holds only from a later day is chosen on purpose (F2).
+  // The version that holds today first; one that holds only from a later day is chosen on purpose.
   const [version, setVersion] = useState((whole.versions.find((v) => v.id === whole.current_id) ?? published[published.length - 1] ?? whole.versions[0]).id)
   const { busy, problem, run } = useAction()
   return (

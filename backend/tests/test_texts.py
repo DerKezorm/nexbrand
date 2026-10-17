@@ -29,11 +29,11 @@ ROOT = Path(__file__).resolve().parents[2]
 APP = ROOT / "backend" / "app"
 FRONTEND = ROOT / "frontend" / "src"
 
-#: Codes put together at run time or passed on from nexsuite, with their source.
+#: Codes put together at run time or passed on from the directory service, with their source.
 BUILT = {
     # services/suite.py: f"{what}_twice", f"{what}_unknown" for person, client, team
     "person_twice", "client_twice", "team_twice", "person_unknown", "client_unknown", "team_unknown",
-    # services/suite.py: nexsuite's own code, passed on when it refuses to pair (409)
+    # services/suite.py: the directory service's own code, passed on when it refuses to pair (409)
     "app_still_connected", "app_not_reachable",
 }
 
@@ -136,8 +136,8 @@ def test_the_strings_of_the_server_include_f_strings() -> None:
 
 
 def test_english_says_trash_where_german_says_papierkorb() -> None:
-    """The family says "trash" (decided 06.10.2026): the page, what's new, the server's sentences and the API's own
-    descriptions. Keys, routes and fields named ``bin`` stay: nexsuite reads them."""
+    """The family says "trash": the page, what's new, the server's sentences and the API's own
+    descriptions. Keys, routes and fields named ``bin`` stay: the directory service reads them."""
     bin_word = re.compile(r"\bbins?\b", re.IGNORECASE)
     found = []
     for path in (FRONTEND / "i18n" / "en.json", FRONTEND / "i18n" / "whatsnew" / "en.json"):
@@ -159,7 +159,7 @@ def test_english_says_trash_where_german_says_papierkorb() -> None:
 
 
 def test_the_server_speaks_english_not_german_word_for_word() -> None:
-    """As ``used.test.ts`` for the page: enter, create and contain, not give, make and hold (nexbrand #job-159). Every
+    """As ``used.test.ts`` for the page: enter, create and contain, not give, make and hold. Every
     string a program or the log can show counts, f-strings included; of the docstrings only those of routes, which
     FastAPI shows in the API description."""
     stiff = re.compile(r"\bGive (a|the)\b|\bMake a new\b|\bholds\b|\bmak(e|es|ing) (a |an |its own |their own |read-only )?"
@@ -238,8 +238,8 @@ def test_a_notice_about_the_reader_says_you_and_names_people_by_their_display_na
 
 
 def test_the_api_description_names_nexsuite_only_where_the_coupling_is() -> None:
-    """What every instance shows (the API description, with ``NEXBRAND_API_DOCS``) says "nexsuite" for the coupling
-    routes only: an instance that never couples has no reason to know the name (decided 10.10.2026)."""
+    """What every instance shows (the API description, with ``NEXBRAND_API_DOCS``) says "the directory service" for the coupling
+    routes only: an instance that never couples has no reason to know the name."""
     from app.main import app
 
     spec = app.openapi()
