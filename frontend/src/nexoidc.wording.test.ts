@@ -1,6 +1,6 @@
 /**
- * Pflichttest 35: every text of the oidc module is in the app, in German and English, through the app's
- * own i18n. Copied once by `bauplaene/oidc/tools/sync.py` to `frontend/src/nexoidc.wording.test.ts`; then the
+ * Every text of the oidc module is in the app, in German and English, through the app's
+ * own i18n. Copied once from the module; then the
  * app's file (nexbrand's now).
  *
  * The module's own tests already check the wording files word for word; this test checks that the
