@@ -464,6 +464,100 @@ def test_an_account_sees_only_its_own_events(client: TestClient, service: Callab
     assert stranger.get("/api/ai").json()["access"]["key_set"] is False
 
 
+_DIRECTIONS = {"directions": [{"label": "A", "hue": 10}]}
+_WANTS_COMPLETION = "Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."
+_NO_TEMPERATURE = "Unsupported value: 'temperature' does not support 0.3 with this model. Only the default (1) value is supported."
+
+
+def _refusing(refuse: Callable[[dict[str, Any]], str], sent: list[dict[str, Any]]) -> httpx.MockTransport:
+    """A service that turns down a request with the words ``refuse`` finds for its body (none: it answers)."""
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        sent.append(body)
+        if len(sent) > 10:  # A loop that asks again and again fails here instead of hanging.
+            raise AssertionError("asked more than ten times")
+        said = refuse(body)
+        if said:
+            return httpx.Response(400, json={"error": {"message": said, "type": "invalid_request_error"}})
+        return httpx.Response(200, json={"choices": [{"message": {"content": json.dumps(_DIRECTIONS)}}]})
+
+    return httpx.MockTransport(answer)
+
+
+def _newer_openai(body: dict[str, Any]) -> str:
+    """Like gpt-5 and later: only ``max_completion_tokens``, only the default temperature."""
+    if "max_tokens" in body:
+        return _WANTS_COMPLETION
+    if "temperature" in body:
+        return _NO_TEMPERATURE
+    return ""
+
+
+def test_an_older_model_gets_max_tokens_in_one_request(client: TestClient, service: Callable[[Any], None],
+                                                       monkeypatch: pytest.MonkeyPatch) -> None:
+    sent: list[dict[str, Any]] = []
+    monkeypatch.setattr(ai, "transport", _refusing(lambda body: "", sent))
+    assert client.post("/api/ai/directions", json={"brief": "a bakery"}).status_code == 200
+    assert len(sent) == 1
+    assert sent[0]["max_tokens"] == ai.MAX_OUT_TOKENS and "temperature" in sent[0]
+    assert "max_completion_tokens" not in sent[0] and "reasoning_effort" not in sent[0]
+
+
+def test_a_newer_openai_model_gets_the_limit_as_max_completion_tokens(client: TestClient,
+                                                                      service: Callable[[Any], None],
+                                                                      monkeypatch: pytest.MonkeyPatch) -> None:
+    sent: list[dict[str, Any]] = []
+    monkeypatch.setattr(ai, "transport", _refusing(_newer_openai, sent))
+    answer = client.post("/api/ai/directions", json={"brief": "a bakery"})
+    assert answer.status_code == 200, answer.text
+    assert len(sent) == 3
+    last = sent[-1]
+    assert "max_tokens" not in last and "temperature" not in last
+    assert last["max_completion_tokens"] == ai.MAX_OUT_TOKENS + ai.THINKING_OUT_TOKENS
+    assert last["reasoning_effort"] == "low"
+    # What went out is what was sent last.
+    events = client.get("/api/ai/events").json()
+    assert events[0]["body"]["max_completion_tokens"] == last["max_completion_tokens"]
+
+
+def test_a_model_that_does_not_take_reasoning_effort_is_asked_once_more_without(
+        client: TestClient, service: Callable[[Any], None], monkeypatch: pytest.MonkeyPatch) -> None:
+    sent: list[dict[str, Any]] = []
+
+    def refuse(body: dict[str, Any]) -> str:
+        if "reasoning_effort" in body:
+            return "Unsupported parameter: 'reasoning_effort' is not supported with this model."
+        return _newer_openai(body)
+
+    monkeypatch.setattr(ai, "transport", _refusing(refuse, sent))
+    assert client.post("/api/ai/directions", json={"brief": "a bakery"}).status_code == 200
+    assert len(sent) == 4
+    assert "reasoning_effort" not in sent[-1]
+    assert sent[-1]["max_completion_tokens"] == ai.MAX_OUT_TOKENS + ai.THINKING_OUT_TOKENS
+
+
+def test_a_refusal_that_only_names_max_tokens_does_not_rename_it(client: TestClient,
+                                                                 service: Callable[[Any], None],
+                                                                 monkeypatch: pytest.MonkeyPatch) -> None:
+    sent: list[dict[str, Any]] = []
+    monkeypatch.setattr(ai, "transport", _refusing(lambda body: "max_tokens must be at most 2048", sent))
+    answer = client.post("/api/ai/directions", json={"brief": "a bakery"})
+    assert answer.status_code == 502
+    assert answer.json()["detail"]["code"] == "ai_service_failed"
+    assert len(sent) == 1
+
+
+def test_a_service_that_keeps_refusing_is_asked_each_field_at_most_once(client: TestClient,
+                                                                        service: Callable[[Any], None],
+                                                                        monkeypatch: pytest.MonkeyPatch) -> None:
+    sent: list[dict[str, Any]] = []
+    said = f"{_WANTS_COMPLETION} {_NO_TEMPERATURE} reasoning"
+    monkeypatch.setattr(ai, "transport", _refusing(lambda body: said, sent))
+    assert client.post("/api/ai/directions", json={"brief": "a bakery"}).status_code == 502
+    assert len(sent) == 4
+
+
 def test_a_collected_draft_says_where_it_came_from(client: TestClient, operator: Account, space: int) -> None:
     from .test_brands import make_client
 

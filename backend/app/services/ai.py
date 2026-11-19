@@ -46,6 +46,8 @@ TEXT_SECONDS = 120.0
 MAX_MODELS = 500
 MAX_CHARS = 40_000
 MAX_OUT_TOKENS = 4_000
+#: What a model that thinks before it answers gets on top: its thoughts count against ``max_completion_tokens``.
+THINKING_OUT_TOKENS = 4_000
 SAID_CHARS = 300
 MAX_OUT_CHARS = 100_000
 PER_MINUTE = 20
@@ -410,6 +412,30 @@ class _Pace:
 pace = _Pace()
 
 
+#: What a request may carry that a service may turn down, and the word its refusal names it by: asked once more without.
+#: ``max_tokens`` is not dropped but sent as ``max_completion_tokens`` (newer OpenAI models take only that name, and
+#: their refusal says so; a refusal that only names ``max_tokens``, a limit too high, is no reason to rename it).
+OPTIONAL_FIELDS = (("temperature", "temperature"), ("reasoning_effort", "reasoning"),
+                   ("max_tokens", "max_completion_tokens"))
+
+
+def _request(model: str, temperature: float, messages: list[dict[str, str]],
+             left_out: frozenset[str]) -> dict[str, Any]:
+    """The request, without the optional fields in ``left_out``."""
+    body: dict[str, Any] = {"model": model}
+    if "max_tokens" in left_out:
+        # A model that wants ``max_completion_tokens`` thinks before it answers, and its thoughts count against the
+        # limit: room for them on top, and asked to keep them short (a model that does not take that is asked once
+        # more without).
+        body["max_completion_tokens"] = MAX_OUT_TOKENS + THINKING_OUT_TOKENS
+        if "reasoning_effort" not in left_out:
+            body["reasoning_effort"] = "low"
+    else:
+        body["max_tokens"] = MAX_OUT_TOKENS
+    if "temperature" not in left_out:
+        body["temperature"] = temperature
+    body["messages"] = messages
+    return body
 
 
 def run(db: Session, row: AccountRow, *, task: str, material: Any, language: str, fonts: str = "") -> Any:
@@ -431,15 +457,12 @@ def run(db: Session, row: AccountRow, *, task: str, material: Any, language: str
     instruction = template.replace("{language}", language).replace("{fonts}", fonts)
     if not pace.take(row.id):
         raise AiError("ai_too_often", 429)
-    body: dict[str, Any] = {
-        "model": row.ai_model,
-        "max_tokens": MAX_OUT_TOKENS,
-        "temperature": temperature,
-        "messages": [
-            {"role": "system", "content": f"{RULES}\n\nTask: {instruction}"},
-            {"role": "user", "content": text},
-        ],
-    }
+    messages = [
+        {"role": "system", "content": f"{RULES}\n\nTask: {instruction}"},
+        {"role": "user", "content": text},
+    ]
+    left_out: frozenset[str] = frozenset()
+    body = _request(row.ai_model, temperature, messages, left_out)
 
     def keep(tokens_in: int = 0, tokens_out: int = 0, failed: str = "") -> None:
         _keep(db, row, task=task, body=body, tokens_in=tokens_in, tokens_out=tokens_out, failed=failed)
@@ -448,8 +471,16 @@ def run(db: Session, row: AccountRow, *, task: str, material: Any, language: str
     try:
         with httpx.Client(timeout=TEXT_SECONDS, follow_redirects=False, transport=transport, trust_env=False) as client:
             answer = _send(client, "POST", place, _headers(key_of(row)), json=body)
-            if answer.status_code == 400 and "temperature" in _said(answer).lower():
-                del body["temperature"]
+            # Newer models choose the temperature themselves and turn down a request that sets it, and take the limit
+            # only as ``max_completion_tokens``; a service that does not know ``reasoning_effort`` may turn that down:
+            # once more without, each at most once.
+            while answer.status_code == 400:
+                said = _said(answer).lower()
+                field = next((name for name, word in OPTIONAL_FIELDS if name in body and word in said), None)
+                if field is None:
+                    break
+                left_out = left_out | {field}
+                body = _request(row.ai_model, temperature, messages, left_out)
                 answer = _send(client, "POST", place, _headers(key_of(row)), json=body)
     except httpx.ReadTimeout as exc:
         keep(failed="ai_timeout")
